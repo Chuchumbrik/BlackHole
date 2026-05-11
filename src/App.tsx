@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { GameCanvas } from "./components/GameCanvas";
+import { ViewScaleControls } from "./components/ViewScaleControls";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { useGameStore } from "./store/useGameStore";
 
@@ -45,6 +46,8 @@ function App() {
           </div>
         )}
       </div>
+
+      {activeTab === "game" && <ViewScaleControls />}
 
       <div className="app-ui">
         <header className="app-header">

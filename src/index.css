@@ -65,6 +65,54 @@ body,
   height: 100%;
 }
 
+.view-tier-controls {
+  position: fixed;
+  top: 4.35rem;
+  right: 1rem;
+  z-index: 2;
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  max-width: min(100vw - 2rem, 24rem);
+}
+
+.view-tier-controls button {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.view-tier-controls button.is-active {
+  border-color: rgba(155, 126, 217, 0.75);
+  background: rgba(155, 126, 217, 0.22);
+  color: #fff;
+}
+
+.view-tier-controls button:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.view-tier-hint {
+  font-size: 0.68rem;
+  color: #a78bfa;
+  width: 100%;
+  text-align: right;
+  line-height: 1.25;
+}
+
+.view-tier-hint-muted {
+  color: var(--muted);
+}
+
 .app-panel-placeholder {
   display: flex;
   flex-direction: column;

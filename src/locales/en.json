@@ -12,6 +12,16 @@
       "stats": "Stats"
     }
   },
+  "viewTier": {
+    "groupLabel": "View scale",
+    "local": "Near hole",
+    "system": "System",
+    "galaxy": "Galaxy",
+    "lockSystem": "Requires hole level sum ≥ {{need}} (yours: {{sum}}).",
+    "lockGalaxy": "Requires hole level sum ≥ {{need}} (yours: {{sum}}).",
+    "shipsActive": "Ships in spawn",
+    "shipsLocked": "Ships unlock at level sum ≥ {{need}} (yours: {{sum}})"
+  },
   "upgrades": {
     "title": "Black hole upgrades",
     "holeLevel": "Hole level (sum of branches): {{value}}",
