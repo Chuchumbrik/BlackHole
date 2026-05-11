@@ -31,7 +31,7 @@
 | Жанр | Deep Idle / Cosmic Simulator + god-game + risk-reward |
 | Платформа | Веб, desktop + fully responsive mobile |
 | Стек MVP | React, Vite, TS, PixiJS v8, Zustand, react-i18next |
-| Релиз приложения | Текущая рабочая версия — см. `package.json` (**0.2.4** — геометрия ТЗ v1.5 в симуляции и canvas); этапы — [[11 — Дорожная карта до MVP (фазы)]], журнал — `CHANGELOG.md` |
+| Релиз приложения | Текущая рабочая версия — см. `package.json` (**0.3.0** — фаза 2 ветка A 1–3 + визуал диска); см. также [[11 — Дорожная карта до MVP (фазы)]], `CHANGELOG.md` |
 
 ## Что изменилось в v1.5 (космология, фаза 1)
 

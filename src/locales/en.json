@@ -29,12 +29,12 @@
     "nextCost": "Next level: {{value}} MP",
     "buy": "Buy",
     "lock": {
-      "disk": "Unlocks when the sum of all branch levels is ≥ 5.",
+      "disk": "Available from the start (branch A, phase 2).",
       "efficiency": "Unlocks when the sum of all branch levels is ≥ 10."
     },
     "branches": {
       "size": {
-        "name": "Size",
+        "name": "Schwarzschild radius",
         "effect": "+12% event horizon radius per level (multiplicative)."
       },
       "gravity": {

@@ -13,6 +13,8 @@ import {
   BH_ORBIT_RADIUS_FRACTION,
   BH_SCREEN_ANGLE_RAD,
   FIELD_MP_GLOBAL_MULTIPLIER,
+  STAR_COLLISION_RADIUS_FRACTION,
+  STAR_DISPLAY_RADIUS_FRACTION,
   SYSTEM_OUTER_RADIUS_FRACTION,
 } from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
@@ -69,6 +71,7 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
     },
     bh: { x: bhX, y: bhY },
     systemRadius,
+    starCollisionRadius: minD * STAR_COLLISION_RADIUS_FRACTION,
   };
 }
 
@@ -90,6 +93,7 @@ function paintHole(
   layout: SimLayout,
   pulse01: number,
   diskLevel: number,
+  timeSec: number,
 ): void {
   const cx = layout.bh.x;
   const cy = layout.bh.y;
@@ -107,6 +111,33 @@ function paintHole(
   g.fill({ color: 0x000000 });
 
   if (diskLevel > 0) {
+    const omega = 0.38 + diskLevel * 0.05;
+    const arms = 3;
+    for (let arm = 0; arm < arms; arm++) {
+      const phase = timeSec * omega + arm * ((Math.PI * 2) / arms);
+      const rOuter = r * (1.52 + diskLevel * 0.04);
+      const sweep = Math.PI * 1.35;
+      g.moveTo(
+        cx + Math.cos(phase) * r * 1.18,
+        cy + Math.sin(phase) * r * 1.18,
+      );
+      g.arc(cx, cy, r * 1.18, phase, phase + sweep);
+      g.stroke({
+        width: 1.15 + diskLevel * 0.12,
+        color: 0xfbbf24,
+        alpha: Math.min(0.22 + diskLevel * 0.05, 0.55),
+      });
+      g.moveTo(
+        cx + Math.cos(phase + 0.08) * rOuter,
+        cy + Math.sin(phase + 0.08) * rOuter,
+      );
+      g.arc(cx, cy, rOuter, phase + 0.12, phase + sweep * 0.92);
+      g.stroke({
+        width: 1,
+        color: 0xf59e0b,
+        alpha: Math.min(0.18 + diskLevel * 0.05, 0.45),
+      });
+    }
     const alpha = Math.min(0.18 + diskLevel * 0.055, 0.72);
     g.circle(cx, cy, r * (1.62 + pulse01 * 0.05));
     g.stroke({ width: 2.5, color: 0xf59e0b, alpha });
@@ -115,7 +146,8 @@ function paintHole(
 
 function paintMainStar(g: Graphics, layout: SimLayout): void {
   g.clear();
-  const r = Math.max(7, Math.min(layout.width, layout.height) * 0.016);
+  const minS = Math.min(layout.width, layout.height);
+  const r = Math.max(9, minS * STAR_DISPLAY_RADIUS_FRACTION);
   g.circle(layout.star.x, layout.star.y, r * 1.7);
   g.fill({ color: 0xfbbf24, alpha: 0.2 });
   g.circle(layout.star.x, layout.star.y, r);
@@ -231,10 +263,23 @@ function pickObjectAtWorld(
   return bestId;
 }
 
+/** Визуальное сжатие у горизонта дыры перед исчезновением. */
+function spriteShrinkNearHorizon(o: SimObject, layout: SimLayout): number {
+  const d = Math.hypot(o.x - layout.bh.x, o.y - layout.bh.y);
+  const hr = layout.horizonRadius;
+  const gr = layout.gravityRadius;
+  if (d >= gr) return 1;
+  if (d <= hr) return 0.14;
+  const span = gr - hr;
+  const u = span > 1e-6 ? (d - hr) / span : 1;
+  return 0.14 + 0.86 * Math.max(0, Math.min(1, u));
+}
+
 function syncBodySprites(
   layer: Container,
   pool: Sprite[],
   objects: SimObject[],
+  layout: SimLayout,
 ): void {
   while (pool.length < objects.length) {
     const s = new Sprite(BODY_TEXTURE);
@@ -253,7 +298,8 @@ function syncBodySprites(
     const o = objects[i];
     const s = pool[i];
     const r = KIND_RADIUS[o.kind];
-    const d = r * 2;
+    const shrink = spriteShrinkNearHorizon(o, layout);
+    const d = r * 2 * shrink;
     s.width = d;
     s.height = d;
     s.tint = KIND_COLORS[o.kind];
@@ -274,6 +320,7 @@ export function GameCanvas() {
     let app: Application | null = null;
     let raf = 0;
     let observer: ResizeObserver | null = null;
+    let wheelCleanup: (() => void) | undefined;
 
     resetSimulationIds();
     let objects: SimObject[] = [];
@@ -325,6 +372,19 @@ export function GameCanvas() {
       let hoverObjectId: number | null = null;
       let selectedObjectId: number | null = null;
 
+      let panX = 0;
+      let panY = 0;
+      let userZoom = 1;
+      const USER_ZOOM_MIN = 0.42;
+      const USER_ZOOM_MAX = 2.85;
+      let panLastX = 0;
+      let panLastY = 0;
+      let ptrDown = false;
+      let ptrSX = 0;
+      let ptrSY = 0;
+      let ptrMoved = false;
+      const DRAG_THRESH = 7;
+
       const applyCamera = (
         levels: UpgradeLevels,
         layout: SimLayout,
@@ -337,9 +397,12 @@ export function GameCanvas() {
         }
         worldRoot.visible = true;
         galaxyRoot.visible = false;
-        const s = combinedWorldScale(levels, viewTier);
-        worldRoot.pivot.set(layout.star.x, layout.star.y);
-        worldRoot.position.set(layout.star.x, layout.star.y);
+        const s = combinedWorldScale(levels, viewTier) * userZoom;
+        worldRoot.pivot.set(layout.bh.x, layout.bh.y);
+        worldRoot.position.set(
+          layout.width / 2 + panX,
+          layout.height / 2 + panY,
+        );
         worldRoot.scale.set(s);
       };
 
@@ -349,9 +412,9 @@ export function GameCanvas() {
         const layout = layoutFromHost(host, levels);
         paintStars(stars, layout.width, layout.height);
         paintMainStar(mainStar, layout);
-        paintHole(hole, layout, consumePulse, levels.disk);
+        paintHole(hole, layout, consumePulse, levels.disk, performance.now() / 1000);
         paintGalaxy(galaxy, layout, consumePulse);
-        syncBodySprites(bodyLayer, spritePool, objects);
+        syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
       };
 
@@ -366,26 +429,84 @@ export function GameCanvas() {
       application.stage.eventMode = "static";
       application.stage.hitArea = application.screen;
 
-      application.stage.on("pointermove", (e) => {
+      application.stage.on("pointerdown", (e) => {
         if (useGameStore.getState().viewTier >= 2) return;
+        ptrDown = true;
+        ptrMoved = false;
+        ptrSX = e.global.x;
+        ptrSY = e.global.y;
+        panLastX = e.global.x;
+        panLastY = e.global.y;
+      });
+
+      application.stage.on("pointermove", (e) => {
+        const viewTier = useGameStore.getState().viewTier;
+        if (viewTier >= 2) return;
+
+        if (ptrDown) {
+          const moved = Math.hypot(
+            e.global.x - ptrSX,
+            e.global.y - ptrSY,
+          );
+          if (moved > DRAG_THRESH) ptrMoved = true;
+          if (ptrMoved) {
+            panX += e.global.x - panLastX;
+            panY += e.global.y - panLastY;
+            panLastX = e.global.x;
+            panLastY = e.global.y;
+            const lay = layoutFromHost(
+              host,
+              useGameStore.getState().upgradeLevels,
+            );
+            const maxP = Math.min(lay.width, lay.height) * 0.72;
+            panX = Math.max(-maxP, Math.min(maxP, panX));
+            panY = Math.max(-maxP, Math.min(maxP, panY));
+          }
+          return;
+        }
+
         const local = worldRoot.toLocal(e.global);
         hoverObjectId = pickObjectAtWorld(objects, local.x, local.y);
       });
 
-      application.stage.on("pointertap", (e) => {
+      const finishPointerPick = (e: {
+        global: { x: number; y: number };
+      }) => {
         if (useGameStore.getState().viewTier >= 2) return;
-        const local = worldRoot.toLocal(e.global);
-        const id = pickObjectAtWorld(objects, local.x, local.y);
-        if (id === null) {
-          selectedObjectId = null;
-        } else {
-          selectedObjectId = selectedObjectId === id ? null : id;
+        if (!ptrDown) return;
+        ptrDown = false;
+        if (!ptrMoved) {
+          const local = worldRoot.toLocal(e.global);
+          const id = pickObjectAtWorld(objects, local.x, local.y);
+          if (id === null) {
+            selectedObjectId = null;
+          } else {
+            selectedObjectId = selectedObjectId === id ? null : id;
+          }
         }
-      });
+      };
+
+      application.stage.on("pointerup", finishPointerPick);
+      application.stage.on("pointerupoutside", finishPointerPick);
 
       application.stage.on("pointerleave", () => {
         hoverObjectId = null;
+        ptrDown = false;
       });
+
+      const canvasEl = application.canvas;
+      const onWheel = (ev: WheelEvent) => {
+        ev.preventDefault();
+        if (cancelled || useGameStore.getState().viewTier >= 2) return;
+        const factor = ev.deltaY > 0 ? 1.06 : 1 / 1.06;
+        userZoom = Math.max(
+          USER_ZOOM_MIN,
+          Math.min(USER_ZOOM_MAX, userZoom * factor),
+        );
+      };
+      canvasEl.addEventListener("wheel", onWheel, { passive: false });
+      wheelCleanup = () =>
+        canvasEl.removeEventListener("wheel", onWheel);
 
       let lastMs = performance.now();
 
@@ -480,10 +601,10 @@ export function GameCanvas() {
 
         consumePulse = Math.max(0, consumePulse - dt * 3.5);
 
-        paintHole(hole, layout, consumePulse, levels.disk);
+        paintHole(hole, layout, consumePulse, levels.disk, nowMs / 1000);
         paintMainStar(mainStar, layout);
         paintGalaxy(galaxy, layout, consumePulse);
-        syncBodySprites(bodyLayer, spritePool, objects);
+        syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
         paintTrajectories(layout, levels, viewTier);
 
@@ -504,6 +625,7 @@ export function GameCanvas() {
 
     return () => {
       cancelled = true;
+      wheelCleanup?.();
       cancelAnimationFrame(raf);
       observer?.disconnect();
       if (app) {

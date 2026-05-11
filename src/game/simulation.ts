@@ -48,6 +48,8 @@ export type SimLayout = {
   bh: { x: number; y: number };
   /** Внешняя граница системы: спавн на окружности, побег за пределы. */
   systemRadius: number;
+  /** Условная «фотосфера»: столкновение = поглощение звездой. */
+  starCollisionRadius: number;
 };
 
 let nextId = 1;
@@ -59,7 +61,7 @@ export function resetSimulationIds(): void {
 /** Случайная скорость при спавне на границе системы (направление и модуль рандом). */
 function randomBoundaryVelocity(): { vx: number; vy: number } {
   const dir = Math.random() * Math.PI * 2;
-  const speed = 38 + Math.random() * 72;
+  const speed = 12 + Math.random() * 34;
   return { vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed };
 }
 
@@ -169,6 +171,16 @@ export function advanceObjectOneStep(
     };
   }
 
+  const distStar0 =
+    Math.hypot(obj.x - layout.star.x, obj.y - layout.star.y) || 1e-6;
+  if (distStar0 < layout.starCollisionRadius) {
+    return {
+      kind: "consumed",
+      mp: obj.mpValue,
+      objectKind: obj.kind,
+    };
+  }
+
   let nvx = obj.vx;
   let nvy = obj.vy;
   let nx = dx / dist;
@@ -219,6 +231,16 @@ export function advanceObjectOneStep(
   const newDx = layout.bh.x - newX;
   const newDy = layout.bh.y - newY;
   const newDist = Math.hypot(newDx, newDy) || 1e-6;
+
+  const distStar1 =
+    Math.hypot(newX - layout.star.x, newY - layout.star.y) || 1e-6;
+  if (distStar1 < layout.starCollisionRadius) {
+    return {
+      kind: "consumed",
+      mp: obj.mpValue,
+      objectKind: obj.kind,
+    };
+  }
 
   if (obj.kind === 4) {
     let entered = obj.shipEnteredGravity ?? false;
