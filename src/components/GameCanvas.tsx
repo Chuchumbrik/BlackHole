@@ -6,7 +6,10 @@ import {
   Texture,
 } from "pixi.js";
 import { useEffect, useRef } from "react";
-import { BASE_SPAWN_PER_SECOND } from "../game/balance";
+import {
+  BASE_SPAWN_PER_SECOND,
+  FIELD_MP_GLOBAL_MULTIPLIER,
+} from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
 import {
   advanceSpawnAccumulator,
@@ -18,6 +21,8 @@ import {
   type SpawnControl,
 } from "../game/simulation";
 import {
+  areShipsUnlocked,
+  combinedWorldScale,
   computeRadiiPx,
   effectiveGravityAccel,
   mpIncomeMultiplier,
@@ -86,7 +91,39 @@ function paintHole(
   }
 }
 
-/** Спрайты надёжнее batched Graphics.circle в Pixi v8 на части окружений. */
+/** Карта галактики (узлы-планеты + маркер дыры) — заготовка под прокачку узлов. */
+function paintGalaxy(
+  g: Graphics,
+  layout: SimLayout,
+  pulse01: number,
+): void {
+  const { cx, cy, width: w, height: h } = layout;
+  g.clear();
+  g.rect(0, 0, w, h);
+  g.fill({ color: 0x06060c });
+
+  const orbitR = Math.min(w, h) * 0.36;
+  const colors = [
+    0x8b5cf6, 0x38bdf8, 0xfbbf24, 0x34d399, 0xf472b6, 0xa78bfa,
+  ];
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const x = cx + Math.cos(a) * orbitR;
+    const y = cy + Math.sin(a) * orbitR;
+    const rr = 12 + (i % 3) * 2;
+    g.circle(x, y, rr);
+    g.fill({ color: colors[i % colors.length], alpha: 0.88 });
+    g.circle(x, y, rr);
+    g.stroke({ width: 1, color: 0xffffff, alpha: 0.14 });
+  }
+
+  g.circle(cx, cy, 16 + pulse01 * 5);
+  g.fill({ color: 0x000000 });
+  g.circle(cx, cy, 26 + pulse01 * 4);
+  g.stroke({ width: 2, color: 0x6b4faa, alpha: 0.5 });
+}
+
 function syncBodySprites(
   layer: Container,
   pool: Sprite[],
@@ -159,19 +196,48 @@ export function GameCanvas() {
       const scene = new Container();
       application.stage.addChild(scene);
 
+      const worldRoot = new Container();
+      const galaxyRoot = new Container();
+      scene.addChild(worldRoot);
+      scene.addChild(galaxyRoot);
+
       const stars = new Graphics();
       const hole = new Graphics();
       const bodyLayer = new Container();
-      scene.addChild(stars);
-      scene.addChild(hole);
-      scene.addChild(bodyLayer);
+      worldRoot.addChild(stars);
+      worldRoot.addChild(hole);
+      worldRoot.addChild(bodyLayer);
+
+      const galaxy = new Graphics();
+      galaxyRoot.addChild(galaxy);
+
+      const applyCamera = (
+        levels: UpgradeLevels,
+        layout: SimLayout,
+        viewTier: 0 | 1 | 2,
+      ) => {
+        if (viewTier >= 2) {
+          worldRoot.visible = false;
+          galaxyRoot.visible = true;
+          return;
+        }
+        worldRoot.visible = true;
+        galaxyRoot.visible = false;
+        const s = combinedWorldScale(levels, viewTier);
+        worldRoot.pivot.set(layout.cx, layout.cy);
+        worldRoot.position.set(layout.cx, layout.cy);
+        worldRoot.scale.set(s);
+      };
 
       const syncSceneSize = () => {
         const levels = useGameStore.getState().upgradeLevels;
+        const viewTier = useGameStore.getState().viewTier;
         const layout = layoutFromHost(host, levels);
         paintStars(stars, layout.width, layout.height);
         paintHole(hole, layout, consumePulse, levels.disk);
+        paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects);
+        applyCamera(levels, layout, viewTier);
       };
 
       observer = new ResizeObserver(() => {
@@ -191,34 +257,53 @@ export function GameCanvas() {
         lastMs = nowMs;
 
         const levels = useGameStore.getState().upgradeLevels;
+        const viewTier = useGameStore.getState().viewTier;
         const layout = layoutFromHost(host, levels);
         const mpMult = mpIncomeMultiplier(levels);
+        const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
           dt,
           BASE_SPAWN_PER_SECOND,
         );
-        objects = trySpawn(objects, layout, spawnCount);
+        objects = trySpawn(objects, layout, spawnCount, { shipsUnlocked });
 
-        const { objects: nextObjects, consumed } = stepSimulation(
+        const { objects: nextObjects, consumed, escaped } = stepSimulation(
           objects,
           layout,
           dt,
+          levels,
         );
         objects = nextObjects;
 
         if (consumed.length > 0) {
           consumePulse = 1;
           let gain = 0;
-          for (const c of consumed) gain += Math.floor(c.mp * mpMult);
+          for (const c of consumed) {
+            gain += Math.floor(
+              c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
+            );
+          }
           useGameStore.getState().addMassMp(gain);
+        }
+
+        if (escaped.length > 0) {
+          let bonus = 0;
+          for (const e of escaped) {
+            bonus += Math.floor(
+              e.bonusMp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
+            );
+          }
+          if (bonus > 0) useGameStore.getState().addMassMp(bonus);
         }
 
         consumePulse = Math.max(0, consumePulse - dt * 3.5);
 
         paintHole(hole, layout, consumePulse, levels.disk);
+        paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects);
+        applyCamera(levels, layout, viewTier);
 
         raf = requestAnimationFrame(tick);
       };

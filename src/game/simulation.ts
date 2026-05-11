@@ -1,6 +1,15 @@
-import { MAX_OBJECTS_ON_FIELD } from "./balance";
-import type { ObjectKind } from "./balance";
-import { rollMpForKind, rollObjectKind } from "./rng";
+import {
+  ESCAPE_MP_BASE,
+  MAX_OBJECTS_ON_FIELD,
+  OUTSIDE_GRAVITY_RATIO,
+  SHIP_SPAWN_FRACTION,
+  SHIP_THRUST_BASE,
+  VELOCITY_DAMPING,
+  type ObjectKind,
+} from "./balance";
+import type { UpgradeLevels } from "./upgrades";
+import { shipThrustMultiplierFromLevels } from "./upgrades";
+import { rollMpForKind, rollObjectKind, rollShipQualities } from "./rng";
 
 export type SimObject = {
   id: number;
@@ -10,6 +19,11 @@ export type SimObject = {
   vx: number;
   vy: number;
   mpValue: number;
+  /** Корабль (kind 4): множители при спавне */
+  thrust01?: number;
+  pilot01?: number;
+  /** Корабль: уже был глубже зоны гравитации — нужно для побега наружу */
+  shipEnteredGravity?: boolean;
 };
 
 export type SimLayout = {
@@ -30,9 +44,6 @@ export type SimLayout = {
  * Снаружи `gravityRadius` тянем слабее, но ненулевым — иначе объекты,
  * заспавненные по кольцу за пределами зоны (по ТЗ), никогда не входят в поле силы.
  */
-/** Доля ускорения, когда объект ещё за пределами `gravityRadius`, но уже «видит» дыру. */
-const OUTSIDE_GRAVITY_RATIO = 0.52;
-const VELOCITY_DAMPING = 0.997;
 
 let nextId = 1;
 
@@ -66,19 +77,72 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
   };
 }
 
+export function spawnShip(layout: SimLayout): SimObject {
+  const q = rollShipQualities();
+  const mpValue = rollMpForKind(4);
+  const angle = Math.random() * Math.PI * 2;
+  const halfMin = Math.min(layout.width, layout.height) / 2 - 12;
+  const minDist = layout.gravityRadius * 1.06;
+  let maxDist = Math.max(halfMin * 0.92, minDist + 80);
+  if (maxDist <= minDist) maxDist = minDist + 120;
+  const dist = minDist + Math.random() * (maxDist - minDist);
+  const x = layout.cx + Math.cos(angle) * dist;
+  const y = layout.cy + Math.sin(angle) * dist;
+  const tangential = 22 + Math.random() * 48;
+  const vx = -Math.sin(angle) * tangential;
+  const vy = Math.cos(angle) * tangential;
+
+  return {
+    id: nextId++,
+    kind: 4,
+    x,
+    y,
+    vx,
+    vy,
+    mpValue,
+    thrust01: q.thrust01,
+    pilot01: q.pilot01,
+    shipEnteredGravity: false,
+  };
+}
+
 export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
 
+export type EscapeEvent = {
+  objectId: number;
+  bonusMp: number;
+};
+
+function outwardThrustAccel(
+  obj: SimObject,
+  levels: UpgradeLevels,
+): number {
+  const t = obj.thrust01 ?? 1;
+  const p = obj.pilot01 ?? 1;
+  return (
+    SHIP_THRUST_BASE *
+    t *
+    p *
+    shipThrustMultiplierFromLevels(levels)
+  );
+}
+
 /**
- * Один шаг симуляции: притяжение к центру (внутри зоны — полное, снаружи — ослабленное),
+ * Один шаг симуляции: притяжение, для кораблей — тяга наружу; побег при выходе из зоны после входа;
  * поглощение при r < horizonRadius.
- * dt — секунды игрового времени (не кадра напрямую).
  */
 export function stepSimulation(
   objects: SimObject[],
   layout: SimLayout,
   dt: number,
-): { objects: SimObject[]; consumed: ConsumeEvent[] } {
+  upgradeLevels: UpgradeLevels,
+): {
+  objects: SimObject[];
+  consumed: ConsumeEvent[];
+  escaped: EscapeEvent[];
+} {
   const consumed: ConsumeEvent[] = [];
+  const escaped: EscapeEvent[] = [];
   const next: SimObject[] = [];
 
   for (const obj of objects) {
@@ -107,28 +171,66 @@ export function stepSimulation(
           : layout.gravityAccel * OUTSIDE_GRAVITY_RATIO;
       nvx += nx * strength * dt;
       nvy += ny * strength * dt;
+
+      if (obj.kind === 4) {
+        const thrust = outwardThrustAccel(obj, upgradeLevels);
+        nvx -= nx * thrust * dt;
+        nvy -= ny * thrust * dt;
+      }
     }
 
     nvx *= VELOCITY_DAMPING;
     nvy *= VELOCITY_DAMPING;
 
+    const newX = obj.x + nvx * dt;
+    const newY = obj.y + nvy * dt;
+    const newDx = layout.cx - newX;
+    const newDy = layout.cy - newY;
+    const newDist = Math.hypot(newDx, newDy) || 1e-6;
+
+    if (obj.kind === 4) {
+      let entered = obj.shipEnteredGravity ?? false;
+      if (newDist < layout.gravityRadius * 0.97) {
+        entered = true;
+      }
+      if (
+        entered &&
+        newDist > layout.gravityRadius * 1.04
+      ) {
+        const pilot = obj.pilot01 ?? 1;
+        escaped.push({
+          objectId: obj.id,
+          bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
+        });
+        continue;
+      }
+      next.push({
+        ...obj,
+        x: newX,
+        y: newY,
+        vx: nvx,
+        vy: nvy,
+        shipEnteredGravity: entered,
+      });
+      continue;
+    }
+
     next.push({
       ...obj,
-      x: obj.x + nvx * dt,
-      y: obj.y + nvy * dt,
+      x: newX,
+      y: newY,
       vx: nvx,
       vy: nvy,
     });
   }
 
-  return { objects: next, consumed };
+  return { objects: next, consumed, escaped };
 }
 
 export type SpawnControl = {
   accum: number;
 };
 
-/** Накопитель спавна: привязан к игровому времени, не к FPS. */
 export function advanceSpawnAccumulator(
   control: SpawnControl,
   dt: number,
@@ -147,11 +249,14 @@ export function trySpawn(
   objects: SimObject[],
   layout: SimLayout,
   count: number,
+  options: { shipsUnlocked: boolean },
 ): SimObject[] {
   const result = [...objects];
   for (let i = 0; i < count; i++) {
     if (result.length >= MAX_OBJECTS_ON_FIELD) break;
-    result.push(spawnOutsideGravity(layout));
+    const ship =
+      options.shipsUnlocked && Math.random() < SHIP_SPAWN_FRACTION;
+    result.push(ship ? spawnShip(layout) : spawnOutsideGravity(layout));
   }
   return result;
 }

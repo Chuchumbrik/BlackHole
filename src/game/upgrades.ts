@@ -1,4 +1,25 @@
-/** Четыре ветки улучшений дыры (фаза 2) — см. obsidian/02, 07. */
+/**
+ * Логика четырёх веток улучшений дыры (фаза 2).
+ * Константы формул — `balance/` (obsidian/07, ручки темпа — 13).
+ */
+
+import {
+  BASE_GRAVITY_ACCEL,
+  BASE_GRAVITY_FRACTION,
+  BASE_HORIZON_FRACTION,
+  CAMERA_SCALE_MIN,
+  SHIPS_UNLOCK_MIN_SUM,
+  SHIP_THRUST_DISK_FACTOR_PER_LEVEL,
+  SHIP_THRUST_EFFICIENCY_FACTOR_PER_LEVEL,
+  SUM_FOR_DISK_UNLOCK,
+  SUM_FOR_EFFICIENCY_UNLOCK,
+  UPGRADE_COST_MULTIPLIER_PER_LEVEL,
+  UPGRADE_FIRST_LEVEL_COST_MP,
+  UPGRADE_PER_LEVEL_FACTOR,
+  VIEW_TIER_GALAXY_MIN_SUM,
+  VIEW_TIER_SYSTEM_MIN_SUM,
+  VIEW_TIER_SYSTEM_SCALE_MUL,
+} from "./balance";
 
 export const UPGRADE_BRANCHES = [
   "size",
@@ -18,20 +39,7 @@ export const ZERO_UPGRADE_LEVELS: UpgradeLevels = {
   efficiency: 0,
 };
 
-const FIRST_LEVEL_COST_MP = 10;
-const COST_MULTIPLIER = 1.45;
-
-/** Множители эффекта за один уровень (мультипликативно по уровням). */
-const EFFECT = {
-  sizeHorizon: 1.12,
-  gravityRadius: 1.18,
-  diskMp: 1.08,
-  efficiencyMp: 1.07,
-  efficiencyPull: 1.04,
-} as const;
-
-const SUM_FOR_DISK = 5;
-const SUM_FOR_EFFICIENCY = 10;
+const F = UPGRADE_PER_LEVEL_FACTOR;
 
 export function levelSum(levels: UpgradeLevels): number {
   return (
@@ -44,15 +52,17 @@ export function nextUpgradeCostMp(
   branch: UpgradeBranch,
 ): number {
   const L = levels[branch];
-  return Math.ceil(FIRST_LEVEL_COST_MP * Math.pow(COST_MULTIPLIER, L));
+  return Math.ceil(
+    UPGRADE_FIRST_LEVEL_COST_MP * Math.pow(UPGRADE_COST_MULTIPLIER_PER_LEVEL, L),
+  );
 }
 
 export function isDiskUnlocked(levels: UpgradeLevels): boolean {
-  return levelSum(levels) >= SUM_FOR_DISK;
+  return levelSum(levels) >= SUM_FOR_DISK_UNLOCK;
 }
 
 export function isEfficiencyUnlocked(levels: UpgradeLevels): boolean {
-  return levelSum(levels) >= SUM_FOR_EFFICIENCY;
+  return levelSum(levels) >= SUM_FOR_EFFICIENCY_UNLOCK;
 }
 
 export function canPurchaseUpgrade(
@@ -68,11 +78,11 @@ export function canPurchaseUpgrade(
   return true;
 }
 
-/** Множитель MP при поглощении (диск × эффективность). */
+/** Множитель MP при поглощении и побеге (диск × эффективность). */
 export function mpIncomeMultiplier(levels: UpgradeLevels): number {
   return (
-    Math.pow(EFFECT.diskMp, levels.disk) *
-    Math.pow(EFFECT.efficiencyMp, levels.efficiency)
+    Math.pow(F.diskGlobalMp, levels.disk) *
+    Math.pow(F.efficiencyGlobalMp, levels.efficiency)
   );
 }
 
@@ -81,16 +91,56 @@ export function computeRadiiPx(
   minDimensionPx: number,
   levels: UpgradeLevels,
 ): { horizon: number; gravity: number } {
-  const baseHorizon = minDimensionPx * 0.085;
-  const baseGravity = minDimensionPx * 0.42;
+  const baseHorizon = minDimensionPx * BASE_HORIZON_FRACTION;
+  const baseGravity = minDimensionPx * BASE_GRAVITY_FRACTION;
   return {
-    horizon: baseHorizon * Math.pow(EFFECT.sizeHorizon, levels.size),
-    gravity: baseGravity * Math.pow(EFFECT.gravityRadius, levels.gravity),
+    horizon: baseHorizon * Math.pow(F.horizon, levels.size),
+    gravity: baseGravity * Math.pow(F.gravityRadius, levels.gravity),
   };
 }
 
-/** Ускорение притяжения с бонусом эффективности (+4% за уровень к «скорости поглощения»). */
+/** Ускорение притяжения с бонусом эффективности («скорость поглощения» в ТЗ). */
 export function effectiveGravityAccel(levels: UpgradeLevels): number {
-  const base = 2200;
-  return base * Math.pow(EFFECT.efficiencyPull, levels.efficiency);
+  return (
+    BASE_GRAVITY_ACCEL *
+    Math.pow(F.efficiencyPull, levels.efficiency)
+  );
+}
+
+/**
+ * Масштаб игрового слоя: при росте горизонта (ветка size) камера отъезжает —
+ * относительный размер дыры на экране не растёт бесконечно.
+ */
+export function cameraWorldScale(levels: UpgradeLevels): number {
+  const ratio = 1 / Math.pow(F.horizon, levels.size);
+  return Math.max(CAMERA_SCALE_MIN, Math.min(1, ratio));
+}
+
+export function isViewTierUnlocked(
+  tier: 1 | 2,
+  levels: UpgradeLevels,
+): boolean {
+  const s = levelSum(levels);
+  if (tier === 1) return s >= VIEW_TIER_SYSTEM_MIN_SUM;
+  return s >= VIEW_TIER_GALAXY_MIN_SUM;
+}
+
+export function areShipsUnlocked(levels: UpgradeLevels): boolean {
+  return levelSum(levels) >= SHIPS_UNLOCK_MIN_SUM;
+}
+
+export function shipThrustMultiplierFromLevels(levels: UpgradeLevels): number {
+  return (
+    Math.pow(SHIP_THRUST_DISK_FACTOR_PER_LEVEL, levels.disk) *
+    Math.pow(SHIP_THRUST_EFFICIENCY_FACTOR_PER_LEVEL, levels.efficiency)
+  );
+}
+
+export function combinedWorldScale(
+  levels: UpgradeLevels,
+  viewTier: 0 | 1 | 2,
+): number {
+  const base = cameraWorldScale(levels);
+  if (viewTier === 1) return base * VIEW_TIER_SYSTEM_SCALE_MUL;
+  return base;
 }
