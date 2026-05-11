@@ -19,6 +19,8 @@ import {
   STAR_DISPLAY_RADIUS_FRACTION,
   STELLAR_SYSTEM_RADIUS_MUL,
   SYSTEM_OUTER_RADIUS_FRACTION,
+  USER_ZOOM_MAX,
+  USER_ZOOM_MIN,
 } from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
 import {
@@ -411,8 +413,6 @@ export function GameCanvas() {
       let panX = 0;
       let panY = 0;
       let userZoom = 1;
-      const USER_ZOOM_MIN = 0.42;
-      const USER_ZOOM_MAX = 2.85;
       let panLastX = 0;
       let panLastY = 0;
       let ptrDown = false;
@@ -494,7 +494,7 @@ export function GameCanvas() {
               host,
               useGameStore.getState().upgradeLevels,
             );
-            const maxP = Math.min(lay.width, lay.height) * 1.12;
+            const maxP = Math.min(lay.width, lay.height) * 3.5;
             panX = Math.max(-maxP, Math.min(maxP, panX));
             panY = Math.max(-maxP, Math.min(maxP, panY));
           }
@@ -557,7 +557,7 @@ export function GameCanvas() {
         if (viewTier >= 2) return;
 
         /** Экранно-стабильный пунктир: длины в мире обратно пропорциональны зуму слоя. */
-        const safeScale = Math.max(worldScale, 0.15);
+        const safeScale = Math.max(worldScale, 0.07);
         const dashWorld = 6.5 / safeScale;
         const gapWorld = 5.5 / safeScale;
 
@@ -644,11 +644,16 @@ export function GameCanvas() {
           viewTier >= 2
             ? 1
             : Math.max(
-                0.18,
+                0.07,
                 combinedWorldScale(levels, viewTier) * userZoom,
               );
 
         paintTrajectories(layout, levels, viewTier, worldScale);
+
+        /** Подписи в мире наследуют scale слоя; обратный масштаб ≈ постоянный размер текста на экране при зуме. */
+        const labelScreenScale = 1 / worldScale;
+        selectionLabel.scale.set(labelScreenScale);
+        hoverTooltip.scale.set(labelScreenScale);
 
         if (viewTier >= 2) {
           selectionLabel.visible = false;
@@ -661,7 +666,8 @@ export function GameCanvas() {
             const hov = objects.find((o) => o.id === hoverObjectId);
             if (hov) {
               hoverTooltip.text = hov.displayName;
-              const liftH = KIND_RADIUS[hov.kind] * 2 + 10;
+              const liftH =
+                (KIND_RADIUS[hov.kind] * 2 + 10) / worldScale;
               hoverTooltip.position.set(hov.x, hov.y - liftH);
               hoverTooltip.visible = true;
             } else {
@@ -675,7 +681,8 @@ export function GameCanvas() {
             const sel = objects.find((o) => o.id === selectedObjectId);
             if (sel) {
               selectionLabel.text = sel.displayName;
-              const lift = KIND_RADIUS[sel.kind] * 2 + 10;
+              const lift =
+                (KIND_RADIUS[sel.kind] * 2 + 10) / worldScale;
               selectionLabel.position.set(sel.x, sel.y - lift);
               selectionLabel.visible = true;
             } else {

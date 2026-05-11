@@ -25,10 +25,14 @@ export const BH_SCREEN_ANGLE_RAD = 2.35;
 export const SYSTEM_OUTER_RADIUS_FRACTION = 0.58;
 
 /**
- * Общий линейный масштаб орбиты дыры и \(R_{\mathrm{out}}\) в мировых пикселях (~×3 к «ощущению» поля).
+ * Общий линейный масштаб орбиты дыры и \(R_{\mathrm{out}}\) в мировых пикселях.
  * Контраст горизонта/звезды задаётся отдельными долями — они не умножаются здесь.
  */
-export const STELLAR_SYSTEM_RADIUS_MUL = 2.75;
+export const STELLAR_SYSTEM_RADIUS_MUL = 6.875;
+
+/** Пользовательский зум колесом относительно слоя мира (меньше — отдаление, «вся система»). */
+export const USER_ZOOM_MIN = 0.09;
+export const USER_ZOOM_MAX = 2.85;
 
 /** Радиус «поверхности» звезды для столкновений (доля minD); чуть меньше видимого ядра. */
 export const STAR_COLLISION_RADIUS_FRACTION = 0.098;
