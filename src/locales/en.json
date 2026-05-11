@@ -27,6 +27,12 @@
     "holeLevel": "Hole level (sum of branches): {{value}}",
     "levelShort": "Lv {{value}}",
     "nextCost": "Next level: {{value}} MP",
+    "current": {
+      "size": "Now: ×{{mul}} vs base horizon; at this window size horizon ≈ {{px}} px",
+      "gravity": "Now: ×{{mul}} vs base gravity zone; at this window radius ≈ {{px}} px",
+      "disk": "Now: disk MP multiplier ×{{mul}} (relative to base without other branches)",
+      "efficiency": "Now: global MP ×{{mp}}, pull strength ×{{pull}}"
+    },
     "buy": "Buy",
     "lock": {
       "disk": "Available from the start (branch A, phase 2).",
@@ -35,19 +41,19 @@
     "branches": {
       "size": {
         "name": "Schwarzschild radius",
-        "effect": "+12% event horizon radius per level (multiplicative)."
+        "effect": "+7.5% event horizon radius per level (multiplicative)."
       },
       "gravity": {
         "name": "Gravity radius",
-        "effect": "+18% gravity zone radius per level (multiplicative)."
+        "effect": "+11% gravity zone radius per level (multiplicative)."
       },
       "disk": {
         "name": "Accretion disk",
-        "effect": "+8% global MP per level (multiplicative)."
+        "effect": "+4.5% disk global MP per level (multiplicative)."
       },
       "efficiency": {
         "name": "Efficiency",
-        "effect": "+7% global MP and +4% pull strength per level (multiplicative)."
+        "effect": "+3.5% global MP and +2.2% pull strength per level (multiplicative)."
       }
     }
   }

@@ -11,6 +11,7 @@ import {
   VELOCITY_DAMPING,
   type ObjectKind,
 } from "./balance";
+import { KIND_RADIUS } from "./colors";
 import type { UpgradeLevels } from "./upgrades";
 import { shipThrustMultiplierFromLevels } from "./upgrades";
 import { buildObjectDisplayName } from "./objectNames";
@@ -305,8 +306,15 @@ export function advanceObjectOneStep(
   };
 }
 
+/** Верхние границы предпросмотра — для орбит без «конца» (не улетает и не поглощается). */
+const TRAJECTORY_PREVIEW_MAX_SIM_SECONDS = 900;
+const TRAJECTORY_PREVIEW_MAX_POINTS = 5000;
+const TRAJECTORY_PREVIEW_STEP_SECONDS = 0.034;
+
 /**
- * Точки предпросмотра траектории (численное интегрирование тем же шагом, что и симуляция).
+ * Точки предпросмотра траектории (тот же шаг интегрирования, что и в симуляции).
+ * Идёт до **терминального события**: поглощение горизонтом/звездой, побег за систему (и для корабля —
+ * свои правила в \`advanceObjectOneStep\`), либо до лимита времени/числа шагов (замкнутые орбиты).
  */
 export function predictTrajectoryPoints(
   start: SimObject,
@@ -318,14 +326,13 @@ export function predictTrajectoryPoints(
     maxPoints?: number;
   },
 ): { x: number; y: number }[] {
-  const maxSec = options?.maxSeconds ?? 14;
-  const stepDt = options?.stepSeconds ?? 0.028;
-  const maxPoints = options?.maxPoints ?? 400;
+  const maxSec = options?.maxSeconds ?? TRAJECTORY_PREVIEW_MAX_SIM_SECONDS;
+  const stepDt = options?.stepSeconds ?? TRAJECTORY_PREVIEW_STEP_SECONDS;
+  const maxPoints = options?.maxPoints ?? TRAJECTORY_PREVIEW_MAX_POINTS;
 
   let o: SimObject = { ...start };
   const pts: { x: number; y: number }[] = [{ x: o.x, y: o.y }];
   let t = 0;
-  const margin = 48;
 
   while (t < maxSec && pts.length < maxPoints) {
     const r = advanceObjectOneStep(o, layout, stepDt, upgradeLevels);
@@ -333,13 +340,6 @@ export function predictTrajectoryPoints(
     o = r.obj;
     pts.push({ x: o.x, y: o.y });
     t += stepDt;
-    const rStar = Math.hypot(
-      o.x - layout.star.x,
-      o.y - layout.star.y,
-    );
-    if (rStar > layout.systemRadius + margin) {
-      break;
-    }
   }
   return pts;
 }
@@ -350,6 +350,55 @@ export type EscapeEvent = {
   objectId: number;
   bonusMp: number;
 };
+
+/** Центр–центр: сумма радиусов спрайтов (\`KIND_RADIUS\` — половина стороны квадрата). */
+function bodySeparationMin(a: SimObject, b: SimObject): number {
+  return KIND_RADIUS[a.kind] + KIND_RADIUS[b.kind];
+}
+
+/**
+ * Столкновение тел друг с другом (фаза «уничтожение обоих»; дробление — позже).
+ * Вызывается после шага интегрирования по гравитации / горизонту / звезде.
+ */
+export function resolveBodyCollisions(objects: SimObject[]): {
+  survivors: SimObject[];
+  consumed: ConsumeEvent[];
+} {
+  const n = objects.length;
+  if (n < 2) return { survivors: objects, consumed: [] };
+
+  const killed = new Set<number>();
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const a = objects[i];
+      const b = objects[j];
+      if (killed.has(a.id) || killed.has(b.id)) continue;
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      if (dist < bodySeparationMin(a, b)) {
+        killed.add(a.id);
+        killed.add(b.id);
+      }
+    }
+  }
+
+  if (killed.size === 0) return { survivors: objects, consumed: [] };
+
+  const consumed: ConsumeEvent[] = [];
+  const survivors: SimObject[] = [];
+  for (const o of objects) {
+    if (killed.has(o.id)) {
+      consumed.push({
+        objectId: o.id,
+        mp: o.mpValue,
+        kind: o.kind,
+      });
+    } else {
+      survivors.push(o);
+    }
+  }
+  return { survivors, consumed };
+}
 
 export function stepSimulation(
   objects: SimObject[],
@@ -385,7 +434,10 @@ export function stepSimulation(
     next.push(r.obj);
   }
 
-  return { objects: next, consumed, escaped };
+  const { survivors, consumed: bodyHits } = resolveBodyCollisions(next);
+  consumed.push(...bodyHits);
+
+  return { objects: survivors, consumed, escaped };
 }
 
 export type SpawnControl = {

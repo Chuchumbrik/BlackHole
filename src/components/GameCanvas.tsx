@@ -381,12 +381,26 @@ export function GameCanvas() {
       selectionLabel.visible = false;
       selectionLabel.eventMode = "none";
 
+      const hoverTooltip = new Text({
+        text: "",
+        style: {
+          fontFamily: "system-ui, Segoe UI, sans-serif",
+          fontSize: 11,
+          fill: 0xcfd8e3,
+          stroke: { color: 0x080a0d, width: 3 },
+        },
+      });
+      hoverTooltip.anchor.set(0.5, 1);
+      hoverTooltip.visible = false;
+      hoverTooltip.eventMode = "none";
+
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
       worldRoot.addChild(selectionLabel);
+      worldRoot.addChild(hoverTooltip);
 
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
@@ -520,7 +534,8 @@ export function GameCanvas() {
       const onWheel = (ev: WheelEvent) => {
         ev.preventDefault();
         if (cancelled || useGameStore.getState().viewTier >= 2) return;
-        const factor = ev.deltaY > 0 ? 1.06 : 1 / 1.06;
+        /** Колесо «на себя» / вперёд — приближение; «от себя» — отдаление (инверсия от типичного браузерного deltaY). */
+        const factor = ev.deltaY > 0 ? 1 / 1.06 : 1.06;
         userZoom = Math.max(
           USER_ZOOM_MIN,
           Math.min(USER_ZOOM_MAX, userZoom * factor),
@@ -536,21 +551,23 @@ export function GameCanvas() {
         layout: SimLayout,
         levels: UpgradeLevels,
         viewTier: 0 | 1 | 2,
+        worldScale: number,
       ) => {
         trails.clear();
         if (viewTier >= 2) return;
 
+        /** Экранно-стабильный пунктир: длины в мире обратно пропорциональны зуму слоя. */
+        const safeScale = Math.max(worldScale, 0.15);
+        const dashWorld = 6.5 / safeScale;
+        const gapWorld = 5.5 / safeScale;
+
         const showTrail = (obj: SimObject) => {
-          const pts = predictTrajectoryPoints(obj, layout, levels, {
-            maxSeconds: 12,
-            stepSeconds: 0.03,
-            maxPoints: 360,
-          });
+          const pts = predictTrajectoryPoints(obj, layout, levels);
           if (pts.length < 2) return;
           const hot = hoverObjectId === obj.id;
           const color = hot ? 0xffffff : 0x8b93a5;
           const alpha = hot ? 0.92 : 0.42;
-          strokeDashedPolyline(trails, pts, color, alpha, 5, 4);
+          strokeDashedPolyline(trails, pts, color, alpha, dashWorld, gapWorld);
         };
 
         for (const obj of objects) {
@@ -622,22 +639,51 @@ export function GameCanvas() {
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
-        paintTrajectories(layout, levels, viewTier);
+
+        const worldScale =
+          viewTier >= 2
+            ? 1
+            : Math.max(
+                0.18,
+                combinedWorldScale(levels, viewTier) * userZoom,
+              );
+
+        paintTrajectories(layout, levels, viewTier, worldScale);
 
         if (viewTier >= 2) {
           selectionLabel.visible = false;
-        } else if (selectedObjectId !== null) {
-          const sel = objects.find((o) => o.id === selectedObjectId);
-          if (sel) {
-            selectionLabel.text = sel.displayName;
-            const lift = KIND_RADIUS[sel.kind] * 2 + 10;
-            selectionLabel.position.set(sel.x, sel.y - lift);
-            selectionLabel.visible = true;
+          hoverTooltip.visible = false;
+        } else {
+          if (
+            hoverObjectId !== null &&
+            hoverObjectId !== selectedObjectId
+          ) {
+            const hov = objects.find((o) => o.id === hoverObjectId);
+            if (hov) {
+              hoverTooltip.text = hov.displayName;
+              const liftH = KIND_RADIUS[hov.kind] * 2 + 10;
+              hoverTooltip.position.set(hov.x, hov.y - liftH);
+              hoverTooltip.visible = true;
+            } else {
+              hoverTooltip.visible = false;
+            }
+          } else {
+            hoverTooltip.visible = false;
+          }
+
+          if (selectedObjectId !== null) {
+            const sel = objects.find((o) => o.id === selectedObjectId);
+            if (sel) {
+              selectionLabel.text = sel.displayName;
+              const lift = KIND_RADIUS[sel.kind] * 2 + 10;
+              selectionLabel.position.set(sel.x, sel.y - lift);
+              selectionLabel.visible = true;
+            } else {
+              selectionLabel.visible = false;
+            }
           } else {
             selectionLabel.visible = false;
           }
-        } else {
-          selectionLabel.visible = false;
         }
 
         raf = requestAnimationFrame(tick);

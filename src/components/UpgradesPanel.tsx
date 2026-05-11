@@ -1,20 +1,49 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   UPGRADE_BRANCHES,
+  computeRadiiPx,
   isDiskUnlocked,
   isEfficiencyUnlocked,
   levelSum,
   nextUpgradeCostMp,
   canPurchaseUpgrade,
+  upgradeBranchSnapshot,
 } from "../game/upgrades";
 import { useGameStore } from "../store/useGameStore";
 
+function formatMultiplier(x: number): string {
+  return x.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 3,
+  });
+}
+
+function useViewportMinPx(): number {
+  const [m, setM] = useState(() =>
+    typeof window !== "undefined"
+      ? Math.min(window.innerWidth, window.innerHeight)
+      : 400,
+  );
+  useEffect(() => {
+    const onResize = () =>
+      setM(Math.min(window.innerWidth, window.innerHeight));
+    onResize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return m;
+}
+
 export function UpgradesPanel() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
   const upgradeLevels = useGameStore((s) => s.upgradeLevels);
   const buyUpgrade = useGameStore((s) => s.buyUpgrade);
   const sum = levelSum(upgradeLevels);
+  const viewportMin = useViewportMinPx();
+  const snap = upgradeBranchSnapshot(upgradeLevels);
+  const radii = computeRadiiPx(viewportMin, upgradeLevels);
 
   return (
     <div className="upgrades-panel">
@@ -36,6 +65,26 @@ export function UpgradesPanel() {
             massMp,
           );
 
+          const currentLine =
+            branch === "size"
+              ? t("upgrades.current.size", {
+                  mul: formatMultiplier(snap.horizonMul),
+                  px: Math.round(radii.horizon).toLocaleString(i18n.language),
+                })
+              : branch === "gravity"
+                ? t("upgrades.current.gravity", {
+                    mul: formatMultiplier(snap.gravityMul),
+                    px: Math.round(radii.gravity).toLocaleString(i18n.language),
+                  })
+                : branch === "disk"
+                  ? t("upgrades.current.disk", {
+                      mul: formatMultiplier(snap.diskIncomeMul),
+                    })
+                  : t("upgrades.current.efficiency", {
+                      mp: formatMultiplier(snap.efficiencyIncomeMul),
+                      pull: formatMultiplier(snap.efficiencyPullMul),
+                    });
+
           return (
             <li key={branch} className="upgrades-card">
               <div className="upgrades-card-head">
@@ -49,6 +98,7 @@ export function UpgradesPanel() {
               <p className="upgrades-card-effect">
                 {t(`upgrades.branches.${branch}.effect`)}
               </p>
+              <p className="upgrades-card-current">{currentLine}</p>
               {locked ? (
                 <p className="upgrades-card-lock">
                   {branch === "disk"

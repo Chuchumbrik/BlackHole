@@ -207,9 +207,17 @@ body,
 }
 
 .upgrades-card-effect {
-  margin: 0 0 0.6rem;
+  margin: 0 0 0.35rem;
   font-size: 0.82rem;
   color: #c9c2d6;
+  line-height: 1.35;
+}
+
+.upgrades-card-current {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+  color: #e8e4f0;
   line-height: 1.35;
 }
 

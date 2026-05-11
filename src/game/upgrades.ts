@@ -144,3 +144,24 @@ export function combinedWorldScale(
   if (viewTier === 1) return base * VIEW_TIER_SYSTEM_SCALE_MUL;
   return base;
 }
+
+/** Текущие мультипликаторы веток относительно базы баланса (для UI «сейчас»). */
+export type UpgradeBranchSnapshot = {
+  horizonMul: number;
+  gravityMul: number;
+  diskIncomeMul: number;
+  efficiencyIncomeMul: number;
+  efficiencyPullMul: number;
+};
+
+export function upgradeBranchSnapshot(
+  levels: UpgradeLevels,
+): UpgradeBranchSnapshot {
+  return {
+    horizonMul: Math.pow(F.horizon, levels.size),
+    gravityMul: Math.pow(F.gravityRadius, levels.gravity),
+    diskIncomeMul: Math.pow(F.diskGlobalMp, levels.disk),
+    efficiencyIncomeMul: Math.pow(F.efficiencyGlobalMp, levels.efficiency),
+    efficiencyPullMul: Math.pow(F.efficiencyPull, levels.efficiency),
+  };
+}
