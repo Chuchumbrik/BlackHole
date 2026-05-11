@@ -11,5 +11,34 @@
       "prestige": "Prestige",
       "stats": "Stats"
     }
+  },
+  "upgrades": {
+    "title": "Black hole upgrades",
+    "holeLevel": "Hole level (sum of branches): {{value}}",
+    "levelShort": "Lv {{value}}",
+    "nextCost": "Next level: {{value}} MP",
+    "buy": "Buy",
+    "lock": {
+      "disk": "Unlocks when the sum of all branch levels is ≥ 5.",
+      "efficiency": "Unlocks when the sum of all branch levels is ≥ 10."
+    },
+    "branches": {
+      "size": {
+        "name": "Size",
+        "effect": "+12% event horizon radius per level (multiplicative)."
+      },
+      "gravity": {
+        "name": "Gravity radius",
+        "effect": "+18% gravity zone radius per level (multiplicative)."
+      },
+      "disk": {
+        "name": "Accretion disk",
+        "effect": "+8% global MP per level (multiplicative)."
+      },
+      "efficiency": {
+        "name": "Efficiency",
+        "effect": "+7% global MP and +4% pull strength per level (multiplicative)."
+      }
+    }
   }
 }

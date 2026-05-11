@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { GameCanvas } from "./components/GameCanvas";
+import { UpgradesPanel } from "./components/UpgradesPanel";
 import { useGameStore } from "./store/useGameStore";
 
 const APP_VERSION = __APP_VERSION__;
@@ -20,8 +21,22 @@ function App() {
   return (
     <div className="app-root">
       <div className="app-game-layer">
-        {activeTab === "game" && <GameCanvas />}
-        {activeTab !== "game" && (
+        <div
+          className={
+            activeTab === "game"
+              ? "game-canvas-wrap is-visible"
+              : "game-canvas-wrap"
+          }
+          aria-hidden={activeTab !== "game"}
+        >
+          <GameCanvas />
+        </div>
+        {activeTab === "upgrades" && (
+          <div className="app-panel-overlay app-panel-upgrades">
+            <UpgradesPanel />
+          </div>
+        )}
+        {activeTab !== "game" && activeTab !== "upgrades" && (
           <div className="app-panel-placeholder">
             <p className="app-panel-title">
               {t(`app.tabs.${activeTab}`)}

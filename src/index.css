@@ -40,6 +40,18 @@ body,
   min-height: 100dvh;
 }
 
+.game-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.game-canvas-wrap.is-visible {
+  visibility: visible;
+  pointer-events: auto;
+}
+
 .game-canvas-host {
   position: absolute;
   inset: 0;
@@ -72,6 +84,113 @@ body,
   margin: 0;
   color: var(--muted);
   font-size: 0.9rem;
+}
+
+.app-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: auto;
+  padding: 5.25rem 1rem 1.5rem;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(18, 10, 30, 0.96) 0%,
+    rgba(5, 5, 8, 0.94) 72%
+  );
+  pointer-events: auto;
+}
+
+.app-panel-upgrades {
+  -webkit-overflow-scrolling: touch;
+}
+
+.upgrades-panel {
+  max-width: 32rem;
+  margin: 0 auto;
+}
+
+.upgrades-panel-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.upgrades-panel-meta {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.upgrades-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.upgrades-card {
+  padding: 0.85rem 1rem;
+  border-radius: 0.65rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(155, 126, 217, 0.25);
+}
+
+.upgrades-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.upgrades-card-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.upgrades-card-level {
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.upgrades-card-effect {
+  margin: 0 0 0.6rem;
+  font-size: 0.82rem;
+  color: #c9c2d6;
+  line-height: 1.35;
+}
+
+.upgrades-card-cost {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.upgrades-card-lock {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #b45309;
+}
+
+.upgrades-buy {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(155, 126, 217, 0.55);
+  background: rgba(155, 126, 217, 0.2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.upgrades-buy:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .app-ui {

@@ -17,21 +17,32 @@ import {
   trySpawn,
   type SpawnControl,
 } from "../game/simulation";
+import {
+  computeRadiiPx,
+  effectiveGravityAccel,
+  mpIncomeMultiplier,
+  type UpgradeLevels,
+} from "../game/upgrades";
 import { useGameStore } from "../store/useGameStore";
 
 const BODY_TEXTURE = Texture.WHITE;
 
-function layoutFromHost(el: HTMLElement): SimLayout {
+function layoutFromHost(
+  el: HTMLElement,
+  upgradeLevels: UpgradeLevels,
+): SimLayout {
   const w = Math.max(el.clientWidth, 1);
   const h = Math.max(el.clientHeight, 1);
   const minD = Math.min(w, h);
+  const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels);
   return {
     cx: w / 2,
     cy: h / 2,
     width: w,
     height: h,
-    horizonRadius: minD * 0.085,
-    gravityRadius: minD * 0.42,
+    horizonRadius: horizon,
+    gravityRadius: gravity,
+    gravityAccel: effectiveGravityAccel(upgradeLevels),
   };
 }
 
@@ -52,6 +63,7 @@ function paintHole(
   g: Graphics,
   layout: SimLayout,
   pulse01: number,
+  diskLevel: number,
 ): void {
   const { cx, cy } = layout;
   const r = layout.horizonRadius;
@@ -66,6 +78,12 @@ function paintHole(
   });
   g.circle(cx, cy, r);
   g.fill({ color: 0x000000 });
+
+  if (diskLevel > 0) {
+    const alpha = Math.min(0.18 + diskLevel * 0.055, 0.72);
+    g.circle(cx, cy, r * (1.62 + pulse01 * 0.05));
+    g.stroke({ width: 2.5, color: 0xf59e0b, alpha });
+  }
 }
 
 /** Спрайты надёжнее batched Graphics.circle в Pixi v8 на части окружений. */
@@ -149,9 +167,10 @@ export function GameCanvas() {
       scene.addChild(bodyLayer);
 
       const syncSceneSize = () => {
-        const layout = layoutFromHost(host);
+        const levels = useGameStore.getState().upgradeLevels;
+        const layout = layoutFromHost(host, levels);
         paintStars(stars, layout.width, layout.height);
-        paintHole(hole, layout, consumePulse);
+        paintHole(hole, layout, consumePulse, levels.disk);
         syncBodySprites(bodyLayer, spritePool, objects);
       };
 
@@ -171,7 +190,9 @@ export function GameCanvas() {
         const dt = Math.min((nowMs - lastMs) / 1000, 0.12);
         lastMs = nowMs;
 
-        const layout = layoutFromHost(host);
+        const levels = useGameStore.getState().upgradeLevels;
+        const layout = layoutFromHost(host, levels);
+        const mpMult = mpIncomeMultiplier(levels);
 
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
@@ -190,13 +211,13 @@ export function GameCanvas() {
         if (consumed.length > 0) {
           consumePulse = 1;
           let gain = 0;
-          for (const c of consumed) gain += c.mp;
+          for (const c of consumed) gain += Math.floor(c.mp * mpMult);
           useGameStore.getState().addMassMp(gain);
         }
 
         consumePulse = Math.max(0, consumePulse - dt * 3.5);
 
-        paintHole(hole, layout, consumePulse);
+        paintHole(hole, layout, consumePulse, levels.disk);
         syncBodySprites(bodyLayer, spritePool, objects);
 
         raf = requestAnimationFrame(tick);

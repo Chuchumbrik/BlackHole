@@ -21,6 +21,8 @@ export type SimLayout = {
   horizonRadius: number;
   /** Зона действия гравитации (пиксели). */
   gravityRadius: number;
+  /** Ускорение к центру (пикс/с²), с учётом улучшения «Эффективность». */
+  gravityAccel: number;
 };
 
 /**
@@ -28,7 +30,6 @@ export type SimLayout = {
  * Снаружи `gravityRadius` тянем слабее, но ненулевым — иначе объекты,
  * заспавненные по кольцу за пределами зоны (по ТЗ), никогда не входят в поле силы.
  */
-const GRAVITY_ACCEL = 2200;
 /** Доля ускорения, когда объект ещё за пределами `gravityRadius`, но уже «видит» дыру. */
 const OUTSIDE_GRAVITY_RATIO = 0.52;
 const VELOCITY_DAMPING = 0.997;
@@ -102,8 +103,8 @@ export function stepSimulation(
       const ny = dy / dist;
       const strength =
         dist < layout.gravityRadius
-          ? GRAVITY_ACCEL
-          : GRAVITY_ACCEL * OUTSIDE_GRAVITY_RATIO;
+          ? layout.gravityAccel
+          : layout.gravityAccel * OUTSIDE_GRAVITY_RATIO;
       nvx += nx * strength * dt;
       nvy += ny * strength * dt;
     }
