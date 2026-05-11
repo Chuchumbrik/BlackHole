@@ -65,7 +65,8 @@ function paintBodies(g: Graphics, objects: SimObject[]): void {
   for (const o of objects) {
     const rad = KIND_RADIUS[o.kind];
     g.circle(o.x, o.y, rad);
-    g.fill({ color: KIND_COLORS[o.kind], alpha: 0.92 });
+    g.fill({ color: KIND_COLORS[o.kind], alpha: 0.94 });
+    g.stroke({ width: 1, color: 0x0f172a, alpha: 0.55 });
   }
 }
 

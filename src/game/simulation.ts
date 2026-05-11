@@ -23,8 +23,14 @@ export type SimLayout = {
   gravityRadius: number;
 };
 
-/** Ускорение к центру внутри зоны гравитации (пикс/с²), подобрано под «залипательный» темп. */
+/**
+ * Притяжение к центру для объектов вне горизонта.
+ * Снаружи `gravityRadius` тянем слабее, но ненулевым — иначе объекты,
+ * заспавненные по кольцу за пределами зоны (по ТЗ), никогда не входят в поле силы.
+ */
 const GRAVITY_ACCEL = 2200;
+/** Доля ускорения, когда объект ещё за пределами `gravityRadius`, но уже «видит» дыру. */
+const OUTSIDE_GRAVITY_RATIO = 0.52;
 const VELOCITY_DAMPING = 0.997;
 
 let nextId = 1;
@@ -44,7 +50,7 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
   const dist = minDist + Math.random() * (maxDist - minDist);
   const x = layout.cx + Math.cos(angle) * dist;
   const y = layout.cy + Math.sin(angle) * dist;
-  const tangential = 35 + Math.random() * 85;
+  const tangential = 20 + Math.random() * 55;
   const vx = -Math.sin(angle) * tangential;
   const vy = Math.cos(angle) * tangential;
 
@@ -62,7 +68,8 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
 export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
 
 /**
- * Один шаг симуляции: притяжение к центру внутри gravityRadius, поглощение при r < horizonRadius.
+ * Один шаг симуляции: притяжение к центру (внутри зоны — полное, снаружи — ослабленное),
+ * поглощение при r < horizonRadius.
  * dt — секунды игрового времени (не кадра напрямую).
  */
 export function stepSimulation(
@@ -90,11 +97,15 @@ export function stepSimulation(
     let nvx = obj.vx;
     let nvy = obj.vy;
 
-    if (dist < layout.gravityRadius) {
+    if (dist > layout.horizonRadius) {
       const nx = dx / dist;
       const ny = dy / dist;
-      nvx += nx * GRAVITY_ACCEL * dt;
-      nvy += ny * GRAVITY_ACCEL * dt;
+      const strength =
+        dist < layout.gravityRadius
+          ? GRAVITY_ACCEL
+          : GRAVITY_ACCEL * OUTSIDE_GRAVITY_RATIO;
+      nvx += nx * strength * dt;
+      nvy += ny * strength * dt;
     }
 
     nvx *= VELOCITY_DAMPING;

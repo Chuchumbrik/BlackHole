@@ -9,8 +9,8 @@ export const KIND_COLORS: Record<ObjectKind, number> = {
 };
 
 export const KIND_RADIUS: Record<ObjectKind, number> = {
-  0: 4,
-  1: 8,
-  2: 6,
-  3: 10,
+  0: 5,
+  1: 10,
+  2: 7,
+  3: 12,
 };
