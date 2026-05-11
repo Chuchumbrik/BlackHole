@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { GameCanvas } from "./components/GameCanvas";
+import { TimeScaleControls } from "./components/TimeScaleControls";
 import { ViewScaleControls } from "./components/ViewScaleControls";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { useGameStore } from "./store/useGameStore";
@@ -47,7 +48,12 @@ function App() {
         )}
       </div>
 
-      {activeTab === "game" && <ViewScaleControls />}
+      {activeTab === "game" && (
+        <>
+          <ViewScaleControls />
+          <TimeScaleControls />
+        </>
+      )}
 
       <div className="app-ui">
         <header className="app-header">

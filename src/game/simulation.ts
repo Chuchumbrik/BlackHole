@@ -308,7 +308,8 @@ export function advanceObjectOneStep(
 
 /** Верхние границы предпросмотра — для орбит без «конца» (не улетает и не поглощается). */
 const TRAJECTORY_PREVIEW_MAX_SIM_SECONDS = 900;
-const TRAJECTORY_PREVIEW_MAX_POINTS = 5000;
+/** Должно хватать на \`maxSeconds\` при текущем шаге: \(900 / 0.034 \approx 26471\) плюс запас. */
+const TRAJECTORY_PREVIEW_MAX_POINTS = 32000;
 const TRAJECTORY_PREVIEW_STEP_SECONDS = 0.034;
 
 /**

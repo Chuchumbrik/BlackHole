@@ -113,6 +113,38 @@ body,
   color: var(--muted);
 }
 
+.time-scale-controls {
+  position: fixed;
+  bottom: 5rem;
+  right: 1rem;
+  z-index: 2;
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.35rem;
+  max-width: min(100vw - 2rem, 22rem);
+}
+
+.time-scale-controls button {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--text);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.time-scale-controls button.is-active {
+  border-color: rgba(155, 126, 217, 0.75);
+  background: rgba(155, 126, 217, 0.22);
+  color: #fff;
+}
+
 .app-panel-placeholder {
   display: flex;
   flex-direction: column;

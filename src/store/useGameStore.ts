@@ -12,16 +12,22 @@ type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats";
 
 export type ViewTierId = 0 | 1 | 2;
 
+/** Множитель времени симуляции: 0 — пауза, иначе ускорение относительно реального времени. */
+export type SimTimeScale = 0 | 1 | 2 | 3 | 5;
+
 type GameState = {
   massMp: number;
   upgradeLevels: UpgradeLevels;
   /** Масштаб вида: у дыры / звёздная система / карта галактики (узлы). */
   viewTier: ViewTierId;
   activeTab: TabId;
+  /** Скорость игрового времени (пауза / ×1 / ×2 / ×3 / ×5). */
+  simTimeScale: SimTimeScale;
   addMassMp: (amount: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
+  setSimTimeScale: (scale: SimTimeScale) => void;
 };
 
 function maxUnlockedViewTier(levels: UpgradeLevels): ViewTierId {
@@ -35,6 +41,7 @@ export const useGameStore = create<GameState>((set) => ({
   upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
   viewTier: 0,
   activeTab: "game",
+  simTimeScale: 1,
   addMassMp: (amount) =>
     set((s) => ({ massMp: s.massMp + Math.max(0, Math.floor(amount)) })),
   buyUpgrade: (branch) =>
@@ -61,4 +68,5 @@ export const useGameStore = create<GameState>((set) => ({
       const viewTier = tier > cap ? cap : tier;
       return { viewTier };
     }),
+  setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
 }));

@@ -22,6 +22,14 @@
     "shipsActive": "Ships in spawn",
     "shipsLocked": "Ships unlock at level sum ≥ {{need}} (yours: {{sum}})"
   },
+  "timeScale": {
+    "groupLabel": "Time speed",
+    "pause": "Pause",
+    "x1": "×1",
+    "x2": "×2",
+    "x3": "×3",
+    "x5": "×5"
+  },
   "upgrades": {
     "title": "Black hole upgrades",
     "holeLevel": "Hole level (sum of branches): {{value}}",

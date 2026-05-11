@@ -546,6 +546,8 @@ export function GameCanvas() {
         canvasEl.removeEventListener("wheel", onWheel);
 
       let lastMs = performance.now();
+      /** Игровое время (сек) для анимации диска — не идёт вперёд на паузе. */
+      let simTimeSec = 0;
 
       const paintTrajectories = (
         layout: SimLayout,
@@ -583,6 +585,10 @@ export function GameCanvas() {
         const dt = Math.min((nowMs - lastMs) / 1000, 0.12);
         lastMs = nowMs;
 
+        const simScale = useGameStore.getState().simTimeScale;
+        const simDt = dt * simScale;
+        simTimeSec += simDt;
+
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
         const layout = layoutFromHost(host, levels);
@@ -591,7 +597,7 @@ export function GameCanvas() {
 
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
-          dt,
+          simDt,
           BASE_SPAWN_PER_SECOND,
         );
         objects = trySpawn(objects, layout, spawnCount, { shipsUnlocked });
@@ -599,7 +605,7 @@ export function GameCanvas() {
         const { objects: nextObjects, consumed, escaped } = stepSimulation(
           objects,
           layout,
-          dt,
+          simDt,
           levels,
         );
         objects = nextObjects;
@@ -632,9 +638,9 @@ export function GameCanvas() {
           if (bonus > 0) useGameStore.getState().addMassMp(bonus);
         }
 
-        consumePulse = Math.max(0, consumePulse - dt * 3.5);
+        consumePulse = Math.max(0, consumePulse - simDt * 3.5);
 
-        paintHole(hole, layout, consumePulse, levels.disk, nowMs / 1000);
+        paintHole(hole, layout, consumePulse, levels.disk, simTimeSec);
         paintMainStar(mainStar, layout);
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects, layout);
