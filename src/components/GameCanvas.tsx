@@ -10,11 +10,15 @@ import {
   BASE_BH_MASS,
   BASE_STAR_MASS,
   BASE_SPAWN_PER_SECOND,
+  BH_ORBIT_RADIUS_FRACTION,
+  BH_SCREEN_ANGLE_RAD,
   FIELD_MP_GLOBAL_MULTIPLIER,
+  SYSTEM_OUTER_RADIUS_FRACTION,
 } from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
 import {
   advanceSpawnAccumulator,
+  predictTrajectoryPoints,
   resetSimulationIds,
   type SimLayout,
   type SimObject,
@@ -34,23 +38,24 @@ import { useGameStore } from "../store/useGameStore";
 
 const BODY_TEXTURE = Texture.WHITE;
 
-function layoutFromHost(
-  el: HTMLElement,
-  upgradeLevels: UpgradeLevels,
-  nowSec: number,
-): SimLayout {
+function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayout {
   const w = Math.max(el.clientWidth, 1);
   const h = Math.max(el.clientHeight, 1);
   const minD = Math.min(w, h);
   const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels);
-  const starOrbitR = minD * 0.34;
-  const starA = nowSec * 0.07 + Math.PI * 0.18;
-  const starX = w / 2 + Math.cos(starA) * starOrbitR;
-  const starY = h / 2 + Math.sin(starA) * starOrbitR;
+  const starX = w / 2;
+  const starY = h / 2;
+  const bhR = minD * BH_ORBIT_RADIUS_FRACTION;
+  const bhX = starX + Math.cos(BH_SCREEN_ANGLE_RAD) * bhR;
+  const bhY = starY + Math.sin(BH_SCREEN_ANGLE_RAD) * bhR;
+  let systemRadius = minD * SYSTEM_OUTER_RADIUS_FRACTION;
+  const bhDist = Math.hypot(bhX - starX, bhY - starY);
+  systemRadius = Math.max(
+    systemRadius,
+    bhDist + horizon * 2.5 + minD * 0.035,
+  );
   const bhMassScale = Math.max(0.85, horizon / (minD * 0.085));
   return {
-    cx: w / 2,
-    cy: h / 2,
     width: w,
     height: h,
     horizonRadius: horizon,
@@ -62,6 +67,8 @@ function layoutFromHost(
       y: starY,
       mass: BASE_STAR_MASS,
     },
+    bh: { x: bhX, y: bhY },
+    systemRadius,
   };
 }
 
@@ -84,7 +91,8 @@ function paintHole(
   pulse01: number,
   diskLevel: number,
 ): void {
-  const { cx, cy } = layout;
+  const cx = layout.bh.x;
+  const cy = layout.bh.y;
   const r = layout.horizonRadius;
   const ringBoost = pulse01 * 0.55;
 
@@ -120,7 +128,9 @@ function paintGalaxy(
   layout: SimLayout,
   pulse01: number,
 ): void {
-  const { cx, cy, width: w, height: h } = layout;
+  const { width: w, height: h } = layout;
+  const cx = layout.star.x;
+  const cy = layout.star.y;
   g.clear();
   g.rect(0, 0, w, h);
   g.fill({ color: 0x06060c });
@@ -145,6 +155,80 @@ function paintGalaxy(
   g.fill({ color: 0x000000 });
   g.circle(cx, cy, 26 + pulse01 * 4);
   g.stroke({ width: 2, color: 0x6b4faa, alpha: 0.5 });
+}
+
+/** Пунктир вдоль полилинии (мировые координаты слоя worldRoot). */
+function strokeDashedPolyline(
+  g: Graphics,
+  points: { x: number; y: number }[],
+  color: number,
+  alpha: number,
+  dashPx: number,
+  gapPx: number,
+): void {
+  if (points.length < 2) return;
+  const cycle = dashPx + gapPx;
+  let distAlong = 0;
+
+  const strokeDashSegment = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+    segStartDist: number,
+  ): void => {
+    const segLen = Math.hypot(bx - ax, by - ay);
+    if (segLen < 1e-6) return;
+    let u = 0;
+    while (u < segLen - 1e-6) {
+      const globalDist = segStartDist + u;
+      const phase = globalDist % cycle;
+      const inDash = phase < dashPx;
+      const roomInDash = inDash ? dashPx - phase : gapPx - (phase - dashPx);
+      const step = Math.min(roomInDash, segLen - u);
+      const t0 = u / segLen;
+      const t1 = (u + step) / segLen;
+      const x0 = ax + (bx - ax) * t0;
+      const y0 = ay + (by - ay) * t0;
+      const x1 = ax + (bx - ax) * t1;
+      const y1 = ay + (by - ay) * t1;
+      if (inDash) {
+        g.moveTo(x0, y0);
+        g.lineTo(x1, y1);
+      }
+      u += step;
+    }
+  };
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const ax = points[i].x;
+    const ay = points[i].y;
+    const bx = points[i + 1].x;
+    const by = points[i + 1].y;
+    const segLen = Math.hypot(bx - ax, by - ay);
+    strokeDashSegment(ax, ay, bx, by, distAlong);
+    distAlong += segLen;
+  }
+
+  g.stroke({ width: 1.15, color, alpha, cap: "round", join: "round" });
+}
+
+function pickObjectAtWorld(
+  objects: SimObject[],
+  wx: number,
+  wy: number,
+): number | null {
+  let bestId: number | null = null;
+  let bestD = Infinity;
+  for (const o of objects) {
+    const r = KIND_RADIUS[o.kind] * 2;
+    const d = Math.hypot(o.x - wx, o.y - wy);
+    if (d <= r && d < bestD) {
+      bestD = d;
+      bestId = o.id;
+    }
+  }
+  return bestId;
 }
 
 function syncBodySprites(
@@ -227,14 +311,19 @@ export function GameCanvas() {
       const stars = new Graphics();
       const mainStar = new Graphics();
       const hole = new Graphics();
+      const trails = new Graphics();
       const bodyLayer = new Container();
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(hole);
+      worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
 
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
+
+      let hoverObjectId: number | null = null;
+      let selectedObjectId: number | null = null;
 
       const applyCamera = (
         levels: UpgradeLevels,
@@ -249,15 +338,15 @@ export function GameCanvas() {
         worldRoot.visible = true;
         galaxyRoot.visible = false;
         const s = combinedWorldScale(levels, viewTier);
-        worldRoot.pivot.set(layout.cx, layout.cy);
-        worldRoot.position.set(layout.cx, layout.cy);
+        worldRoot.pivot.set(layout.star.x, layout.star.y);
+        worldRoot.position.set(layout.star.x, layout.star.y);
         worldRoot.scale.set(s);
       };
 
       const syncSceneSize = () => {
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
-        const layout = layoutFromHost(host, levels, performance.now() / 1000);
+        const layout = layoutFromHost(host, levels);
         paintStars(stars, layout.width, layout.height);
         paintMainStar(mainStar, layout);
         paintHole(hole, layout, consumePulse, levels.disk);
@@ -274,7 +363,65 @@ export function GameCanvas() {
       });
       observer.observe(host);
 
+      application.stage.eventMode = "static";
+      application.stage.hitArea = application.screen;
+
+      application.stage.on("pointermove", (e) => {
+        if (useGameStore.getState().viewTier >= 2) return;
+        const local = worldRoot.toLocal(e.global);
+        hoverObjectId = pickObjectAtWorld(objects, local.x, local.y);
+      });
+
+      application.stage.on("pointertap", (e) => {
+        if (useGameStore.getState().viewTier >= 2) return;
+        const local = worldRoot.toLocal(e.global);
+        const id = pickObjectAtWorld(objects, local.x, local.y);
+        if (id === null) {
+          selectedObjectId = null;
+        } else {
+          selectedObjectId = selectedObjectId === id ? null : id;
+        }
+      });
+
+      application.stage.on("pointerleave", () => {
+        hoverObjectId = null;
+      });
+
       let lastMs = performance.now();
+
+      const paintTrajectories = (
+        layout: SimLayout,
+        levels: UpgradeLevels,
+        viewTier: 0 | 1 | 2,
+      ) => {
+        trails.clear();
+        if (viewTier >= 2) return;
+
+        const showTrail = (obj: SimObject) => {
+          const pts = predictTrajectoryPoints(obj, layout, levels, {
+            maxSeconds: 12,
+            stepSeconds: 0.03,
+            maxPoints: 360,
+          });
+          if (pts.length < 2) return;
+          const hot = hoverObjectId === obj.id;
+          const color = hot ? 0xffffff : 0x8b93a5;
+          const alpha = hot ? 0.92 : 0.42;
+          strokeDashedPolyline(trails, pts, color, alpha, 5, 4);
+        };
+
+        for (const obj of objects) {
+          if (obj.kind === 3) {
+            showTrail(obj);
+          }
+        }
+        if (selectedObjectId !== null) {
+          const sel = objects.find((o) => o.id === selectedObjectId);
+          if (sel && sel.kind !== 3) {
+            showTrail(sel);
+          }
+        }
+      };
 
       const tick = (nowMs: number) => {
         if (cancelled || !app) return;
@@ -284,7 +431,7 @@ export function GameCanvas() {
 
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
-        const layout = layoutFromHost(host, levels, nowMs / 1000);
+        const layout = layoutFromHost(host, levels);
         const mpMult = mpIncomeMultiplier(levels);
         const shipsUnlocked = areShipsUnlocked(levels);
 
@@ -302,6 +449,13 @@ export function GameCanvas() {
           levels,
         );
         objects = nextObjects;
+
+        if (
+          selectedObjectId !== null &&
+          !objects.some((o) => o.id === selectedObjectId)
+        ) {
+          selectedObjectId = null;
+        }
 
         if (consumed.length > 0) {
           consumePulse = 1;
@@ -331,6 +485,7 @@ export function GameCanvas() {
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects);
         applyCamera(levels, layout, viewTier);
+        paintTrajectories(layout, levels, viewTier);
 
         raf = requestAnimationFrame(tick);
       };

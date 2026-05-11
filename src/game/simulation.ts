@@ -32,27 +32,23 @@ export type SimObject = {
 };
 
 export type SimLayout = {
-  cx: number;
-  cy: number;
   width: number;
   height: number;
   /** Радиус горизонта событий (пиксели). */
   horizonRadius: number;
-  /** Зона действия гравитации (пиксели). */
+  /** Зона действия гравитации дыры (пиксели). */
   gravityRadius: number;
   /** Ускорение к центру (пикс/с²), с учётом улучшения «Эффективность». */
   gravityAccel: number;
   /** Эффективная масса чёрной дыры в формулах 1/r². */
   bhMass: number;
-  /** Главная звезда системы как второе гравитационное тело. */
+  /** Центральная звезда — якорь системы (центр масс по ТЗ v1.5). */
   star: { x: number; y: number; mass: number };
+  /** Положение чёрной дыры на периферии системы. */
+  bh: { x: number; y: number };
+  /** Внешняя граница системы: спавн на окружности, побег за пределы. */
+  systemRadius: number;
 };
-
-/**
- * Притяжение к центру для объектов вне горизонта.
- * Снаружи `gravityRadius` тянем слабее, но ненулевым — иначе объекты,
- * заспавненные по кольцу за пределами зоны (по ТЗ), никогда не входят в поле силы.
- */
 
 let nextId = 1;
 
@@ -60,20 +56,21 @@ export function resetSimulationIds(): void {
   nextId = 1;
 }
 
+/** Случайная скорость при спавне на границе системы (направление и модуль рандом). */
+function randomBoundaryVelocity(): { vx: number; vy: number } {
+  const dir = Math.random() * Math.PI * 2;
+  const speed = 38 + Math.random() * 72;
+  return { vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed };
+}
+
 export function spawnOutsideGravity(layout: SimLayout): SimObject {
   const kind = rollObjectKind();
   const mpValue = rollMpForKind(kind);
-  const angle = Math.random() * Math.PI * 2;
-  const halfMin = Math.min(layout.width, layout.height) / 2 - 12;
-  const minDist = layout.gravityRadius * 1.06;
-  let maxDist = Math.max(halfMin * 0.92, minDist + 80);
-  if (maxDist <= minDist) maxDist = minDist + 120;
-  const dist = minDist + Math.random() * (maxDist - minDist);
-  const x = layout.cx + Math.cos(angle) * dist;
-  const y = layout.cy + Math.sin(angle) * dist;
-  const tangential = 20 + Math.random() * 55;
-  const vx = -Math.sin(angle) * tangential;
-  const vy = Math.cos(angle) * tangential;
+  const spawnAngle = Math.random() * Math.PI * 2;
+  const r = layout.systemRadius;
+  const x = layout.star.x + Math.cos(spawnAngle) * r;
+  const y = layout.star.y + Math.sin(spawnAngle) * r;
+  const { vx, vy } = randomBoundaryVelocity();
 
   return {
     id: nextId++,
@@ -90,17 +87,11 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
 export function spawnShip(layout: SimLayout): SimObject {
   const q = rollShipQualities();
   const mpValue = rollMpForKind(4);
-  const angle = Math.random() * Math.PI * 2;
-  const halfMin = Math.min(layout.width, layout.height) / 2 - 12;
-  const minDist = layout.gravityRadius * 1.06;
-  let maxDist = Math.max(halfMin * 0.92, minDist + 80);
-  if (maxDist <= minDist) maxDist = minDist + 120;
-  const dist = minDist + Math.random() * (maxDist - minDist);
-  const x = layout.cx + Math.cos(angle) * dist;
-  const y = layout.cy + Math.sin(angle) * dist;
-  const tangential = 22 + Math.random() * 48;
-  const vx = -Math.sin(angle) * tangential;
-  const vy = Math.cos(angle) * tangential;
+  const spawnAngle = Math.random() * Math.PI * 2;
+  const r = layout.systemRadius;
+  const x = layout.star.x + Math.cos(spawnAngle) * r;
+  const y = layout.star.y + Math.sin(spawnAngle) * r;
+  const { vx, vy } = randomBoundaryVelocity();
 
   return {
     id: nextId++,
@@ -140,13 +131,6 @@ function applyBodyGravity(
   };
 }
 
-export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
-
-export type EscapeEvent = {
-  objectId: number;
-  bonusMp: number;
-};
-
 function outwardThrustAccel(
   obj: SimObject,
   levels: UpgradeLevels,
@@ -161,10 +145,183 @@ function outwardThrustAccel(
   );
 }
 
+export type StepOutcome =
+  | { kind: "live"; obj: SimObject }
+  | { kind: "consumed"; mp: number; objectKind: ObjectKind }
+  | { kind: "escaped"; bonusMp: number };
+
+/** Один шаг интегрирования — общая логика для симуляции и предпросмотра траектории. */
+export function advanceObjectOneStep(
+  obj: SimObject,
+  layout: SimLayout,
+  dt: number,
+  upgradeLevels: UpgradeLevels,
+): StepOutcome {
+  const dx = layout.bh.x - obj.x;
+  const dy = layout.bh.y - obj.y;
+  const dist = Math.hypot(dx, dy) || 1e-6;
+
+  if (dist < layout.horizonRadius) {
+    return {
+      kind: "consumed",
+      mp: obj.mpValue,
+      objectKind: obj.kind,
+    };
+  }
+
+  let nvx = obj.vx;
+  let nvy = obj.vy;
+  let nx = dx / dist;
+  let ny = dy / dist;
+
+  if (dist > layout.horizonRadius) {
+    const outsideRatio =
+      dist < layout.gravityRadius ? 1 : OUTSIDE_GRAVITY_RATIO;
+    const bhGravity = applyBodyGravity(
+      { ...obj, vx: nvx, vy: nvy },
+      { x: layout.bh.x, y: layout.bh.y, mass: layout.bhMass },
+      dt,
+      outsideRatio,
+    );
+    nvx = bhGravity.vx;
+    nvy = bhGravity.vy;
+    nx = bhGravity.nx;
+    ny = bhGravity.ny;
+
+    const starGravity = applyBodyGravity(
+      { ...obj, vx: nvx, vy: nvy },
+      layout.star,
+      dt,
+      0.9,
+    );
+    nvx = starGravity.vx;
+    nvy = starGravity.vy;
+
+    const effRatio =
+      layout.gravityAccel > 0
+        ? layout.gravityAccel / BASE_GRAVITY_ACCEL
+        : 1;
+    nvx = obj.vx + (nvx - obj.vx) * effRatio;
+    nvy = obj.vy + (nvy - obj.vy) * effRatio;
+
+    if (obj.kind === 4) {
+      const thrust = outwardThrustAccel(obj, upgradeLevels);
+      nvx -= nx * thrust * dt;
+      nvy -= ny * thrust * dt;
+    }
+  }
+
+  nvx *= VELOCITY_DAMPING;
+  nvy *= VELOCITY_DAMPING;
+
+  const newX = obj.x + nvx * dt;
+  const newY = obj.y + nvy * dt;
+  const newDx = layout.bh.x - newX;
+  const newDy = layout.bh.y - newY;
+  const newDist = Math.hypot(newDx, newDy) || 1e-6;
+
+  if (obj.kind === 4) {
+    let entered = obj.shipEnteredGravity ?? false;
+    if (newDist < layout.gravityRadius * 0.97) {
+      entered = true;
+    }
+    if (entered && newDist > layout.gravityRadius * 1.04) {
+      const pilot = obj.pilot01 ?? 1;
+      return {
+        kind: "escaped",
+        bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
+      };
+    }
+    const rShipStar = Math.hypot(
+      newX - layout.star.x,
+      newY - layout.star.y,
+    );
+    if (rShipStar > layout.systemRadius * 1.02) {
+      const pilot = obj.pilot01 ?? 1;
+      return {
+        kind: "escaped",
+        bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
+      };
+    }
+    return {
+      kind: "live",
+      obj: {
+        ...obj,
+        x: newX,
+        y: newY,
+        vx: nvx,
+        vy: nvy,
+        shipEnteredGravity: entered,
+      },
+    };
+  }
+
+  const rFromStar = Math.hypot(
+    newX - layout.star.x,
+    newY - layout.star.y,
+  );
+  if (rFromStar > layout.systemRadius * 1.02) {
+    return { kind: "escaped", bonusMp: 0 };
+  }
+
+  return {
+    kind: "live",
+    obj: {
+      ...obj,
+      x: newX,
+      y: newY,
+      vx: nvx,
+      vy: nvy,
+    },
+  };
+}
+
 /**
- * Один шаг симуляции: притяжение, для кораблей — тяга наружу; побег при выходе из зоны после входа;
- * поглощение при r < horizonRadius.
+ * Точки предпросмотра траектории (численное интегрирование тем же шагом, что и симуляция).
  */
+export function predictTrajectoryPoints(
+  start: SimObject,
+  layout: SimLayout,
+  upgradeLevels: UpgradeLevels,
+  options?: {
+    maxSeconds?: number;
+    stepSeconds?: number;
+    maxPoints?: number;
+  },
+): { x: number; y: number }[] {
+  const maxSec = options?.maxSeconds ?? 14;
+  const stepDt = options?.stepSeconds ?? 0.028;
+  const maxPoints = options?.maxPoints ?? 400;
+
+  let o: SimObject = { ...start };
+  const pts: { x: number; y: number }[] = [{ x: o.x, y: o.y }];
+  let t = 0;
+  const margin = 48;
+
+  while (t < maxSec && pts.length < maxPoints) {
+    const r = advanceObjectOneStep(o, layout, stepDt, upgradeLevels);
+    if (r.kind !== "live") break;
+    o = r.obj;
+    pts.push({ x: o.x, y: o.y });
+    t += stepDt;
+    const rStar = Math.hypot(
+      o.x - layout.star.x,
+      o.y - layout.star.y,
+    );
+    if (rStar > layout.systemRadius + margin) {
+      break;
+    }
+  }
+  return pts;
+}
+
+export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
+
+export type EscapeEvent = {
+  objectId: number;
+  bonusMp: number;
+};
+
 export function stepSimulation(
   objects: SimObject[],
   layout: SimLayout,
@@ -180,104 +337,23 @@ export function stepSimulation(
   const next: SimObject[] = [];
 
   for (const obj of objects) {
-    const dx = layout.cx - obj.x;
-    const dy = layout.cy - obj.y;
-    const dist = Math.hypot(dx, dy) || 1e-6;
-
-    if (dist < layout.horizonRadius) {
+    const r = advanceObjectOneStep(obj, layout, dt, upgradeLevels);
+    if (r.kind === "consumed") {
       consumed.push({
         objectId: obj.id,
-        mp: obj.mpValue,
-        kind: obj.kind,
+        mp: r.mp,
+        kind: r.objectKind,
       });
       continue;
     }
-
-    let nvx = obj.vx;
-    let nvy = obj.vy;
-    let nx = dx / dist;
-    let ny = dy / dist;
-
-    if (dist > layout.horizonRadius) {
-      const outsideRatio =
-        dist < layout.gravityRadius ? 1 : OUTSIDE_GRAVITY_RATIO;
-      const bhGravity = applyBodyGravity(
-        { ...obj, vx: nvx, vy: nvy },
-        { x: layout.cx, y: layout.cy, mass: layout.bhMass },
-        dt,
-        outsideRatio,
-      );
-      nvx = bhGravity.vx;
-      nvy = bhGravity.vy;
-      nx = bhGravity.nx;
-      ny = bhGravity.ny;
-
-      const starGravity = applyBodyGravity(
-        { ...obj, vx: nvx, vy: nvy },
-        layout.star,
-        dt,
-        0.9,
-      );
-      nvx = starGravity.vx;
-      nvy = starGravity.vy;
-
-      const effRatio =
-        layout.gravityAccel > 0
-          ? layout.gravityAccel / BASE_GRAVITY_ACCEL
-          : 1;
-      nvx = obj.vx + (nvx - obj.vx) * effRatio;
-      nvy = obj.vy + (nvy - obj.vy) * effRatio;
-
-      if (obj.kind === 4) {
-        const thrust = outwardThrustAccel(obj, upgradeLevels);
-        nvx -= nx * thrust * dt;
-        nvy -= ny * thrust * dt;
-      }
-    }
-
-    nvx *= VELOCITY_DAMPING;
-    nvy *= VELOCITY_DAMPING;
-
-    const newX = obj.x + nvx * dt;
-    const newY = obj.y + nvy * dt;
-    const newDx = layout.cx - newX;
-    const newDy = layout.cy - newY;
-    const newDist = Math.hypot(newDx, newDy) || 1e-6;
-
-    if (obj.kind === 4) {
-      let entered = obj.shipEnteredGravity ?? false;
-      if (newDist < layout.gravityRadius * 0.97) {
-        entered = true;
-      }
-      if (
-        entered &&
-        newDist > layout.gravityRadius * 1.04
-      ) {
-        const pilot = obj.pilot01 ?? 1;
-        escaped.push({
-          objectId: obj.id,
-          bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
-        });
-        continue;
-      }
-      next.push({
-        ...obj,
-        x: newX,
-        y: newY,
-        vx: nvx,
-        vy: nvy,
-        shipEnteredGravity: entered,
+    if (r.kind === "escaped") {
+      escaped.push({
+        objectId: obj.id,
+        bonusMp: r.bonusMp,
       });
       continue;
     }
-
-    next.push({
-      ...obj,
-      x: newX,
-      y: newY,
-      vx: nvx,
-      vy: nvy,
-    });
+    next.push(r.obj);
   }
 
   return { objects: next, consumed, escaped };
