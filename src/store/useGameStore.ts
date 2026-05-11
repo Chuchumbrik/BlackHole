@@ -5,14 +5,14 @@ type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats";
 type GameState = {
   massMp: number;
   activeTab: TabId;
-  tickMass: () => void;
+  addMassMp: (amount: number) => void;
   setTab: (tab: TabId) => void;
 };
 
-/** Заглушка экономики для проверки связки UI ↔ состояние (позже заменить симуляцией). */
 export const useGameStore = create<GameState>((set) => ({
   massMp: 0,
   activeTab: "game",
-  tickMass: () => set((s) => ({ massMp: s.massMp + 1 })),
+  addMassMp: (amount) =>
+    set((s) => ({ massMp: s.massMp + Math.max(0, Math.floor(amount)) })),
   setTab: (activeTab) => set({ activeTab }),
 }));

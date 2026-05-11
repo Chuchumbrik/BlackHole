@@ -3,6 +3,7 @@
     "title": "Black Hole: Devour",
     "subtitle": "MVP · PixiJS + React",
     "mass": "Mass: {{value}} MP",
+    "massHint": "· pull objects into the horizon",
     "tabs": {
       "game": "Space",
       "upgrades": "Upgrades",

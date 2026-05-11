@@ -3,6 +3,7 @@
     "title": "Чёрная Дыра: Поглощение",
     "subtitle": "MVP · PixiJS + React",
     "mass": "Масса: {{value}} MP",
+    "massHint": "· втягивайте объекты в горизонт",
     "tabs": {
       "game": "Космос",
       "upgrades": "Улучшения",

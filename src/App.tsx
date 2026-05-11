@@ -18,8 +18,6 @@ function App() {
   const massMp = useGameStore((s) => s.massMp);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
-  const tickMass = useGameStore((s) => s.tickMass);
-
   return (
     <div className="app-root">
       <div className="app-game-layer">
@@ -42,9 +40,9 @@ function App() {
               {t("app.subtitle")} · v{APP_VERSION}
             </p>
           </div>
-          <div className="app-mass" onClick={() => tickMass()} role="presentation">
+          <div className="app-mass">
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
-            <span className="app-mass-hint"> · клик для теста Zustand</span>
+            <span className="app-mass-hint"> {t("app.massHint")}</span>
           </div>
         </header>
 
