@@ -3,13 +3,18 @@
  * Базовые доли — ручки ранней щедрости (obsidian/13 §2).
  */
 
-export const BASE_HORIZON_FRACTION = 0.085;
+/**
+ * Стартовый горизонт: доля minD — **очень маленькая** дыра; часть объектов
+ * визуально сопоставима или крупнее (см. `KIND_RADIUS` в `colors.ts`).
+ */
+export const BASE_HORIZON_FRACTION = 0.032;
 export const BASE_GRAVITY_FRACTION = 0.42;
 
 /**
  * Геометрия v1.5: звезда в центре вида, дыра на орбите этой доли min(width,height).
  */
-export const BH_ORBIT_RADIUS_FRACTION = 0.36;
+/** Доля min(width,height): дыра дальше от звезды — читаемее поле и орбиты. */
+export const BH_ORBIT_RADIUS_FRACTION = 0.46;
 
 /** Фиксированный азимут дыры на периферии (рад), стабилен на сессию. */
 export const BH_SCREEN_ANGLE_RAD = 2.35;
@@ -19,11 +24,20 @@ export const BH_SCREEN_ANGLE_RAD = 2.35;
  */
 export const SYSTEM_OUTER_RADIUS_FRACTION = 0.58;
 
-/** Радиус «поверхности» звезды для столкновений и визуала (доля minD). */
-export const STAR_COLLISION_RADIUS_FRACTION = 0.032;
+/**
+ * Общий линейный масштаб орбиты дыры и \(R_{\mathrm{out}}\) в мировых пикселях (~×3 к «ощущению» поля).
+ * Контраст горизонта/звезды задаётся отдельными долями — они не умножаются здесь.
+ */
+export const STELLAR_SYSTEM_RADIUS_MUL = 2.75;
 
-/** Ядро звезды на экране — нарративно крупнее горизонта дыры на старте. */
-export const STAR_DISPLAY_RADIUS_FRACTION = 0.034;
+/** Радиус «поверхности» звезды для столкновений (доля minD); чуть меньше видимого ядра. */
+export const STAR_COLLISION_RADIUS_FRACTION = 0.098;
+
+/**
+ * Ядро звезды на экране — должно быть заметно крупнее горизонта дыры при уровне size=0
+ * (`BASE_HORIZON_FRACTION`), иначе дырная сингулярность визуально доминирует над звездой системы.
+ */
+export const STAR_DISPLAY_RADIUS_FRACTION = 0.108;
 
 /** Нижняя граница масштаба слоя дыры (не уводить в точку). */
 export const CAMERA_SCALE_MIN = 0.22;

@@ -13,11 +13,14 @@ import {
 } from "./balance";
 import type { UpgradeLevels } from "./upgrades";
 import { shipThrustMultiplierFromLevels } from "./upgrades";
+import { buildObjectDisplayName } from "./objectNames";
 import { rollMpForKind, rollObjectKind, rollShipQualities } from "./rng";
 
 export type SimObject = {
   id: number;
   kind: ObjectKind;
+  /** Подпись при выборе (тип + программный позывной). */
+  displayName: string;
   x: number;
   y: number;
   vx: number;
@@ -73,10 +76,12 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
   const { vx, vy } = randomBoundaryVelocity();
+  const id = nextId++;
 
   return {
-    id: nextId++,
+    id,
     kind,
+    displayName: buildObjectDisplayName(kind, id),
     x,
     y,
     vx,
@@ -94,10 +99,12 @@ export function spawnShip(layout: SimLayout): SimObject {
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
   const { vx, vy } = randomBoundaryVelocity();
+  const id = nextId++;
 
   return {
-    id: nextId++,
+    id,
     kind: 4,
+    displayName: buildObjectDisplayName(4, id),
     x,
     y,
     vx,

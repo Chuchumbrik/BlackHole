@@ -3,11 +3,13 @@ import {
   Container,
   Graphics,
   Sprite,
+  Text,
   Texture,
 } from "pixi.js";
 import { useEffect, useRef } from "react";
 import {
   BASE_BH_MASS,
+  BASE_HORIZON_FRACTION,
   BASE_STAR_MASS,
   BASE_SPAWN_PER_SECOND,
   BH_ORBIT_RADIUS_FRACTION,
@@ -15,6 +17,7 @@ import {
   FIELD_MP_GLOBAL_MULTIPLIER,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
+  STELLAR_SYSTEM_RADIUS_MUL,
   SYSTEM_OUTER_RADIUS_FRACTION,
 } from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
@@ -47,16 +50,17 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
   const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels);
   const starX = w / 2;
   const starY = h / 2;
-  const bhR = minD * BH_ORBIT_RADIUS_FRACTION;
+  const sysMul = STELLAR_SYSTEM_RADIUS_MUL;
+  const bhR = minD * BH_ORBIT_RADIUS_FRACTION * sysMul;
   const bhX = starX + Math.cos(BH_SCREEN_ANGLE_RAD) * bhR;
   const bhY = starY + Math.sin(BH_SCREEN_ANGLE_RAD) * bhR;
-  let systemRadius = minD * SYSTEM_OUTER_RADIUS_FRACTION;
+  let systemRadius = minD * SYSTEM_OUTER_RADIUS_FRACTION * sysMul;
   const bhDist = Math.hypot(bhX - starX, bhY - starY);
   systemRadius = Math.max(
     systemRadius,
     bhDist + horizon * 2.5 + minD * 0.035,
   );
-  const bhMassScale = Math.max(0.85, horizon / (minD * 0.085));
+  const bhMassScale = Math.max(0.85, horizon / (minD * BASE_HORIZON_FRACTION));
   return {
     width: w,
     height: h,
@@ -263,16 +267,20 @@ function pickObjectAtWorld(
   return bestId;
 }
 
+/** Масштаб спрайта у самого горизонта (было 0.14 — эффект ослаблен в ~2 раза по амплитуде). */
+const SHRINK_MIN_AT_HORIZON = 0.57;
+
 /** Визуальное сжатие у горизонта дыры перед исчезновением. */
 function spriteShrinkNearHorizon(o: SimObject, layout: SimLayout): number {
   const d = Math.hypot(o.x - layout.bh.x, o.y - layout.bh.y);
   const hr = layout.horizonRadius;
   const gr = layout.gravityRadius;
   if (d >= gr) return 1;
-  if (d <= hr) return 0.14;
+  if (d <= hr) return SHRINK_MIN_AT_HORIZON;
   const span = gr - hr;
   const u = span > 1e-6 ? (d - hr) / span : 1;
-  return 0.14 + 0.86 * Math.max(0, Math.min(1, u));
+  const t = Math.max(0, Math.min(1, u));
+  return SHRINK_MIN_AT_HORIZON + (1 - SHRINK_MIN_AT_HORIZON) * t;
 }
 
 function syncBodySprites(
@@ -360,11 +368,25 @@ export function GameCanvas() {
       const hole = new Graphics();
       const trails = new Graphics();
       const bodyLayer = new Container();
+      const selectionLabel = new Text({
+        text: "",
+        style: {
+          fontFamily: "system-ui, Segoe UI, sans-serif",
+          fontSize: 12,
+          fill: 0xe2e8f0,
+          stroke: { color: 0x0a0c10, width: 4 },
+        },
+      });
+      selectionLabel.anchor.set(0.5, 1);
+      selectionLabel.visible = false;
+      selectionLabel.eventMode = "none";
+
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
+      worldRoot.addChild(selectionLabel);
 
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
@@ -458,7 +480,7 @@ export function GameCanvas() {
               host,
               useGameStore.getState().upgradeLevels,
             );
-            const maxP = Math.min(lay.width, lay.height) * 0.72;
+            const maxP = Math.min(lay.width, lay.height) * 1.12;
             panX = Math.max(-maxP, Math.min(maxP, panX));
             panY = Math.max(-maxP, Math.min(maxP, panY));
           }
@@ -532,15 +554,9 @@ export function GameCanvas() {
         };
 
         for (const obj of objects) {
-          if (obj.kind === 3) {
-            showTrail(obj);
-          }
-        }
-        if (selectedObjectId !== null) {
-          const sel = objects.find((o) => o.id === selectedObjectId);
-          if (sel && sel.kind !== 3) {
-            showTrail(sel);
-          }
+          const active =
+            hoverObjectId === obj.id || selectedObjectId === obj.id;
+          if (active) showTrail(obj);
         }
       };
 
@@ -607,6 +623,22 @@ export function GameCanvas() {
         syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
         paintTrajectories(layout, levels, viewTier);
+
+        if (viewTier >= 2) {
+          selectionLabel.visible = false;
+        } else if (selectedObjectId !== null) {
+          const sel = objects.find((o) => o.id === selectedObjectId);
+          if (sel) {
+            selectionLabel.text = sel.displayName;
+            const lift = KIND_RADIUS[sel.kind] * 2 + 10;
+            selectionLabel.position.set(sel.x, sel.y - lift);
+            selectionLabel.visible = true;
+          } else {
+            selectionLabel.visible = false;
+          }
+        } else {
+          selectionLabel.visible = false;
+        }
 
         raf = requestAnimationFrame(tick);
       };

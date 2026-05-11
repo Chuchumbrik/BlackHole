@@ -4,8 +4,8 @@
  */
 
 export const OUTSIDE_GRAVITY_RATIO = 0.52;
-/** Ближе к 1 — меньше «воздушного трения» (слой B idle). */
-export const VELOCITY_DAMPING = 0.99935;
+/** 1 — без искусственного трения объектов; иначе < 1 затухает скорость каждый шаг. */
+export const VELOCITY_DAMPING = 1;
 export const GRAVITY_CONST = 0.064;
 export const GRAVITY_SOFTENING = 280;
 
