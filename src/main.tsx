@@ -5,6 +5,8 @@ import App from "./App";
 import i18n from "./i18n";
 import "./index.css";
 
+document.title = `Чёрная Дыра v${__APP_VERSION__}`;
+
 const el = document.getElementById("root");
 if (!el) {
   throw new Error("Root element #root not found");

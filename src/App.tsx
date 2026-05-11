@@ -1,9 +1,8 @@
 import { useTranslation } from "react-i18next";
-import packageJson from "../package.json";
 import { GameCanvas } from "./components/GameCanvas";
 import { useGameStore } from "./store/useGameStore";
 
-const APP_VERSION = packageJson.version;
+const APP_VERSION = __APP_VERSION__;
 
 const TABS = [
   { id: "game" as const, labelKey: "app.tabs.game" },

@@ -1,4 +1,10 @@
-import { Application, Container, Graphics } from "pixi.js";
+import {
+  Application,
+  Container,
+  Graphics,
+  Sprite,
+  Texture,
+} from "pixi.js";
 import { useEffect, useRef } from "react";
 import { BASE_SPAWN_PER_SECOND } from "../game/balance";
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
@@ -12,6 +18,8 @@ import {
   type SpawnControl,
 } from "../game/simulation";
 import { useGameStore } from "../store/useGameStore";
+
+const BODY_TEXTURE = Texture.WHITE;
 
 function layoutFromHost(el: HTMLElement): SimLayout {
   const w = Math.max(el.clientWidth, 1);
@@ -60,13 +68,35 @@ function paintHole(
   g.fill({ color: 0x000000 });
 }
 
-function paintBodies(g: Graphics, objects: SimObject[]): void {
-  g.clear();
-  for (const o of objects) {
-    const rad = KIND_RADIUS[o.kind];
-    g.circle(o.x, o.y, rad);
-    g.fill({ color: KIND_COLORS[o.kind], alpha: 0.94 });
-    g.stroke({ width: 1, color: 0x0f172a, alpha: 0.55 });
+/** Спрайты надёжнее batched Graphics.circle в Pixi v8 на части окружений. */
+function syncBodySprites(
+  layer: Container,
+  pool: Sprite[],
+  objects: SimObject[],
+): void {
+  while (pool.length < objects.length) {
+    const s = new Sprite(BODY_TEXTURE);
+    s.anchor.set(0.5);
+    layer.addChild(s);
+    pool.push(s);
+  }
+  while (pool.length > objects.length) {
+    const s = pool.pop();
+    if (s) {
+      layer.removeChild(s);
+      s.destroy();
+    }
+  }
+  for (let i = 0; i < objects.length; i++) {
+    const o = objects[i];
+    const s = pool[i];
+    const r = KIND_RADIUS[o.kind];
+    const d = r * 2;
+    s.width = d;
+    s.height = d;
+    s.tint = KIND_COLORS[o.kind];
+    s.alpha = 0.96;
+    s.position.set(o.x, o.y);
   }
 }
 
@@ -87,6 +117,7 @@ export function GameCanvas() {
     let objects: SimObject[] = [];
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
+    const spritePool: Sprite[] = [];
 
     const boot = async () => {
       const application = new Application();
@@ -112,20 +143,23 @@ export function GameCanvas() {
 
       const stars = new Graphics();
       const hole = new Graphics();
-      const bodies = new Graphics();
+      const bodyLayer = new Container();
       scene.addChild(stars);
       scene.addChild(hole);
-      scene.addChild(bodies);
+      scene.addChild(bodyLayer);
 
       const syncSceneSize = () => {
         const layout = layoutFromHost(host);
         paintStars(stars, layout.width, layout.height);
         paintHole(hole, layout, consumePulse);
-        paintBodies(bodies, objects);
+        syncBodySprites(bodyLayer, spritePool, objects);
       };
 
       observer = new ResizeObserver(() => {
         syncSceneSize();
+        if (application.renderer?.resize) {
+          application.renderer.resize(host.clientWidth, host.clientHeight);
+        }
       });
       observer.observe(host);
 
@@ -163,12 +197,18 @@ export function GameCanvas() {
         consumePulse = Math.max(0, consumePulse - dt * 3.5);
 
         paintHole(hole, layout, consumePulse);
-        paintBodies(bodies, objects);
+        syncBodySprites(bodyLayer, spritePool, objects);
 
         raf = requestAnimationFrame(tick);
       };
 
       syncSceneSize();
+      requestAnimationFrame(() => {
+        if (!cancelled && application.renderer?.resize) {
+          application.renderer.resize(host.clientWidth, host.clientHeight);
+        }
+        syncSceneSize();
+      });
       raf = requestAnimationFrame(tick);
     };
 
@@ -181,6 +221,7 @@ export function GameCanvas() {
       if (app) {
         app.destroy(true, { children: true });
       }
+      spritePool.length = 0;
       host.replaceChildren();
     };
   }, []);

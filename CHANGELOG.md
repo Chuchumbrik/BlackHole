@@ -2,6 +2,14 @@
 
 Формат основан на практике [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 
+## [0.1.2] — 2026-05-11
+
+### Исправлено
+
+- Объекты: отрисовка через **Sprite** (`Texture.WHITE`) вместо пакетного `Graphics` — на части GPU/браузеров круги не попадали в кадр.
+- Высота сцены: `game-canvas-host` и слой игры с `min-height: 100dvh` и `position: absolute; inset: 0`, повторный `resize` рендера после первого кадра.
+- Версия в UI: номер вшивается в бандл через `vite.config` `define` + `__APP_VERSION__` (всегда совпадает с `package.json` при сборке); заголовок вкладки `document.title` с версией.
+
 ## [0.1.1] — 2026-05-11
 
 ### Исправлено
