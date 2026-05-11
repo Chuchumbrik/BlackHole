@@ -1,6 +1,9 @@
 import { useTranslation } from "react-i18next";
+import packageJson from "../package.json";
 import { GameCanvas } from "./components/GameCanvas";
 import { useGameStore } from "./store/useGameStore";
+
+const APP_VERSION = packageJson.version;
 
 const TABS = [
   { id: "game" as const, labelKey: "app.tabs.game" },
@@ -35,7 +38,9 @@ function App() {
         <header className="app-header">
           <div>
             <h1 className="app-title">{t("app.title")}</h1>
-            <p className="app-subtitle">{t("app.subtitle")}</p>
+            <p className="app-subtitle">
+              {t("app.subtitle")} · v{APP_VERSION}
+            </p>
           </div>
           <div className="app-mass" onClick={() => tickMass()} role="presentation">
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
