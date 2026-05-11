@@ -1,0 +1,14 @@
+{
+  "app": {
+    "title": "Чёрная Дыра: Поглощение",
+    "subtitle": "MVP · PixiJS + React",
+    "mass": "Масса: {{value}} MP",
+    "tabs": {
+      "game": "Космос",
+      "upgrades": "Улучшения",
+      "planet": "Планета",
+      "prestige": "Престиж",
+      "stats": "Статистика"
+    }
+  }
+}

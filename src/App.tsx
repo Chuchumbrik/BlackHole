@@ -1,0 +1,63 @@
+import { useTranslation } from "react-i18next";
+import { GameCanvas } from "./components/GameCanvas";
+import { useGameStore } from "./store/useGameStore";
+
+const TABS = [
+  { id: "game" as const, labelKey: "app.tabs.game" },
+  { id: "upgrades" as const, labelKey: "app.tabs.upgrades" },
+  { id: "planet" as const, labelKey: "app.tabs.planet" },
+  { id: "prestige" as const, labelKey: "app.tabs.prestige" },
+  { id: "stats" as const, labelKey: "app.tabs.stats" },
+];
+
+function App() {
+  const { t } = useTranslation();
+  const massMp = useGameStore((s) => s.massMp);
+  const activeTab = useGameStore((s) => s.activeTab);
+  const setTab = useGameStore((s) => s.setTab);
+  const tickMass = useGameStore((s) => s.tickMass);
+
+  return (
+    <div className="app-root">
+      <div className="app-game-layer">
+        {activeTab === "game" && <GameCanvas />}
+        {activeTab !== "game" && (
+          <div className="app-panel-placeholder">
+            <p className="app-panel-title">
+              {t(`app.tabs.${activeTab}`)}
+            </p>
+            <p className="app-panel-hint">Экран из ТЗ — в следующих PR.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="app-ui">
+        <header className="app-header">
+          <div>
+            <h1 className="app-title">{t("app.title")}</h1>
+            <p className="app-subtitle">{t("app.subtitle")}</p>
+          </div>
+          <div className="app-mass" onClick={() => tickMass()} role="presentation">
+            {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
+            <span className="app-mass-hint"> · клик для теста Zustand</span>
+          </div>
+        </header>
+
+        <nav className="app-nav" aria-label="Разделы">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              className={tab.id === activeTab ? "is-active" : undefined}
+              onClick={() => setTab(tab.id)}
+            >
+              {t(tab.labelKey)}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+export default App;
