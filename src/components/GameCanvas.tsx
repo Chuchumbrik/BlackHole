@@ -7,6 +7,8 @@ import {
 } from "pixi.js";
 import { useEffect, useRef } from "react";
 import {
+  BASE_BH_MASS,
+  BASE_STAR_MASS,
   BASE_SPAWN_PER_SECOND,
   FIELD_MP_GLOBAL_MULTIPLIER,
 } from "../game/balance";
@@ -35,11 +37,17 @@ const BODY_TEXTURE = Texture.WHITE;
 function layoutFromHost(
   el: HTMLElement,
   upgradeLevels: UpgradeLevels,
+  nowSec: number,
 ): SimLayout {
   const w = Math.max(el.clientWidth, 1);
   const h = Math.max(el.clientHeight, 1);
   const minD = Math.min(w, h);
   const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels);
+  const starOrbitR = minD * 0.34;
+  const starA = nowSec * 0.07 + Math.PI * 0.18;
+  const starX = w / 2 + Math.cos(starA) * starOrbitR;
+  const starY = h / 2 + Math.sin(starA) * starOrbitR;
+  const bhMassScale = Math.max(0.85, horizon / (minD * 0.085));
   return {
     cx: w / 2,
     cy: h / 2,
@@ -48,6 +56,12 @@ function layoutFromHost(
     horizonRadius: horizon,
     gravityRadius: gravity,
     gravityAccel: effectiveGravityAccel(upgradeLevels),
+    bhMass: BASE_BH_MASS * bhMassScale,
+    star: {
+      x: starX,
+      y: starY,
+      mass: BASE_STAR_MASS,
+    },
   };
 }
 
@@ -89,6 +103,15 @@ function paintHole(
     g.circle(cx, cy, r * (1.62 + pulse01 * 0.05));
     g.stroke({ width: 2.5, color: 0xf59e0b, alpha });
   }
+}
+
+function paintMainStar(g: Graphics, layout: SimLayout): void {
+  g.clear();
+  const r = Math.max(7, Math.min(layout.width, layout.height) * 0.016);
+  g.circle(layout.star.x, layout.star.y, r * 1.7);
+  g.fill({ color: 0xfbbf24, alpha: 0.2 });
+  g.circle(layout.star.x, layout.star.y, r);
+  g.fill({ color: 0xf59e0b, alpha: 0.95 });
 }
 
 /** Карта галактики (узлы-планеты + маркер дыры) — заготовка под прокачку узлов. */
@@ -202,9 +225,11 @@ export function GameCanvas() {
       scene.addChild(galaxyRoot);
 
       const stars = new Graphics();
+      const mainStar = new Graphics();
       const hole = new Graphics();
       const bodyLayer = new Container();
       worldRoot.addChild(stars);
+      worldRoot.addChild(mainStar);
       worldRoot.addChild(hole);
       worldRoot.addChild(bodyLayer);
 
@@ -232,8 +257,9 @@ export function GameCanvas() {
       const syncSceneSize = () => {
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
-        const layout = layoutFromHost(host, levels);
+        const layout = layoutFromHost(host, levels, performance.now() / 1000);
         paintStars(stars, layout.width, layout.height);
+        paintMainStar(mainStar, layout);
         paintHole(hole, layout, consumePulse, levels.disk);
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects);
@@ -258,7 +284,7 @@ export function GameCanvas() {
 
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
-        const layout = layoutFromHost(host, levels);
+        const layout = layoutFromHost(host, levels, nowMs / 1000);
         const mpMult = mpIncomeMultiplier(levels);
         const shipsUnlocked = areShipsUnlocked(levels);
 
@@ -301,6 +327,7 @@ export function GameCanvas() {
         consumePulse = Math.max(0, consumePulse - dt * 3.5);
 
         paintHole(hole, layout, consumePulse, levels.disk);
+        paintMainStar(mainStar, layout);
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects);
         applyCamera(levels, layout, viewTier);

@@ -1,6 +1,10 @@
 import {
+  BASE_GRAVITY_ACCEL,
+  GRAVITY_CONST,
+  GRAVITY_SOFTENING,
   ESCAPE_MP_BASE,
   MAX_OBJECTS_ON_FIELD,
+  OBJECT_MASS,
   OUTSIDE_GRAVITY_RATIO,
   SHIP_SPAWN_FRACTION,
   SHIP_THRUST_BASE,
@@ -18,6 +22,7 @@ export type SimObject = {
   y: number;
   vx: number;
   vy: number;
+  mass: number;
   mpValue: number;
   /** Корабль (kind 4): множители при спавне */
   thrust01?: number;
@@ -37,6 +42,10 @@ export type SimLayout = {
   gravityRadius: number;
   /** Ускорение к центру (пикс/с²), с учётом улучшения «Эффективность». */
   gravityAccel: number;
+  /** Эффективная масса чёрной дыры в формулах 1/r². */
+  bhMass: number;
+  /** Главная звезда системы как второе гравитационное тело. */
+  star: { x: number; y: number; mass: number };
 };
 
 /**
@@ -73,6 +82,7 @@ export function spawnOutsideGravity(layout: SimLayout): SimObject {
     y,
     vx,
     vy,
+    mass: OBJECT_MASS[kind],
     mpValue,
   };
 }
@@ -99,10 +109,34 @@ export function spawnShip(layout: SimLayout): SimObject {
     y,
     vx,
     vy,
+    mass: OBJECT_MASS[4],
     mpValue,
     thrust01: q.thrust01,
     pilot01: q.pilot01,
     shipEnteredGravity: false,
+  };
+}
+
+function applyBodyGravity(
+  obj: SimObject,
+  source: { x: number; y: number; mass: number },
+  dt: number,
+  ratio = 1,
+): { vx: number; vy: number; dist: number; nx: number; ny: number } {
+  const dx = source.x - obj.x;
+  const dy = source.y - obj.y;
+  const dist = Math.hypot(dx, dy) || 1e-6;
+  const nx = dx / dist;
+  const ny = dy / dist;
+  const invSq = 1 / (dist * dist + GRAVITY_SOFTENING);
+  const accel =
+    GRAVITY_CONST * source.mass * obj.mass * invSq * ratio;
+  return {
+    vx: obj.vx + nx * accel * dt,
+    vy: obj.vy + ny * accel * dt,
+    dist,
+    nx,
+    ny,
   };
 }
 
@@ -161,16 +195,38 @@ export function stepSimulation(
 
     let nvx = obj.vx;
     let nvy = obj.vy;
+    let nx = dx / dist;
+    let ny = dy / dist;
 
     if (dist > layout.horizonRadius) {
-      const nx = dx / dist;
-      const ny = dy / dist;
-      const strength =
-        dist < layout.gravityRadius
-          ? layout.gravityAccel
-          : layout.gravityAccel * OUTSIDE_GRAVITY_RATIO;
-      nvx += nx * strength * dt;
-      nvy += ny * strength * dt;
+      const outsideRatio =
+        dist < layout.gravityRadius ? 1 : OUTSIDE_GRAVITY_RATIO;
+      const bhGravity = applyBodyGravity(
+        { ...obj, vx: nvx, vy: nvy },
+        { x: layout.cx, y: layout.cy, mass: layout.bhMass },
+        dt,
+        outsideRatio,
+      );
+      nvx = bhGravity.vx;
+      nvy = bhGravity.vy;
+      nx = bhGravity.nx;
+      ny = bhGravity.ny;
+
+      const starGravity = applyBodyGravity(
+        { ...obj, vx: nvx, vy: nvy },
+        layout.star,
+        dt,
+        0.9,
+      );
+      nvx = starGravity.vx;
+      nvy = starGravity.vy;
+
+      const effRatio =
+        layout.gravityAccel > 0
+          ? layout.gravityAccel / BASE_GRAVITY_ACCEL
+          : 1;
+      nvx = obj.vx + (nvx - obj.vx) * effRatio;
+      nvy = obj.vy + (nvy - obj.vy) * effRatio;
 
       if (obj.kind === 4) {
         const thrust = outwardThrustAccel(obj, upgradeLevels);

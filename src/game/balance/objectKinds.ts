@@ -17,3 +17,12 @@ export const MP_RANGE: Record<
   3: [50, 80],
   4: [40, 70],
 };
+
+/** Относительная масса объекта для физики 1/r². */
+export const OBJECT_MASS: Record<ObjectKind, number> = {
+  0: 0.85,
+  1: 1.5,
+  2: 1.2,
+  3: 1.9,
+  4: 1.35,
+};

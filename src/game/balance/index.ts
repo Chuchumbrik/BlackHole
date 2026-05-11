@@ -11,7 +11,7 @@ export {
 } from "./spawn";
 
 export type { ObjectKind } from "./objectKinds";
-export { MP_RANGE } from "./objectKinds";
+export { MP_RANGE, OBJECT_MASS } from "./objectKinds";
 
 export {
   SHIPS_UNLOCK_MIN_SUM,
@@ -38,7 +38,11 @@ export {
 
 export {
   BASE_GRAVITY_ACCEL,
+  BASE_BH_MASS,
+  BASE_STAR_MASS,
   ESCAPE_MP_BASE,
+  GRAVITY_CONST,
+  GRAVITY_SOFTENING,
   OUTSIDE_GRAVITY_RATIO,
   SHIP_THRUST_BASE,
   VELOCITY_DAMPING,
