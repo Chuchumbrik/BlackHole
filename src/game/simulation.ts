@@ -15,6 +15,7 @@ import type { UpgradeLevels } from "./upgrades";
 import { shipThrustMultiplierFromLevels } from "./upgrades";
 import { buildObjectDisplayName } from "./objectNames";
 import { rollMpForKind, rollObjectKind, rollShipQualities } from "./rng";
+import type { PlanetPhysicsSnapshot } from "./world/planetLayout";
 
 export type SimObject = {
   id: number;
@@ -167,8 +168,25 @@ function outwardThrustAccel(
 
 export type StepOutcome =
   | { kind: "live"; obj: SimObject }
-  | { kind: "consumed"; mp: number; objectKind: ObjectKind }
+  | {
+      kind: "consumed";
+      mp: number;
+      objectKind: ObjectKind;
+      /** Для предпросмотра траекторий и отладки. */
+      via?: "horizon" | "star" | "planet" | "body";
+    }
   | { kind: "escaped" };
+
+function hitsPlanetSurface(
+  obj: SimObject,
+  planets: PlanetPhysicsSnapshot[],
+): boolean {
+  for (const p of planets) {
+    const d = Math.hypot(obj.x - p.x, obj.y - p.y);
+    if (d < p.surfaceRadius + KIND_RADIUS[obj.kind]) return true;
+  }
+  return false;
+}
 
 /** Один шаг интегрирования — общая логика для симуляции и предпросмотра траектории. */
 export function advanceObjectOneStep(
@@ -176,6 +194,7 @@ export function advanceObjectOneStep(
   layout: SimLayout,
   dt: number,
   upgradeLevels: UpgradeLevels,
+  planetInfluences: PlanetPhysicsSnapshot[] = [],
 ): StepOutcome {
   const dx = layout.bh.x - obj.x;
   const dy = layout.bh.y - obj.y;
@@ -186,6 +205,7 @@ export function advanceObjectOneStep(
       kind: "consumed",
       mp: obj.mpValue,
       objectKind: obj.kind,
+      via: "horizon",
     };
   }
 
@@ -196,6 +216,7 @@ export function advanceObjectOneStep(
       kind: "consumed",
       mp: 0,
       objectKind: obj.kind,
+      via: "star",
     };
   }
 
@@ -227,6 +248,22 @@ export function advanceObjectOneStep(
     nvx = starGravity.vx;
     nvy = starGravity.vy;
 
+    for (const pl of planetInfluences) {
+      const pdx = pl.x - obj.x;
+      const pdy = pl.y - obj.y;
+      const pr = Math.hypot(pdx, pdy) || 1e-6;
+      if (pr < pl.soiRadius && pr >= pl.surfaceRadius - 0.5) {
+        const pg = applyBodyGravity(
+          { ...obj, vx: nvx, vy: nvy },
+          { x: pl.x, y: pl.y, mass: pl.mass },
+          dt,
+          0.82,
+        );
+        nvx = pg.vx;
+        nvy = pg.vy;
+      }
+    }
+
     const effRatio =
       layout.gravityAccel > 0
         ? layout.gravityAccel / BASE_GRAVITY_ACCEL
@@ -250,6 +287,27 @@ export function advanceObjectOneStep(
   const newDy = layout.bh.y - newY;
   const newDist = Math.hypot(newDx, newDy) || 1e-6;
 
+  if (newDist < layout.horizonRadius) {
+    return {
+      kind: "consumed",
+      mp: obj.mpValue,
+      objectKind: obj.kind,
+      via: "horizon",
+    };
+  }
+
+  if (planetInfluences.length > 0) {
+    const probe = { ...obj, x: newX, y: newY };
+    if (hitsPlanetSurface(probe, planetInfluences)) {
+      return {
+        kind: "consumed",
+        mp: 0,
+        objectKind: obj.kind,
+        via: "planet",
+      };
+    }
+  }
+
   const distStar1 =
     Math.hypot(newX - layout.star.x, newY - layout.star.y) || 1e-6;
   if (distStar1 < layout.starCollisionRadius) {
@@ -257,6 +315,7 @@ export function advanceObjectOneStep(
       kind: "consumed",
       mp: 0,
       objectKind: obj.kind,
+      via: "star",
     };
   }
 
@@ -391,12 +450,15 @@ export function predictTrajectoryPoints(
     maxPoints?: number;
     /** Снимок прочих объектов для проверки столкновений (как \`resolveBodyCollisions\`). */
     othersSnapshot?: SimObject[];
+    /** Снимок планет: гравитация внутри SOI и столкновение с поверхностью. */
+    planetSnapshots?: PlanetPhysicsSnapshot[];
   },
 ): TrajectoryPreviewResult {
   const maxSec = options?.maxSeconds ?? TRAJECTORY_PREVIEW_MAX_SIM_SECONDS;
   const stepDt = options?.stepSeconds ?? TRAJECTORY_PREVIEW_STEP_SECONDS;
   const maxPoints = options?.maxPoints ?? TRAJECTORY_PREVIEW_MAX_POINTS;
   const others = options?.othersSnapshot;
+  const planets = options?.planetSnapshots ?? [];
 
   let o: SimObject = { ...start };
   const pts: { x: number; y: number }[] = [{ x: o.x, y: o.y }];
@@ -404,8 +466,13 @@ export function predictTrajectoryPoints(
   let endsWithBodyCollision = false;
 
   while (t < maxSec && pts.length < maxPoints) {
-    const r = advanceObjectOneStep(o, layout, stepDt, upgradeLevels);
-    if (r.kind !== "live") break;
+    const r = advanceObjectOneStep(o, layout, stepDt, upgradeLevels, planets);
+    if (r.kind !== "live") {
+      if (r.kind === "consumed" && r.via === "planet") {
+        endsWithBodyCollision = true;
+      }
+      break;
+    }
     o = r.obj;
     if (others && hitsOtherBody(o, others)) {
       pts.push({ x: o.x, y: o.y });
@@ -423,6 +490,7 @@ export type ConsumeEvent = {
   /** MP в валюту: только при поглощении горизонтом; 0 — звезда или столкновение тел. */
   mp: number;
   kind: ObjectKind;
+  via?: "horizon" | "star" | "planet" | "body";
 };
 
 /** Центр–центр: сумма радиусов спрайтов (\`KIND_RADIUS\` — половина стороны квадрата). */
@@ -477,6 +545,7 @@ export function resolveBodyCollisions(objects: SimObject[]): {
         objectId: o.id,
         mp: 0,
         kind: o.kind,
+        via: "body",
       });
     } else {
       survivors.push(o);
@@ -490,6 +559,7 @@ export function stepSimulation(
   layout: SimLayout,
   dt: number,
   upgradeLevels: UpgradeLevels,
+  planetInfluences: PlanetPhysicsSnapshot[] = [],
 ): {
   objects: SimObject[];
   consumed: ConsumeEvent[];
@@ -498,12 +568,13 @@ export function stepSimulation(
   const next: SimObject[] = [];
 
   for (const obj of objects) {
-    const r = advanceObjectOneStep(obj, layout, dt, upgradeLevels);
+    const r = advanceObjectOneStep(obj, layout, dt, upgradeLevels, planetInfluences);
     if (r.kind === "consumed") {
       consumed.push({
         objectId: obj.id,
         mp: r.mp,
         kind: r.objectKind,
+        via: r.via,
       });
       continue;
     }

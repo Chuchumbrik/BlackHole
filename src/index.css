@@ -279,6 +279,42 @@ body,
   font-size: 0.82rem;
 }
 
+.planet-eco-hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.8rem;
+  color: #c4b5fd;
+  line-height: 1.35;
+}
+
+.planet-life-block {
+  margin: 0 0 0.75rem;
+}
+
+.planet-subtitle {
+  margin: 0 0 0.35rem;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #e9d5ff;
+}
+
+.planet-progress-life {
+  background: linear-gradient(90deg, #a78bfa, #f472b6);
+}
+
+.planet-life-born {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  color: #fde68a;
+  line-height: 1.35;
+}
+
+.planet-civ-teaser {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .planet-meta {
   margin: 0 0 0.7rem;
   font-size: 0.82rem;

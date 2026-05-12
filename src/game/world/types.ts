@@ -13,6 +13,12 @@ export type Planet = {
   orbitSpeed: number;
   stage: PlanetStage;
   stageProgressSec: number;
+  /** Накопление до «зарождения жизни»; копится только при стабильной экосистеме. */
+  lifeEmergenceSec: number;
+  /** После заполнения жизнь «рождена» — включается истощение `mpYieldMult`. */
+  lifeBorn: boolean;
+  /** Множитель базовых MP за поглощение планеты; падает при истощении биосферы. */
+  mpYieldMult: number;
 };
 
 export type StarSystem = {

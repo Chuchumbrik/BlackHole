@@ -48,6 +48,13 @@ import {
   mpIncomeMultiplier,
   type UpgradeLevels,
 } from "../game/upgrades";
+import { planetSwallowMpBase } from "../game/world/planetLife";
+import {
+  buildPlanetPhysicsSnapshot,
+  pickPlanetAtWorld,
+  planetContextFromSimLayout,
+} from "../game/world/planetLayout";
+import { buildPlanetHoverText } from "../game/world/planetHoverText";
 import type { Planet } from "../game/world/types";
 import { useGameStore } from "../store/useGameStore";
 
@@ -247,27 +254,18 @@ function paintPlanetSoiRings(
 ): void {
   g.clear();
   if (planets.length === 0) return;
-
-  const orbitMin = layout.horizonRadius * 4.5;
-  const orbitMax = Math.max(orbitMin + 12, layout.systemRadius * 0.85);
-
+  const ctx = planetContextFromSimLayout(layout);
   for (const planet of planets) {
-    const orbitRadius =
-      orbitMin + (orbitMax - orbitMin) * Math.max(0, Math.min(1, planet.orbitalDistance / 100));
-    const angle = planet.orbitPhaseRad + simTimeSec * planet.orbitSpeed;
-    const x = layout.star.x + Math.cos(angle) * orbitRadius;
-    const y = layout.star.y + Math.sin(angle) * orbitRadius;
-    const soiRadius =
-      layout.horizonRadius *
-      (1.45 + (planet.gravityProxy / 100) * 1.45 + (planet.atmosphere / 100) * 0.6);
+    const s = buildPlanetPhysicsSnapshot(planet, ctx, simTimeSec);
+    const orbitR = Math.hypot(s.x - layout.star.x, s.y - layout.star.y);
 
-    g.circle(layout.star.x, layout.star.y, orbitRadius);
+    g.circle(layout.star.x, layout.star.y, orbitR);
     g.stroke({ width: 1, color: 0x38bdf8, alpha: 0.22 });
 
-    g.circle(x, y, soiRadius);
+    g.circle(s.x, s.y, s.soiRadius);
     g.stroke({ width: 1.4, color: 0x34d399, alpha: 0.62 });
 
-    g.circle(x, y, Math.max(2.3, soiRadius * 0.18));
+    g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
     g.fill({ color: 0xa7f3d0, alpha: 0.92 });
   }
 }
@@ -509,6 +507,22 @@ export function GameCanvas() {
       hoverTooltip.visible = false;
       hoverTooltip.eventMode = "none";
 
+      const planetTooltip = new Text({
+        text: "",
+        style: {
+          fontFamily: "system-ui, Segoe UI, sans-serif",
+          fontSize: 10,
+          fill: 0xe2e8f0,
+          stroke: { color: 0x0a0c10, width: 3 },
+          lineHeight: 13,
+          wordWrap: true,
+          wordWrapWidth: 240,
+        },
+      });
+      planetTooltip.anchor.set(0.5, 1);
+      planetTooltip.visible = false;
+      planetTooltip.eventMode = "none";
+
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(planetSoi);
@@ -517,6 +531,7 @@ export function GameCanvas() {
       worldRoot.addChild(bodyLayer);
       worldRoot.addChild(selectionLabel);
       worldRoot.addChild(hoverTooltip);
+      worldRoot.addChild(planetTooltip);
 
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
@@ -527,6 +542,7 @@ export function GameCanvas() {
       let lastMs = performance.now();
 
       let hoverObjectId: number | null = null;
+      let hoverPlanet: Planet | null = null;
       let selectedObjectId: number | null = null;
 
       let panX = 0;
@@ -644,6 +660,23 @@ export function GameCanvas() {
 
         const local = worldRoot.toLocal(e.global);
         hoverObjectId = pickObjectAtWorld(objects, local.x, local.y);
+        const levelsPm = useGameStore.getState().upgradeLevels;
+        const layoutPm = layoutFromHost(host, levelsPm);
+        const simT = useGameStore.getState().gameTimeSec;
+        const sysId = useGameStore.getState().activeSystemId;
+        const sysList = useGameStore.getState().systems;
+        const sys = sysList.find((s) => s.id === sysId);
+        const pCtx = planetContextFromSimLayout(layoutPm);
+        hoverPlanet =
+          hoverObjectId === null
+            ? pickPlanetAtWorld(
+                local.x,
+                local.y,
+                sys?.planets ?? [],
+                pCtx,
+                simT,
+              )
+            : null;
       });
 
       const finishPointerPick = (e: {
@@ -668,6 +701,7 @@ export function GameCanvas() {
 
       application.stage.on("pointerleave", () => {
         hoverObjectId = null;
+        hoverPlanet = null;
         ptrDown = false;
       });
 
@@ -703,10 +737,20 @@ export function GameCanvas() {
         /** Последний сегмент при столкновении с телом — предупреждающий цвет. */
         const TRAIL_COLLISION = 0xfb923c;
 
+        const gameT = useGameStore.getState().gameTimeSec;
+        const sysId = useGameStore.getState().activeSystemId;
+        const sysList = useGameStore.getState().systems;
+        const activeSys = sysList.find((s) => s.id === sysId);
+        const pCtx = planetContextFromSimLayout(layout);
+        const planetSnaps = (activeSys?.planets ?? []).map((pl) =>
+          buildPlanetPhysicsSnapshot(pl, pCtx, gameT),
+        );
+
         const showTrail = (obj: SimObject) => {
           const { points: pts, endsWithBodyCollision } =
             predictTrajectoryPoints(obj, layout, levels, {
               othersSnapshot: objects,
+              planetSnapshots: planetSnaps,
             });
           if (pts.length < 2) return;
           const hot = hoverObjectId === obj.id;
@@ -823,13 +867,42 @@ export function GameCanvas() {
           upgradeLevels: levels,
         });
 
+        const planetCtx = planetContextFromSimLayout(layout);
+        const planetSnaps = (activeSystem?.planets ?? []).map((pl) =>
+          buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec),
+        );
+
         const { objects: nextObjects, consumed } = stepSimulation(
           objects,
           layout,
           simDt,
           levels,
+          planetSnaps,
         );
         objects = nextObjects;
+
+        if (activeSystem) {
+          const planetListSnapshot = [...activeSystem.planets];
+          for (const pl of planetListSnapshot) {
+            const s = buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec);
+            const dBh = Math.hypot(s.x - layout.bh.x, s.y - layout.bh.y);
+            if (dBh < layout.horizonRadius) {
+              const gain = Math.floor(
+                planetSwallowMpBase(pl) * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
+              );
+              if (gain > 0) {
+                consumePulse = 1;
+                useGameStore.getState().addMassMp(gain);
+              }
+              useGameStore.getState().removePlanet(activeSystem.id, pl.id);
+              continue;
+            }
+            const dSt = Math.hypot(s.x - layout.star.x, s.y - layout.star.y);
+            if (dSt < layout.starCollisionRadius + s.surfaceRadius * 0.85) {
+              useGameStore.getState().removePlanet(activeSystem.id, pl.id);
+            }
+          }
+        }
 
         if (
           selectedObjectId !== null &&
@@ -891,16 +964,24 @@ export function GameCanvas() {
                 combinedWorldScale(levels, viewTier) * userZoom,
               );
 
-        paintTrajectories(layout, levels, viewTier, worldScale);
+        const trailScale = Math.max(
+          0.07,
+          Math.abs(worldRoot.scale.x) || worldScale,
+        );
+        paintTrajectories(layout, levels, viewTier, trailScale);
 
         /** Подписи в мире наследуют scale слоя; обратный масштаб ≈ постоянный размер текста на экране при зуме. */
         const labelScreenScale = 1 / worldScale;
         selectionLabel.scale.set(labelScreenScale);
         hoverTooltip.scale.set(labelScreenScale);
+        planetTooltip.scale.set(labelScreenScale);
+
+        const draggingPan = ptrDown && ptrMoved;
 
         if (viewTier >= 2) {
           selectionLabel.visible = false;
           hoverTooltip.visible = false;
+          planetTooltip.visible = false;
         } else {
           if (
             hoverObjectId !== null &&
@@ -917,6 +998,7 @@ export function GameCanvas() {
                 (KIND_RADIUS[hov.kind] * 2 + 10) / worldScale;
               hoverTooltip.position.set(hov.x, hov.y - liftH);
               hoverTooltip.visible = true;
+              planetTooltip.visible = false;
             } else {
               hoverTooltip.visible = false;
             }
@@ -941,6 +1023,37 @@ export function GameCanvas() {
             }
           } else {
             selectionLabel.visible = false;
+          }
+
+          if (
+            hoverPlanet &&
+            hoverObjectId === null &&
+            !draggingPan &&
+            !hoverTooltip.visible
+          ) {
+            const hPl = hoverPlanet;
+            const systemsNow = useGameStore.getState().systems;
+            const sysNow = systemsNow.find((s) => s.id === activeSystemId);
+            const hp = sysNow?.planets.find((p) => p.id === hPl.id);
+            if (hp) {
+              planetTooltip.text = buildPlanetHoverText(
+                hp,
+                levels,
+                jetBuffActive,
+              );
+              const s = buildPlanetPhysicsSnapshot(
+                hp,
+                planetContextFromSimLayout(layout),
+                simTimeSec,
+              );
+              const liftP = (s.surfaceRadius * 2 + 14) / worldScale;
+              planetTooltip.position.set(s.x, s.y - liftP);
+              planetTooltip.visible = true;
+            } else {
+              planetTooltip.visible = false;
+            }
+          } else if (!hoverTooltip.visible) {
+            planetTooltip.visible = false;
           }
         }
 

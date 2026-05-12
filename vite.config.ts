@@ -8,4 +8,8 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    /** Pixi + app bundle often exceeds Vite’s default 500 kB warning. */
+    chunkSizeWarningLimit: 1024,
+  },
 });

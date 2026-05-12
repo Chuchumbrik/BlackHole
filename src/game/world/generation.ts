@@ -36,6 +36,9 @@ function genPlanet(systemIdx: number, planetIdx: number): Planet {
     orbitSpeed: randomRange(0.016, 0.06),
     stage: 1,
     stageProgressSec: 0,
+    lifeEmergenceSec: 0,
+    lifeBorn: false,
+    mpYieldMult: 1,
   };
 }
 

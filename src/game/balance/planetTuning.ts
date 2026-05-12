@@ -14,3 +14,10 @@ export const PLANET_SYSTEM_COUNT_MIN = 1;
 export const PLANET_SYSTEM_COUNT_MAX = 2;
 export const PLANETS_PER_SYSTEM_MIN = 1;
 export const PLANETS_PER_SYSTEM_MAX = 1;
+
+/** Коридор параметров планеты до зарождения жизни. */
+export const PLANET_ECOSYSTEM_LOW = 38;
+export const PLANET_ECOSYSTEM_HIGH = 62;
+
+/** Секунд игрового времени на полоску «зарождение жизни» при стабильной экосистеме. */
+export const PLANET_LIFE_EMERGENCE_TOTAL_SEC = 480;

@@ -1,11 +1,21 @@
 import { useTranslation } from "react-i18next";
-import { PLANET_ACCELERATION_SECONDS, PLANET_STAGE_DURATIONS_SEC } from "../game/balance";
+import {
+  PLANET_ACCELERATION_SECONDS,
+  PLANET_ECOSYSTEM_HIGH,
+  PLANET_ECOSYSTEM_LOW,
+  PLANET_LIFE_EMERGENCE_TOTAL_SEC,
+  PLANET_STAGE_DURATIONS_SEC,
+} from "../game/balance";
 import {
   accelerationCostMp,
   accelerationMultiplier,
   deviationFromGoldenMid,
   stageProgressRatio,
 } from "../game/world/planetProgress";
+import {
+  ecosystemStable,
+  lifeEmergenceRatio,
+} from "../game/world/planetLife";
 import { useGameStore } from "../store/useGameStore";
 
 function formatParam(value: number): string {
@@ -37,6 +47,8 @@ export function PlanetPanel() {
   const stageDuration = PLANET_STAGE_DURATIONS_SEC[planet.stage - 1] ?? 1;
   const progressRatio = stageProgressRatio(planet);
   const progressPercent = Math.round(progressRatio * 100);
+  const stable = ecosystemStable(planet);
+  const lifePct = Math.round(lifeEmergenceRatio(planet) * 100);
   const cost = accelerationCostMp(planet);
   const enoughMass = massMp >= cost;
   const nextGainSec = Math.min(
@@ -101,6 +113,40 @@ export function PlanetPanel() {
           <li>{t("planet.params.hydrosphere", { value: formatParam(planet.hydrosphere) })}</li>
           <li>{t("planet.params.geology", { value: formatParam(planet.geologicalActivity) })}</li>
         </ul>
+
+        <p className="planet-eco-hint">
+          {stable
+            ? t("planet.ecoGate", {
+                low: PLANET_ECOSYSTEM_LOW,
+                high: PLANET_ECOSYSTEM_HIGH,
+              })
+            : t("planet.ecoPending")}
+        </p>
+
+        {stable && !planet.lifeBorn && (
+          <div className="planet-life-block">
+            <h4 className="planet-subtitle">{t("planet.lifeTitle")}</h4>
+            <div className="planet-progress-track" aria-hidden="true">
+              <div
+                className="planet-progress-fill planet-progress-life"
+                style={{ width: `${lifePct}%` }}
+              />
+            </div>
+            <p className="planet-progress-text">
+              {t("planet.lifeProgress", {
+                pct: lifePct,
+                totalMin: Math.round(PLANET_LIFE_EMERGENCE_TOTAL_SEC / 60),
+              })}
+            </p>
+          </div>
+        )}
+
+        {planet.lifeBorn && (
+          <div className="planet-life-block">
+            <p className="planet-life-born">{t("planet.lifeBorn")}</p>
+            <p className="planet-civ-teaser">{t("planet.civTeaser")}</p>
+          </div>
+        )}
 
         <p className="planet-meta">
           {t("planet.accelInfo", {

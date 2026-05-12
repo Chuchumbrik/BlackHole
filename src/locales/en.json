@@ -100,7 +100,32 @@
       "hydrosphere": "Hydrosphere: {{value}}",
       "geology": "Geological activity: {{value}}"
     },
-    "accelInfo": "Acceleration step: +{{seconds}}s (next stage gain: {{next}}s), multiplier ×{{multiplier}}, deviation sum {{deviation}}.",
-    "accelerate": "Accelerate stage ({{cost}} MP)"
+    "accelInfo": "Acceleration step: +{{seconds}}s (toward next stage: {{next}}s), multiplier ×{{multiplier}}, deviation sum {{deviation}}.",
+    "accelerate": "Boost ({{cost}} MP)",
+    "ecoGate": "Ecosystem: all six stats in {{low}}–{{high}} unlocks life emergence.",
+    "ecoPending": "Balance parameters first; the life timer stays hidden until the ecosystem is in band.",
+    "lifeTitle": "Life emergence",
+    "lifeProgress": "Progress: {{pct}}% (target ≈ {{totalMin}} min game time at ×1 speed)",
+    "lifeBorn": "Life awakened: the biosphere slowly depletes — MP for a hole swallow drifts down over time.",
+    "civTeaser": "Next: space age, colonies, elemental beats — later milestones.",
+    "hover": {
+      "title": "{{name}}",
+      "stage": "Tech stage {{stage}} · biosphere yield {{yield}}%",
+      "ecoHint": "Out of comfort band: tune {{list}}",
+      "ecoUnstable": "Ecosystem unstable — align all six parameters.",
+      "ecoBand": "Comfort band: {{low}}–{{high}} on each stat.",
+      "lifeEmergence": "Life emergence: {{pct}}% (about {{totalMin}} min at ×1 time)",
+      "lifeBorn": "Life present — swallow MP drops while the biosphere depletes.",
+      "civPlaceholder": "Civilization / space layer — placeholder.",
+      "swallow": "Rough MP if the hole swallows it now: +{{mp}} MP",
+      "deficit": {
+        "orbitalDistance": "orbital distance",
+        "gravityProxy": "gravity/mass",
+        "surfaceTemperature": "temperature",
+        "atmosphere": "atmosphere",
+        "hydrosphere": "hydrosphere",
+        "geologicalActivity": "geology"
+      }
+    }
   }
 }
