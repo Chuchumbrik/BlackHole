@@ -2,9 +2,7 @@ import {
   Application,
   Container,
   Graphics,
-  Sprite,
   Text,
-  Texture,
 } from "pixi.js";
 import { useEffect, useRef } from "react";
 import {
@@ -27,7 +25,6 @@ import {
   USER_ZOOM_MAX,
   USER_ZOOM_MIN,
 } from "../game/balance";
-import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
 import {
   advanceSpawnAccumulator,
   applyJetImpulseToObjects,
@@ -35,10 +32,12 @@ import {
   resetSimulationIds,
   type SimLayout,
   type SimObject,
+  objRadius,
   stepSimulation,
   trySpawn,
   type SpawnControl,
 } from "../game/simulation";
+import { paintSimObjectShape } from "../game/debrisPaint";
 import {
   areShipsUnlocked,
   combinedWorldScale,
@@ -55,10 +54,31 @@ import {
   planetContextFromSimLayout,
 } from "../game/world/planetLayout";
 import { buildPlanetHoverText } from "../game/world/planetHoverText";
+import {
+  lerpRgb,
+  planetPaletteRgb,
+  rgbToFill,
+} from "../game/world/planetPalette";
+import type { Rgb } from "../game/world/planetPalette";
+import { buildStarHoverText } from "../game/world/starHoverText";
 import type { Planet } from "../game/world/types";
 import { useGameStore } from "../store/useGameStore";
 
-const BODY_TEXTURE = Texture.WHITE;
+function smoothPlanetFillColors(
+  map: Map<string, Rgb>,
+  planets: Planet[],
+  dtSec: number,
+): void {
+  const ids = new Set(planets.map((p) => p.id));
+  for (const id of map.keys()) {
+    if (!ids.has(id)) map.delete(id);
+  }
+  for (const p of planets) {
+    const target = planetPaletteRgb(p);
+    const prev = map.get(p.id) ?? target;
+    map.set(p.id, lerpRgb(prev, target, Math.min(1, dtSec * 0.42)));
+  }
+}
 
 function orbitLapsTotal(obj: SimObject): number {
   return (obj.orbitLapsStar ?? 0) + (obj.orbitLapsBh ?? 0);
@@ -102,6 +122,7 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
     systemRadius,
     bhDist + horizon * 2.5 + minD * 0.035,
   );
+  /** Игровой GM: масштаб поля 1/r², согласован с визуальным горизонтом (прокси R_s). Ветка «Радиус притяжения» меняет зону/профиль силы, не эту массу. */
   const bhMassScale = Math.max(0.85, horizon / (minD * BASE_HORIZON_FRACTION));
   return {
     width: w,
@@ -174,17 +195,22 @@ function paintHole(
       hawkingLevel > 0
         ? Math.sin(timeSec * 2.8) * 0.04 * Math.min(1, hawkingLevel * 0.2)
         : 0;
-    const omega = 0.38 + diskLevel * 0.05;
+    const rInnerDisk = r * 1.18;
+    const rOuter = r * (1.52 + diskLevel * 0.04);
+    const omegaInner = 0.38 + diskLevel * 0.05;
+    const omegaOuter =
+      omegaInner * Math.pow(rInnerDisk / rOuter, 1.5);
     const arms = 3;
     for (let arm = 0; arm < arms; arm++) {
-      const phase = timeSec * omega + arm * ((Math.PI * 2) / arms);
-      const rOuter = r * (1.52 + diskLevel * 0.04);
+      const arm0 = arm * ((Math.PI * 2) / arms);
+      const phaseInner = timeSec * omegaInner + arm0;
+      const phaseOuter = timeSec * omegaOuter + arm0;
       const sweep = Math.PI * 1.35;
       g.moveTo(
-        cx + Math.cos(phase) * r * 1.18,
-        cy + Math.sin(phase) * r * 1.18,
+        cx + Math.cos(phaseInner) * rInnerDisk,
+        cy + Math.sin(phaseInner) * rInnerDisk,
       );
-      g.arc(cx, cy, r * 1.18, phase, phase + sweep);
+      g.arc(cx, cy, rInnerDisk, phaseInner, phaseInner + sweep);
       g.stroke({
         width: 1.15 + diskLevel * 0.12,
         color: 0xfbbf24,
@@ -194,10 +220,10 @@ function paintHole(
         ),
       });
       g.moveTo(
-        cx + Math.cos(phase + 0.08) * rOuter,
-        cy + Math.sin(phase + 0.08) * rOuter,
+        cx + Math.cos(phaseOuter + 0.08) * rOuter,
+        cy + Math.sin(phaseOuter + 0.08) * rOuter,
       );
-      g.arc(cx, cy, rOuter, phase + 0.12, phase + sweep * 0.92);
+      g.arc(cx, cy, rOuter, phaseOuter + 0.12, phaseOuter + sweep * 0.92);
       g.stroke({
         width: 1,
         color: 0xf59e0b,
@@ -251,23 +277,52 @@ function paintPlanetSoiRings(
   layout: SimLayout,
   planets: Planet[],
   simTimeSec: number,
+  fillRgbById: Map<string, Rgb>,
+  orbitHighlightPlanetId: string | null,
 ): void {
   g.clear();
   if (planets.length === 0) return;
   const ctx = planetContextFromSimLayout(layout);
-  for (const planet of planets) {
-    const s = buildPlanetPhysicsSnapshot(planet, ctx, simTimeSec);
+  const n = planets.length;
+  planets.forEach((planet, planetIndex) => {
+    const s = buildPlanetPhysicsSnapshot(
+      planet,
+      ctx,
+      simTimeSec,
+      planetIndex,
+      n,
+    );
     const orbitR = Math.hypot(s.x - layout.star.x, s.y - layout.star.y);
+    const hot = orbitHighlightPlanetId === planet.id;
 
     g.circle(layout.star.x, layout.star.y, orbitR);
-    g.stroke({ width: 1, color: 0x38bdf8, alpha: 0.22 });
+    if (hot) {
+      g.stroke({ width: 10, color: 0x38bdf8, alpha: 0.14 });
+      g.circle(layout.star.x, layout.star.y, orbitR);
+      g.stroke({ width: 4.2, color: 0xbae6fd, alpha: 0.72 });
+      g.circle(layout.star.x, layout.star.y, orbitR);
+      g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.95 });
+    } else {
+      g.stroke({ width: 1, color: 0x38bdf8, alpha: 0.22 });
+    }
 
     g.circle(s.x, s.y, s.soiRadius);
-    g.stroke({ width: 1.4, color: 0x34d399, alpha: 0.62 });
+    g.stroke(
+      hot
+        ? { width: 2.4, color: 0x6ee7b7, alpha: 0.9 }
+        : { width: 1.4, color: 0x34d399, alpha: 0.62 },
+    );
 
+    const rgb = fillRgbById.get(planet.id) ?? planetPaletteRgb(planet);
     g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
-    g.fill({ color: 0xa7f3d0, alpha: 0.92 });
-  }
+    g.fill({ color: rgbToFill(rgb), alpha: 0.94 });
+    g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
+    g.stroke({
+      width: hot ? 1.55 : 1.1,
+      color: 0x0f172a,
+      alpha: hot ? 0.5 : 0.35,
+    });
+  });
 }
 
 /** Карта галактики (узлы-планеты + маркер дыры) — заготовка под прокачку узлов. */
@@ -369,7 +424,7 @@ function pickObjectAtWorld(
   let bestId: number | null = null;
   let bestD = Infinity;
   for (const o of objects) {
-    const r = KIND_RADIUS[o.kind] * 2;
+    const r = objRadius(o) * 2;
     const d = Math.hypot(o.x - wx, o.y - wy);
     if (d <= r && d < bestD) {
       bestD = d;
@@ -395,36 +450,31 @@ function spriteShrinkNearHorizon(o: SimObject, layout: SimLayout): number {
   return SHRINK_MIN_AT_HORIZON + (1 - SHRINK_MIN_AT_HORIZON) * t;
 }
 
-function syncBodySprites(
+function syncBodyGraphics(
   layer: Container,
-  pool: Sprite[],
+  pool: Graphics[],
   objects: SimObject[],
   layout: SimLayout,
+  simTimeSec: number,
 ): void {
   while (pool.length < objects.length) {
-    const s = new Sprite(BODY_TEXTURE);
-    s.anchor.set(0.5);
-    layer.addChild(s);
-    pool.push(s);
+    const g = new Graphics();
+    layer.addChild(g);
+    pool.push(g);
   }
   while (pool.length > objects.length) {
-    const s = pool.pop();
-    if (s) {
-      layer.removeChild(s);
-      s.destroy();
+    const g = pool.pop();
+    if (g) {
+      layer.removeChild(g);
+      g.destroy();
     }
   }
   for (let i = 0; i < objects.length; i++) {
     const o = objects[i];
-    const s = pool[i];
-    const r = KIND_RADIUS[o.kind];
+    const g = pool[i];
+    paintSimObjectShape(g, o, simTimeSec);
     const shrink = spriteShrinkNearHorizon(o, layout);
-    const d = r * 2 * shrink;
-    s.width = d;
-    s.height = d;
-    s.tint = KIND_COLORS[o.kind];
-    s.alpha = 0.96;
-    s.position.set(o.x, o.y);
+    g.scale.set(shrink, shrink);
   }
 }
 
@@ -446,7 +496,10 @@ export function GameCanvas() {
     let objects: SimObject[] = [];
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
-    const spritePool: Sprite[] = [];
+    const graphicsPool: Graphics[] = [];
+    const planetFillSmooth = new Map<string, Rgb>();
+    type HitFlash = { x: number; y: number; t: number; via: string };
+    const hitFlashes: HitFlash[] = [];
 
     const boot = async () => {
       const application = new Application();
@@ -480,6 +533,7 @@ export function GameCanvas() {
       const planetSoi = new Graphics();
       const hole = new Graphics();
       const trails = new Graphics();
+      const collisionFx = new Graphics();
       const bodyLayer = new Container();
       const selectionLabel = new Text({
         text: "",
@@ -523,15 +577,33 @@ export function GameCanvas() {
       planetTooltip.visible = false;
       planetTooltip.eventMode = "none";
 
+      const starTooltip = new Text({
+        text: "",
+        style: {
+          fontFamily: "system-ui, Segoe UI, sans-serif",
+          fontSize: 10,
+          fill: 0xfef3c7,
+          stroke: { color: 0x1a0a02, width: 3 },
+          lineHeight: 13,
+          wordWrap: true,
+          wordWrapWidth: 220,
+        },
+      });
+      starTooltip.anchor.set(0.5, 1);
+      starTooltip.visible = false;
+      starTooltip.eventMode = "none";
+
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(planetSoi);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
+      worldRoot.addChild(collisionFx);
       worldRoot.addChild(selectionLabel);
       worldRoot.addChild(hoverTooltip);
       worldRoot.addChild(planetTooltip);
+      worldRoot.addChild(starTooltip);
 
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
@@ -543,6 +615,7 @@ export function GameCanvas() {
 
       let hoverObjectId: number | null = null;
       let hoverPlanet: Planet | null = null;
+      let hoverStar = false;
       let selectedObjectId: number | null = null;
 
       let panX = 0;
@@ -584,6 +657,8 @@ export function GameCanvas() {
         const activeSystemId = useGameStore.getState().activeSystemId;
         const systems = useGameStore.getState().systems;
         const activeSystem = systems.find((s) => s.id === activeSystemId);
+        const pls = activeSystem?.planets ?? [];
+        smoothPlanetFillColors(planetFillSmooth, pls, 0);
         const layout = layoutFromHost(host, levels);
         const jetEnd = useGameStore.getState().jetBuffEndsAtSimSec;
         const jetBuffVis =
@@ -593,8 +668,10 @@ export function GameCanvas() {
         paintPlanetSoiRings(
           planetSoi,
           layout,
-          activeSystem?.planets ?? [],
+          pls,
           simTimeSec,
+          planetFillSmooth,
+          hoverPlanet?.id ?? null,
         );
         paintHole(
           hole,
@@ -607,7 +684,13 @@ export function GameCanvas() {
           jetBuffVis,
         );
         paintGalaxy(galaxy, layout, consumePulse);
-        syncBodySprites(bodyLayer, spritePool, objects, layout);
+        syncBodyGraphics(
+          bodyLayer,
+          graphicsPool,
+          objects,
+          layout,
+          simTimeSec,
+        );
         applyCamera(levels, layout, viewTier);
       };
 
@@ -677,6 +760,19 @@ export function GameCanvas() {
                 simT,
               )
             : null;
+        const minS = Math.min(layoutPm.width, layoutPm.height);
+        const starHitR = Math.max(
+          28,
+          minS * STAR_DISPLAY_RADIUS_FRACTION * 2.1,
+        );
+        const distToStar = Math.hypot(
+          local.x - layoutPm.star.x,
+          local.y - layoutPm.star.y,
+        );
+        hoverStar =
+          hoverObjectId === null &&
+          hoverPlanet === null &&
+          distToStar < starHitR;
       });
 
       const finishPointerPick = (e: {
@@ -702,23 +798,38 @@ export function GameCanvas() {
       application.stage.on("pointerleave", () => {
         hoverObjectId = null;
         hoverPlanet = null;
+        hoverStar = false;
         ptrDown = false;
       });
 
-      const canvasEl = application.canvas;
-      const onWheel = (ev: WheelEvent) => {
-        ev.preventDefault();
+      const onStageWheel = (e: {
+        preventDefault: () => void;
+        deltaY: number;
+        global: { x: number; y: number };
+      }) => {
+        e.preventDefault();
         if (cancelled || useGameStore.getState().viewTier >= 2) return;
-        /** Колесо «на себя» / вперёд — приближение; «от себя» — отдаление (инверсия от типичного браузерного deltaY). */
-        const factor = ev.deltaY > 0 ? 1 / 1.06 : 1.06;
+        const factor = e.deltaY > 0 ? 1 / 1.06 : 1.06;
+        const levelsW = useGameStore.getState().upgradeLevels;
+        const viewTierW = useGameStore.getState().viewTier;
+        const layoutW = layoutFromHost(host, levelsW);
+        const simPt = worldRoot.toLocal(e.global);
+        const pivot = layoutW.bh;
         userZoom = Math.max(
           USER_ZOOM_MIN,
           Math.min(USER_ZOOM_MAX, userZoom * factor),
         );
+        const sNew = combinedWorldScale(levelsW, viewTierW) * userZoom;
+        panX =
+          e.global.x - (simPt.x - pivot.x) * sNew - layoutW.width / 2;
+        panY =
+          e.global.y - (simPt.y - pivot.y) * sNew - layoutW.height / 2;
+        const maxP = Math.min(layoutW.width, layoutW.height) * 3.5;
+        panX = Math.max(-maxP, Math.min(maxP, panX));
+        panY = Math.max(-maxP, Math.min(maxP, panY));
       };
-      canvasEl.addEventListener("wheel", onWheel, { passive: false });
-      wheelCleanup = () =>
-        canvasEl.removeEventListener("wheel", onWheel);
+      application.stage.on("wheel", onStageWheel);
+      wheelCleanup = () => application.stage.off("wheel", onStageWheel);
 
       const paintTrajectories = (
         layout: SimLayout,
@@ -742,8 +853,10 @@ export function GameCanvas() {
         const sysList = useGameStore.getState().systems;
         const activeSys = sysList.find((s) => s.id === sysId);
         const pCtx = planetContextFromSimLayout(layout);
-        const planetSnaps = (activeSys?.planets ?? []).map((pl) =>
-          buildPlanetPhysicsSnapshot(pl, pCtx, gameT),
+        const pTr = activeSys?.planets ?? [];
+        const nTr = pTr.length;
+        const planetSnaps = pTr.map((pl: Planet, pi: number) =>
+          buildPlanetPhysicsSnapshot(pl, pCtx, gameT, pi, nTr),
         );
 
         const showTrail = (obj: SimObject) => {
@@ -836,11 +949,17 @@ export function GameCanvas() {
           jetProcAccum -= JET_PROC_ATTEMPT_INTERVAL_SEC;
           const buffEnd = useGameStore.getState().jetBuffEndsAtSimSec;
           if (simTimeSec >= buffEnd) {
-            const p = Math.min(
-              0.92,
-              JET_BASE_PROC_CHANCE +
-                Math.max(0, levels.jets - 1) * JET_PROC_CHANCE_PER_LEVEL,
-            );
+            const diskMul =
+              levels.disk <= 0
+                ? 0
+                : Math.min(1, levels.disk / 3);
+            const p =
+              diskMul *
+              Math.min(
+                0.92,
+                JET_BASE_PROC_CHANCE +
+                  Math.max(0, levels.jets - 1) * JET_PROC_CHANCE_PER_LEVEL,
+              );
             if (Math.random() < p) {
               useGameStore
                 .getState()
@@ -868,8 +987,10 @@ export function GameCanvas() {
         });
 
         const planetCtx = planetContextFromSimLayout(layout);
-        const planetSnaps = (activeSystem?.planets ?? []).map((pl) =>
-          buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec),
+        const pList0 = activeSystem?.planets ?? [];
+        const nPl0 = pList0.length;
+        const planetSnaps = pList0.map((pl: Planet, pi: number) =>
+          buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec, pi, nPl0),
         );
 
         const { objects: nextObjects, consumed } = stepSimulation(
@@ -883,8 +1004,16 @@ export function GameCanvas() {
 
         if (activeSystem) {
           const planetListSnapshot = [...activeSystem.planets];
-          for (const pl of planetListSnapshot) {
-            const s = buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec);
+          const nSnap = planetListSnapshot.length;
+          for (let pi = 0; pi < planetListSnapshot.length; pi++) {
+            const pl = planetListSnapshot[pi];
+            const s = buildPlanetPhysicsSnapshot(
+              pl,
+              planetCtx,
+              simTimeSec,
+              pi,
+              nSnap,
+            );
             const dBh = Math.hypot(s.x - layout.bh.x, s.y - layout.bh.y);
             if (dBh < layout.horizonRadius) {
               const gain = Math.floor(
@@ -894,11 +1023,13 @@ export function GameCanvas() {
                 consumePulse = 1;
                 useGameStore.getState().addMassMp(gain);
               }
+              hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "horizon" });
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);
               continue;
             }
             const dSt = Math.hypot(s.x - layout.star.x, s.y - layout.star.y);
             if (dSt < layout.starCollisionRadius + s.surfaceRadius * 0.85) {
+              hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "star" });
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);
             }
           }
@@ -917,6 +1048,14 @@ export function GameCanvas() {
             gain += Math.floor(
               c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
             );
+            if (c.atX != null && c.atY != null) {
+              hitFlashes.push({
+                x: c.atX,
+                y: c.atY,
+                t: 0,
+                via: c.via ?? "body",
+              });
+            }
           }
           if (gain > 0) {
             consumePulse = 1;
@@ -935,6 +1074,36 @@ export function GameCanvas() {
 
         consumePulse = Math.max(0, consumePulse - simDt * 3.5);
 
+        const plTick = activeSystem?.planets ?? [];
+        smoothPlanetFillColors(planetFillSmooth, plTick, simDt);
+
+        for (let i = 0; i < hitFlashes.length; i++) {
+          hitFlashes[i].t += dt;
+        }
+        for (let i = hitFlashes.length - 1; i >= 0; i--) {
+          if (hitFlashes[i].t > 0.34) hitFlashes.splice(i, 1);
+        }
+        collisionFx.clear();
+        for (const f of hitFlashes) {
+          const u = f.t / 0.34;
+          const a = (1 - u) * 0.82;
+          const rr = 4 + u * 150;
+          const col =
+            f.via === "horizon"
+              ? 0xfbbf24
+              : f.via === "star"
+                ? 0xfb923c
+                : f.via === "planet"
+                  ? 0x4ade80
+                  : 0xf472b6;
+          collisionFx.circle(f.x, f.y, rr);
+          collisionFx.stroke({
+            width: 1.8 + u * 2.5,
+            color: col,
+            alpha: a,
+          });
+        }
+
         paintHole(
           hole,
           layout,
@@ -949,11 +1118,19 @@ export function GameCanvas() {
         paintPlanetSoiRings(
           planetSoi,
           layout,
-          activeSystem?.planets ?? [],
+          plTick,
           simTimeSec,
+          planetFillSmooth,
+          hoverPlanet?.id ?? null,
         );
         paintGalaxy(galaxy, layout, consumePulse);
-        syncBodySprites(bodyLayer, spritePool, objects, layout);
+        syncBodyGraphics(
+          bodyLayer,
+          graphicsPool,
+          objects,
+          layout,
+          simTimeSec,
+        );
         applyCamera(levels, layout, viewTier);
 
         const worldScale =
@@ -975,6 +1152,7 @@ export function GameCanvas() {
         selectionLabel.scale.set(labelScreenScale);
         hoverTooltip.scale.set(labelScreenScale);
         planetTooltip.scale.set(labelScreenScale);
+        starTooltip.scale.set(labelScreenScale);
 
         const draggingPan = ptrDown && ptrMoved;
 
@@ -982,6 +1160,7 @@ export function GameCanvas() {
           selectionLabel.visible = false;
           hoverTooltip.visible = false;
           planetTooltip.visible = false;
+          starTooltip.visible = false;
         } else {
           if (
             hoverObjectId !== null &&
@@ -995,10 +1174,11 @@ export function GameCanvas() {
                 jetBuffActive,
               );
               const liftH =
-                (KIND_RADIUS[hov.kind] * 2 + 10) / worldScale;
+                (objRadius(hov) * 2 + 10) / worldScale;
               hoverTooltip.position.set(hov.x, hov.y - liftH);
               hoverTooltip.visible = true;
               planetTooltip.visible = false;
+              starTooltip.visible = false;
             } else {
               hoverTooltip.visible = false;
             }
@@ -1015,7 +1195,7 @@ export function GameCanvas() {
                 jetBuffActive,
               );
               const lift =
-                (KIND_RADIUS[sel.kind] * 2 + 10) / worldScale;
+                (objRadius(sel) * 2 + 10) / worldScale;
               selectionLabel.position.set(sel.x, sel.y - lift);
               selectionLabel.visible = true;
             } else {
@@ -1034,26 +1214,59 @@ export function GameCanvas() {
             const hPl = hoverPlanet;
             const systemsNow = useGameStore.getState().systems;
             const sysNow = systemsNow.find((s) => s.id === activeSystemId);
-            const hp = sysNow?.planets.find((p) => p.id === hPl.id);
-            if (hp) {
+            const hp = sysNow?.planets.find((p: Planet) => p.id === hPl.id);
+            if (hp && sysNow) {
               planetTooltip.text = buildPlanetHoverText(
                 hp,
                 levels,
                 jetBuffActive,
+                sysNow.starClass,
               );
+              const planetsArr = sysNow.planets;
+              const hi = planetsArr.findIndex((p: Planet) => p.id === hp.id);
               const s = buildPlanetPhysicsSnapshot(
                 hp,
                 planetContextFromSimLayout(layout),
                 simTimeSec,
+                Math.max(0, hi),
+                planetsArr.length,
               );
               const liftP = (s.surfaceRadius * 2 + 14) / worldScale;
               planetTooltip.position.set(s.x, s.y - liftP);
               planetTooltip.visible = true;
+              starTooltip.visible = false;
             } else {
               planetTooltip.visible = false;
             }
-          } else if (!hoverTooltip.visible) {
+          } else {
             planetTooltip.visible = false;
+          }
+
+          if (
+            hoverStar &&
+            !draggingPan &&
+            hoverObjectId === null &&
+            !hoverTooltip.visible &&
+            !planetTooltip.visible
+          ) {
+            const systemsNow = useGameStore.getState().systems;
+            const sysNow = systemsNow.find((s) => s.id === activeSystemId);
+            if (sysNow) {
+              starTooltip.text = buildStarHoverText(sysNow);
+              const minS = Math.min(layout.width, layout.height);
+              const liftS =
+                (Math.max(18, minS * STAR_DISPLAY_RADIUS_FRACTION) * 2 + 10) /
+                worldScale;
+              starTooltip.position.set(
+                layout.star.x,
+                layout.star.y - liftS,
+              );
+              starTooltip.visible = true;
+            } else {
+              starTooltip.visible = false;
+            }
+          } else {
+            starTooltip.visible = false;
           }
         }
 
@@ -1077,10 +1290,7 @@ export function GameCanvas() {
       wheelCleanup?.();
       cancelAnimationFrame(raf);
       observer?.disconnect();
-      if (app) {
-        app.destroy(true, { children: true });
-      }
-      spritePool.length = 0;
+      graphicsPool.length = 0;
       host.replaceChildren();
     };
   }, []);

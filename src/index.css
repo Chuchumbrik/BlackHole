@@ -232,6 +232,35 @@ body,
   background: rgba(155, 126, 217, 0.22);
 }
 
+.planet-planet-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.planet-planet-picker button {
+  font: inherit;
+  font-size: 0.72rem;
+  padding: 0.28rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.planet-planet-picker button.is-active {
+  border-color: rgba(52, 211, 153, 0.65);
+  background: rgba(52, 211, 153, 0.15);
+}
+
+.planet-life-auto-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
 .planet-card {
   padding: 0.9rem 1rem;
   border-radius: 0.72rem;
@@ -283,6 +312,13 @@ body,
   margin: 0 0 0.65rem;
   font-size: 0.8rem;
   color: #c4b5fd;
+  line-height: 1.35;
+}
+
+.planet-astro-hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  color: #93c5fd;
   line-height: 1.35;
 }
 

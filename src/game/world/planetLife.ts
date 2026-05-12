@@ -59,7 +59,10 @@ export function planetSwallowMpBase(planet: Planet): number {
     planet.geologicalActivity;
   const stageBonus = planet.stage * 35;
   const lifeBonus = planet.lifeBorn ? 220 : 0;
-  return Math.round((120 + sum * 0.45 + stageBonus + lifeBonus) * planet.mpYieldMult);
+  const sizeBoost = Math.pow(Math.max(0.35, planet.radiusScale), 0.75);
+  return Math.round(
+    (120 + sum * 0.45 + stageBonus + lifeBonus) * planet.mpYieldMult * sizeBoost,
+  );
 }
 
 /**

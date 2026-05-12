@@ -1,6 +1,8 @@
 import {
   BASE_GRAVITY_ACCEL,
   GRAVITY_CONST,
+  GRAVITY_FIELD_BLEND_IN_FRAC,
+  GRAVITY_FIELD_BLEND_OUT_FRAC,
   GRAVITY_SOFTENING,
   MAX_OBJECTS_ON_FIELD,
   OBJECT_MASS,
@@ -28,6 +30,12 @@ export type SimObject = {
   vy: number;
   mass: number;
   mpValue: number;
+  /** Радиус тела (px) для столкновений и отрисовки; по умолчанию KIND_RADIUS[kind]. */
+  radiusPx?: number;
+  /** Сид формы многоугольника. */
+  shapeSeed?: number;
+  /** Радиан/с вращение силуэта на экране. */
+  spinRate?: number;
   /** Накопленный азимутальный ход относительно звезды (рад, со знаком) — для витков. */
   _orbitStarAccumRad?: number;
   /** То же относительно центра чёрной дыры. */
@@ -42,6 +50,10 @@ export type SimObject = {
   /** Корабль: уже был глубже зоны гравитации — нужно для побега наружу */
   shipEnteredGravity?: boolean;
 };
+
+export function objRadius(o: SimObject): number {
+  return o.radiusPx ?? KIND_RADIUS[o.kind];
+}
 
 export type SimLayout = {
   width: number;
@@ -82,13 +94,22 @@ export function spawnOutsideGravity(
   upgradeLevels: UpgradeLevels,
 ): SimObject {
   const kind = rollObjectKind(upgradeLevels);
-  const mpValue = rollMpForKind(kind);
+  const baseR = KIND_RADIUS[kind];
+  const sizeU =
+    kind === 3 ? 0.62 + Math.random() * 0.58 : 0.45 + Math.random() * 0.95;
+  const radiusPx = Math.max(2.2, Math.round(baseR * sizeU * 10) / 10);
+  const sizeMul = Math.pow(radiusPx / baseR, 1.22);
+  const mpValue = rollMpForKind(kind, sizeMul);
   const spawnAngle = Math.random() * Math.PI * 2;
   const r = layout.systemRadius;
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
   const { vx, vy } = randomBoundaryVelocity();
   const id = nextId++;
+  const mass =
+    OBJECT_MASS[kind] * Math.pow(Math.max(0.35, radiusPx / baseR), 2.2);
+  const shapeSeed = Math.floor(Math.random() * 1_000_000_000);
+  const spinRate = (Math.random() < 0.5 ? -1 : 1) * (0.28 + Math.random() * 2.4);
 
   return {
     id,
@@ -98,20 +119,30 @@ export function spawnOutsideGravity(
     y,
     vx,
     vy,
-    mass: OBJECT_MASS[kind],
+    mass,
     mpValue,
+    radiusPx,
+    shapeSeed,
+    spinRate,
   };
 }
 
 export function spawnShip(layout: SimLayout): SimObject {
   const q = rollShipQualities();
-  const mpValue = rollMpForKind(4);
+  const baseR = KIND_RADIUS[4];
+  const sizeU = 0.55 + Math.random() * 0.65;
+  const radiusPx = Math.max(3.5, Math.round(baseR * sizeU * 10) / 10);
+  const sizeMul = Math.pow(radiusPx / baseR, 1.15);
+  const mpValue = rollMpForKind(4, sizeMul);
   const spawnAngle = Math.random() * Math.PI * 2;
   const r = layout.systemRadius;
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
   const { vx, vy } = randomBoundaryVelocity();
   const id = nextId++;
+  const mass = OBJECT_MASS[4] * Math.pow(Math.max(0.4, radiusPx / baseR), 2);
+  const shapeSeed = Math.floor(Math.random() * 1_000_000_000);
+  const spinRate = (Math.random() < 0.5 ? -1 : 1) * (0.15 + Math.random() * 0.9);
 
   return {
     id,
@@ -121,12 +152,36 @@ export function spawnShip(layout: SimLayout): SimObject {
     y,
     vx,
     vy,
-    mass: OBJECT_MASS[4],
+    mass,
     mpValue,
+    radiusPx,
+    shapeSeed,
+    spinRate,
     thrust01: q.thrust01,
     pilot01: q.pilot01,
     shipEnteredGravity: false,
   };
+}
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  if (edge1 <= edge0) return x >= edge1 ? 1 : 0;
+  const u = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return u * u * (3 - 2 * u);
+}
+
+/**
+ * Множитель к ньютоновскому полю дыры: 1 у центра зоны, плавно к OUTSIDE_GRAVITY_RATIO
+ * за пределами `gravityRadius` (без скачка на границе кольца).
+ */
+export function bhGravityFieldStrength(
+  distFromBh: number,
+  layout: SimLayout,
+): number {
+  const g = Math.max(layout.gravityRadius, 1e-6);
+  const lo = g * GRAVITY_FIELD_BLEND_IN_FRAC;
+  const hi = g * GRAVITY_FIELD_BLEND_OUT_FRAC;
+  const t = smoothstep(lo, hi, distFromBh);
+  return OUTSIDE_GRAVITY_RATIO + (1 - OUTSIDE_GRAVITY_RATIO) * (1 - t);
 }
 
 function applyBodyGravity(
@@ -141,8 +196,7 @@ function applyBodyGravity(
   const nx = dx / dist;
   const ny = dy / dist;
   const invSq = 1 / (dist * dist + GRAVITY_SOFTENING);
-  const accel =
-    GRAVITY_CONST * source.mass * obj.mass * invSq * ratio;
+  const accel = GRAVITY_CONST * source.mass * invSq * ratio;
   return {
     vx: obj.vx + nx * accel * dt,
     vy: obj.vy + ny * accel * dt,
@@ -174,6 +228,8 @@ export type StepOutcome =
       objectKind: ObjectKind;
       /** Для предпросмотра траекторий и отладки. */
       via?: "horizon" | "star" | "planet" | "body";
+      atX: number;
+      atY: number;
     }
   | { kind: "escaped" };
 
@@ -183,7 +239,7 @@ function hitsPlanetSurface(
 ): boolean {
   for (const p of planets) {
     const d = Math.hypot(obj.x - p.x, obj.y - p.y);
-    if (d < p.surfaceRadius + KIND_RADIUS[obj.kind]) return true;
+    if (d < p.surfaceRadius + objRadius(obj)) return true;
   }
   return false;
 }
@@ -206,6 +262,8 @@ export function advanceObjectOneStep(
       mp: obj.mpValue,
       objectKind: obj.kind,
       via: "horizon",
+      atX: obj.x,
+      atY: obj.y,
     };
   }
 
@@ -217,6 +275,8 @@ export function advanceObjectOneStep(
       mp: 0,
       objectKind: obj.kind,
       via: "star",
+      atX: obj.x,
+      atY: obj.y,
     };
   }
 
@@ -226,13 +286,12 @@ export function advanceObjectOneStep(
   let ny = dy / dist;
 
   if (dist > layout.horizonRadius) {
-    const outsideRatio =
-      dist < layout.gravityRadius ? 1 : OUTSIDE_GRAVITY_RATIO;
+    const bhField = bhGravityFieldStrength(dist, layout);
     const bhGravity = applyBodyGravity(
       { ...obj, vx: nvx, vy: nvy },
       { x: layout.bh.x, y: layout.bh.y, mass: layout.bhMass },
       dt,
-      outsideRatio,
+      bhField,
     );
     nvx = bhGravity.vx;
     nvy = bhGravity.vy;
@@ -293,6 +352,8 @@ export function advanceObjectOneStep(
       mp: obj.mpValue,
       objectKind: obj.kind,
       via: "horizon",
+      atX: newX,
+      atY: newY,
     };
   }
 
@@ -304,6 +365,8 @@ export function advanceObjectOneStep(
         mp: 0,
         objectKind: obj.kind,
         via: "planet",
+        atX: newX,
+        atY: newY,
       };
     }
   }
@@ -316,6 +379,8 @@ export function advanceObjectOneStep(
       mp: 0,
       objectKind: obj.kind,
       via: "star",
+      atX: newX,
+      atY: newY,
     };
   }
 
@@ -491,11 +556,13 @@ export type ConsumeEvent = {
   mp: number;
   kind: ObjectKind;
   via?: "horizon" | "star" | "planet" | "body";
+  atX?: number;
+  atY?: number;
 };
 
-/** Центр–центр: сумма радиусов спрайтов (\`KIND_RADIUS\` — половина стороны квадрата). */
+/** Центр–центр: сумма радиусов тел. */
 function bodySeparationMin(a: SimObject, b: SimObject): number {
-  return KIND_RADIUS[a.kind] + KIND_RADIUS[b.kind];
+  return objRadius(a) + objRadius(b);
 }
 
 /** Пересечение с любым другим телом из снимка (то же условие, что у столкновений на поле). */
@@ -521,6 +588,7 @@ export function resolveBodyCollisions(objects: SimObject[]): {
   if (n < 2) return { survivors: objects, consumed: [] };
 
   const killed = new Set<number>();
+  const hitPos = new Map<number, { x: number; y: number }>();
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
@@ -531,6 +599,10 @@ export function resolveBodyCollisions(objects: SimObject[]): {
       if (dist < bodySeparationMin(a, b)) {
         killed.add(a.id);
         killed.add(b.id);
+        const mx = (a.x + b.x) / 2;
+        const my = (a.y + b.y) / 2;
+        hitPos.set(a.id, { x: mx, y: my });
+        hitPos.set(b.id, { x: mx, y: my });
       }
     }
   }
@@ -541,11 +613,14 @@ export function resolveBodyCollisions(objects: SimObject[]): {
   const survivors: SimObject[] = [];
   for (const o of objects) {
     if (killed.has(o.id)) {
+      const hp = hitPos.get(o.id);
       consumed.push({
         objectId: o.id,
         mp: 0,
         kind: o.kind,
         via: "body",
+        atX: hp?.x ?? o.x,
+        atY: hp?.y ?? o.y,
       });
     } else {
       survivors.push(o);
@@ -575,6 +650,8 @@ export function stepSimulation(
         mp: r.mp,
         kind: r.objectKind,
         via: r.via,
+        atX: r.atX,
+        atY: r.atY,
       });
       continue;
     }

@@ -8,6 +8,7 @@ import {
   BASE_GRAVITY_FRACTION,
   BASE_HORIZON_FRACTION,
   CAMERA_SCALE_MIN,
+  GRAVITY_RADIUS_MIN_OVER_HORIZON,
   JET_FIELD_MP_MULT,
   SHIPS_UNLOCK_MIN_SUM,
   SHIP_THRUST_DISK_FACTOR_PER_LEVEL,
@@ -133,10 +134,11 @@ export function computeRadiiPx(
 ): { horizon: number; gravity: number } {
   const baseHorizon = minDimensionPx * BASE_HORIZON_FRACTION;
   const baseGravity = minDimensionPx * BASE_GRAVITY_FRACTION;
-  return {
-    horizon: baseHorizon * Math.pow(F.horizon, levels.size),
-    gravity: baseGravity * Math.pow(F.gravityRadius, levels.gravity),
-  };
+  const horizon = baseHorizon * Math.pow(F.horizon, levels.size);
+  let gravity = baseGravity * Math.pow(F.gravityRadius, levels.gravity);
+  const minGravity = horizon * GRAVITY_RADIUS_MIN_OVER_HORIZON;
+  if (gravity < minGravity) gravity = minGravity;
+  return { horizon, gravity };
 }
 
 /** Ускорение притяжения с бонусом эффективности («скорость поглощения» в ТЗ). */

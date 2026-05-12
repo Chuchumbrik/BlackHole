@@ -1,9 +1,9 @@
 {
   "app": {
     "title": "Black Hole: Devour",
-    "subtitle": "MVP · PixiJS + React",
+    "subtitle": "MVP · Newtonian field sim; GR visuals are metaphors",
     "mass": "Mass: {{value}} MP",
-    "massHint": "· pull objects into the horizon",
+    "massHint": "· pull debris in 1/r² gravity; horizon is the score sink",
     "mpGainFloater": "+{{value}} MP",
     "tabs": {
       "game": "Space",
@@ -39,12 +39,12 @@
     "nextCost": "Next level: {{value}} MP",
     "current": {
       "size": "Now: ×{{mul}} vs base horizon; at this window size horizon ≈ {{px}} px",
-      "gravity": "Now: ×{{mul}} vs base gravity zone; at this window radius ≈ {{px}} px",
+      "gravity": "Now: ×{{mul}} vs base gravity zone; radius ≈ {{px}} px (never below the horizon; pull fades smoothly past the zone edge).",
       "disk": "Now: disk MP multiplier ×{{mul}} (relative to base without other branches)",
       "efficiency": "Now: global MP ×{{mp}}, pull strength ×{{pull}}",
-      "jets": "Now: jets level {{level}} (periodic ×1.8 field MP bursts and inward impulse).",
+      "jets": "Now: jets level {{level}} (accretion-linked bursts: ×1.8 field MP and inward impulse).",
       "lensing": "Now: rare debris (high-MP type) weight ×{{mul}} vs base without lensing.",
-      "hawking": "Now: passive influx ≈ {{mps}} MP/s at current mass (scales with mass and level)."
+      "hawking": "Now: stylized passive influx ≈ {{mps}} MP/s (not a physical luminosity; scales with mass and level)."
     },
     "buy": "Buy",
     "lock": {
@@ -61,7 +61,7 @@
       },
       "gravity": {
         "name": "Gravity radius",
-        "effect": "+11% gravity zone radius per level (multiplicative)."
+        "effect": "+11% zone radius per level (multiplicative). Jet bursts require accretion disk levels; zone edge uses a smooth pull falloff."
       },
       "disk": {
         "name": "Accretion disk",
@@ -73,7 +73,7 @@
       },
       "jets": {
         "name": "Relativistic jets",
-        "effect": "Random bursts: ~20s of ×1.8 field MP and an inward velocity kick; more frequent with level."
+        "effect": "Accretion-driven bursts: ~20s of ×1.8 field MP and an inward kick; chance grows with disk level and jet branch level."
       },
       "lensing": {
         "name": "Gravitational lensing",
@@ -81,7 +81,7 @@
       },
       "hawking": {
         "name": "Hawking radiation",
-        "effect": "Passive MP/s that scales with branch level and current hole mass."
+        "effect": "Stylized passive MP/s for progression — orders of magnitude faster than real Hawking power for astrophysical holes."
       }
     }
   },
@@ -98,8 +98,16 @@
       "temperature": "Surface temperature: {{value}}",
       "atmosphere": "Atmosphere density/composition: {{value}}",
       "hydrosphere": "Hydrosphere: {{value}}",
-      "geology": "Geological activity: {{value}}"
+      "geology": "Geological activity: {{value}}",
+      "radiusScale": "Relative size (affects SOI & acceleration cost): ×{{value}}"
     },
+    "astro": {
+      "hzIn": "Orbit in a rough habitable-zone band for this star class (schematic 0–100 scale).",
+      "hzOut": "Outside that habitable-zone band on the schematic scale.",
+      "tidalLock": "Tidal locking is plausible at this proximity and gravity proxy."
+    },
+    "planetsLabel": "Bodies in this system",
+    "lifeAutoNote": "Life emergence fills automatically while all six stats stay in the comfort band — MP boost only advances civilization stages.",
     "accelInfo": "Acceleration step: +{{seconds}}s (toward next stage: {{next}}s), multiplier ×{{multiplier}}, deviation sum {{deviation}}.",
     "accelerate": "Boost ({{cost}} MP)",
     "ecoGate": "Ecosystem: all six stats in {{low}}–{{high}} unlocks life emergence.",
@@ -126,6 +134,11 @@
         "hydrosphere": "hydrosphere",
         "geologicalActivity": "geology"
       }
+    }
+  },
+  "star": {
+    "hover": {
+      "body": "{{name}}\nSpectral class {{starClass}}\nPlanets in system: {{planets}}"
     }
   }
 }

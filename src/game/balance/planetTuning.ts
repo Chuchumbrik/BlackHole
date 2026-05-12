@@ -12,8 +12,13 @@ export const PLANET_ACCELERATION_MULTIPLIER_MAX = 3;
 
 export const PLANET_SYSTEM_COUNT_MIN = 1;
 export const PLANET_SYSTEM_COUNT_MAX = 2;
+/** Обычные системы: число планет. */
 export const PLANETS_PER_SYSTEM_MIN = 1;
-export const PLANETS_PER_SYSTEM_MAX = 1;
+export const PLANETS_PER_SYSTEM_MAX = 7;
+
+/** Первая «домашняя» система — больше тел. */
+export const PLANETS_FIRST_SYSTEM_MIN = 4;
+export const PLANETS_FIRST_SYSTEM_MAX = 10;
 
 /** Коридор параметров планеты до зарождения жизни. */
 export const PLANET_ECOSYSTEM_LOW = 38;

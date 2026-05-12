@@ -16,7 +16,12 @@ import {
   ecosystemStable,
   lifeEmergenceRatio,
 } from "../game/world/planetLife";
+import {
+  inHabitableZone,
+  likelyTidalLocked,
+} from "../game/world/planetAstroHints";
 import { useGameStore } from "../store/useGameStore";
+import type { Planet } from "../game/world/types";
 
 function formatParam(value: number): string {
   return `${Math.round(value)}/100`;
@@ -28,12 +33,16 @@ export function PlanetPanel() {
   const systems = useGameStore((s) => s.systems);
   const activeSystemId = useGameStore((s) => s.activeSystemId);
   const setActiveSystem = useGameStore((s) => s.setActiveSystem);
+  const activePlanetId = useGameStore((s) => s.activePlanetId);
+  const setActivePlanet = useGameStore((s) => s.setActivePlanet);
   const acceleratePlanet = useGameStore((s) => s.acceleratePlanet);
   const massMp = useGameStore((s) => s.massMp);
 
   const activeSystem =
     systems.find((system) => system.id === activeSystemId) ?? systems[0];
-  const planet = activeSystem?.planets[0];
+  const planet =
+    activeSystem?.planets.find((p: Planet) => p.id === activePlanetId) ??
+    activeSystem?.planets[0];
 
   if (!activeSystem || !planet) {
     return (
@@ -83,6 +92,22 @@ export function PlanetPanel() {
         </div>
       )}
 
+      {activeSystem.planets.length > 1 && (
+        <div className="planet-planet-picker" role="tablist" aria-label={t("planet.planetsLabel")}>
+          {activeSystem.planets.map((p: Planet) => (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              className={p.id === planet?.id ? "is-active" : undefined}
+              onClick={() => setActivePlanet(p.id)}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       <article className="planet-card">
         <h3 className="planet-name">{planet.name}</h3>
         <p className="planet-stage">
@@ -106,6 +131,7 @@ export function PlanetPanel() {
         </p>
 
         <ul className="planet-params">
+          <li>{t("planet.params.radiusScale", { value: planet.radiusScale.toFixed(2) })}</li>
           <li>{t("planet.params.orbitalDistance", { value: formatParam(planet.orbitalDistance) })}</li>
           <li>{t("planet.params.gravityProxy", { value: formatParam(planet.gravityProxy) })}</li>
           <li>{t("planet.params.temperature", { value: formatParam(planet.surfaceTemperature) })}</li>
@@ -113,6 +139,15 @@ export function PlanetPanel() {
           <li>{t("planet.params.hydrosphere", { value: formatParam(planet.hydrosphere) })}</li>
           <li>{t("planet.params.geology", { value: formatParam(planet.geologicalActivity) })}</li>
         </ul>
+
+        <p className="planet-astro-hint">
+          {inHabitableZone(activeSystem.starClass, planet.orbitalDistance)
+            ? t("planet.astro.hzIn")
+            : t("planet.astro.hzOut")}
+        </p>
+        {likelyTidalLocked(planet) && (
+          <p className="planet-astro-hint">{t("planet.astro.tidalLock")}</p>
+        )}
 
         <p className="planet-eco-hint">
           {stable
@@ -156,6 +191,9 @@ export function PlanetPanel() {
             deviation: Math.round(deviationFromGoldenMid(planet)),
           })}
         </p>
+        {stable && !planet.lifeBorn && (
+          <p className="planet-life-auto-note">{t("planet.lifeAutoNote")}</p>
+        )}
         <button
           type="button"
           className="planet-accelerate"

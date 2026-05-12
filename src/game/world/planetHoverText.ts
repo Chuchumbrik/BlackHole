@@ -13,6 +13,10 @@ import {
   planetSwallowMpBase,
   type PlanetParamKey,
 } from "./planetLife";
+import {
+  inHabitableZone,
+  likelyTidalLocked,
+} from "./planetAstroHints";
 import type { Planet } from "./types";
 
 function deficitLabel(key: PlanetParamKey): string {
@@ -24,6 +28,7 @@ export function buildPlanetHoverText(
   planet: Planet,
   levels: UpgradeLevels,
   jetBuffActive: boolean,
+  starClass: string,
 ): string {
   const mpMult = mpIncomeMultiplier(levels, jetBuffActive);
   const swallow = Math.floor(
@@ -67,6 +72,15 @@ export function buildPlanetHoverText(
   } else {
     lines.push(i18n.t("planet.hover.lifeBorn"));
     lines.push(i18n.t("planet.hover.civPlaceholder"));
+  }
+
+  if (inHabitableZone(starClass, planet.orbitalDistance)) {
+    lines.push(i18n.t("planet.astro.hzIn"));
+  } else {
+    lines.push(i18n.t("planet.astro.hzOut"));
+  }
+  if (likelyTidalLocked(planet)) {
+    lines.push(i18n.t("planet.astro.tidalLock"));
   }
 
   lines.push(i18n.t("planet.hover.swallow", { mp: swallow.toLocaleString(i18n.language === "en" ? "en-US" : "ru-RU") }));

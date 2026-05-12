@@ -35,20 +35,28 @@ export function buildPlanetPhysicsSnapshot(
   planet: Planet,
   ctx: PlanetLayoutContext,
   simTimeSec: number,
+  planetIndex: number,
+  totalPlanets: number,
 ): PlanetPhysicsSnapshot {
   const orbitMin = ctx.horizonRadius * 4.5;
   const orbitMax = Math.max(orbitMin + 12, ctx.systemRadius * 0.85);
-  const orbitRadius =
-    orbitMin +
-    (orbitMax - orbitMin) * Math.max(0, Math.min(1, planet.orbitalDistance / 100));
+  const slotFrac =
+    totalPlanets > 0 ? (planetIndex + 0.42) / Math.max(1, totalPlanets) : 0.5;
+  const paramFrac = Math.max(0, Math.min(1, planet.orbitalDistance / 100));
+  const orbitBlend = slotFrac * 0.62 + paramFrac * 0.38;
+  const orbitRadius = orbitMin + (orbitMax - orbitMin) * orbitBlend;
   const angle = planet.orbitPhaseRad + simTimeSec * planet.orbitSpeed;
   const x = ctx.starX + Math.cos(angle) * orbitRadius;
   const y = ctx.starY + Math.sin(angle) * orbitRadius;
   const soiRadius =
     ctx.horizonRadius *
     (1.45 + (planet.gravityProxy / 100) * 1.45 + (planet.atmosphere / 100) * 0.6);
-  const surfaceRadius = Math.max(2.3, soiRadius * 0.18);
-  const mass = 38_000 * Math.pow(Math.max(0.15, planet.gravityProxy / 50), 1.15);
+  const baseSurf = Math.max(2.3, soiRadius * 0.18);
+  const surfaceRadius = baseSurf * planet.radiusScale;
+  const mass =
+    38_000 *
+    Math.pow(Math.max(0.15, planet.gravityProxy / 50), 1.15) *
+    Math.pow(Math.max(0.35, planet.radiusScale), 0.9);
 
   return {
     id: planet.id,
@@ -68,8 +76,10 @@ export function pickPlanetAtWorld(
   simTimeSec: number,
 ): Planet | null {
   let best: { planet: Planet; d: number } | null = null;
-  for (const planet of planets) {
-    const s = buildPlanetPhysicsSnapshot(planet, ctx, simTimeSec);
+  const n = planets.length;
+  for (let planetIndex = 0; planetIndex < planets.length; planetIndex++) {
+    const planet = planets[planetIndex];
+    const s = buildPlanetPhysicsSnapshot(planet, ctx, simTimeSec, planetIndex, n);
     const hitR = Math.max(s.surfaceRadius * 2.2, 14);
     const d = Math.hypot(wx - s.x, wy - s.y);
     if (d < hitR && (!best || d < best.d)) {

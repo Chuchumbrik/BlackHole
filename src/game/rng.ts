@@ -29,9 +29,10 @@ export function rollObjectKind(upgradeLevels?: UpgradeLevels): DebrisKind {
   return 3;
 }
 
-export function rollMpForKind(kind: ObjectKind): number {
+export function rollMpForKind(kind: ObjectKind, sizeMul = 1): number {
   const [lo, hi] = MP_RANGE[kind];
-  return randIntInclusive(lo, hi);
+  const v = randIntInclusive(lo, hi) * sizeMul;
+  return Math.max(1, Math.floor(v));
 }
 
 /** Качества корабля при спавне (влияют на тягу и награду за побег). */

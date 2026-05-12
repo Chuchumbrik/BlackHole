@@ -31,7 +31,9 @@ export function accelerationMultiplier(planet: Planet): number {
 }
 
 export function accelerationCostMp(planet: Planet): number {
-  return Math.ceil(PLANET_ACCELERATION_BASE_MP * accelerationMultiplier(planet));
+  const base = PLANET_ACCELERATION_BASE_MP * accelerationMultiplier(planet);
+  const sizeFactor = 0.5 + planet.radiusScale * 0.72;
+  return Math.ceil(base * sizeFactor);
 }
 
 export function advancePlanetStages(planet: Planet, dtSec: number): Planet {

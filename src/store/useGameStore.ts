@@ -1,9 +1,6 @@
 import { create } from "zustand";
 import { PLANET_ACCELERATION_SECONDS } from "../game/balance";
 import {
-  PLANET_LIFE_EMERGENCE_TOTAL_SEC,
-} from "../game/balance/planetTuning";
-import {
   ZERO_UPGRADE_LEVELS,
   canPurchaseUpgrade,
   isViewTierUnlocked,
@@ -13,8 +10,8 @@ import {
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
 import { accelerationCostMp, advancePlanetStages } from "../game/world/planetProgress";
-import { ecosystemStable, tickPlanetLife } from "../game/world/planetLife";
-import type { StarSystem } from "../game/world/types";
+import { tickPlanetLife } from "../game/world/planetLife";
+import type { Planet, StarSystem } from "../game/world/types";
 
 type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats";
 
@@ -49,6 +46,8 @@ type GameState = {
   setActiveSystem: (systemId: string) => void;
   advanceGameTime: (simDt: number) => void;
   acceleratePlanet: (systemId: string, planetId: string) => void;
+  activePlanetId: string | null;
+  setActivePlanet: (planetId: string | null) => void;
   removePlanet: (systemId: string, planetId: string) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
@@ -67,6 +66,7 @@ export const useGameStore = create<GameState>((set) => ({
     return {
       systems,
       activeSystemId: systems[0]?.id ?? "",
+      activePlanetId: null,
     };
   })(),
   massMp: 0,
@@ -95,7 +95,7 @@ export const useGameStore = create<GameState>((set) => ({
   setActiveSystem: (systemId) =>
     set((s) => {
       if (!s.systems.some((sys) => sys.id === systemId)) return s;
-      return { activeSystemId: systemId };
+      return { activeSystemId: systemId, activePlanetId: null };
     }),
   advanceGameTime: (simDt) =>
     set((s) => {
@@ -104,7 +104,7 @@ export const useGameStore = create<GameState>((set) => ({
         gameTimeSec: s.gameTimeSec + simDt,
         systems: s.systems.map((system) => ({
           ...system,
-          planets: system.planets.map((planet) =>
+          planets: system.planets.map((planet: Planet) =>
             tickPlanetLife(advancePlanetStages(planet, simDt), simDt),
           ),
         })),
@@ -125,41 +125,29 @@ export const useGameStore = create<GameState>((set) => ({
           if (sys.id !== systemId) return sys;
           return {
             ...sys,
-            planets: sys.planets.map((p) => {
+            planets: sys.planets.map((p: Planet) => {
               if (p.id !== planetId) return p;
-              if (!ecosystemStable(p)) {
-                return advancePlanetStages(p, PLANET_ACCELERATION_SECONDS);
-              }
-              if (!p.lifeBorn) {
-                const nextEmergence = Math.min(
-                  PLANET_LIFE_EMERGENCE_TOTAL_SEC,
-                  p.lifeEmergenceSec + PLANET_ACCELERATION_SECONDS,
-                );
-                const born =
-                  nextEmergence >= PLANET_LIFE_EMERGENCE_TOTAL_SEC;
-                return {
-                  ...p,
-                  lifeEmergenceSec: nextEmergence,
-                  lifeBorn: p.lifeBorn || born,
-                };
-              }
               return advancePlanetStages(p, PLANET_ACCELERATION_SECONDS);
             }),
           };
         }),
       };
     }),
+  setActivePlanet: (activePlanetId) => set({ activePlanetId }),
   removePlanet: (systemId, planetId) =>
-    set((s) => ({
-      systems: s.systems.map((sys) =>
+    set((s) => {
+      const systems = s.systems.map((sys) =>
         sys.id !== systemId
           ? sys
           : {
               ...sys,
-              planets: sys.planets.filter((p) => p.id !== planetId),
+              planets: sys.planets.filter((p: Planet) => p.id !== planetId),
             },
-      ),
-    })),
+      );
+      const ap =
+        s.activePlanetId === planetId ? null : s.activePlanetId;
+      return { systems, activePlanetId: ap };
+    }),
   buyUpgrade: (branch) =>
     set((s) => {
       if (!canPurchaseUpgrade(s.upgradeLevels, branch, s.massMp)) return s;
