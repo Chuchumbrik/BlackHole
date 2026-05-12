@@ -115,7 +115,7 @@ export function canPurchaseUpgrade(
   return true;
 }
 
-/** Множитель MP при поглощении и побеге (диск × эффективность × джеты при баффе). */
+/** Множитель MP при поглощении (диск × эффективность × джеты при баффе). */
 export function mpIncomeMultiplier(
   levels: UpgradeLevels,
   jetBuffActive: boolean,

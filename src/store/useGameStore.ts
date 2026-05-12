@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { PLANET_ACCELERATION_SECONDS } from "../game/balance";
 import {
   ZERO_UPGRADE_LEVELS,
   canPurchaseUpgrade,
@@ -7,13 +8,16 @@ import {
   type UpgradeBranch,
   type UpgradeLevels,
 } from "../game/upgrades";
+import { generateStarSystems } from "../game/world/generation";
+import { accelerationCostMp, advancePlanetStages } from "../game/world/planetProgress";
+import type { StarSystem } from "../game/world/types";
 
 type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats";
 
 export type ViewTierId = 0 | 1 | 2;
 
 /** Множитель времени симуляции: 0 — пауза, иначе ускорение относительно реального времени. */
-export type SimTimeScale = 0 | 1 | 2 | 3 | 5;
+export type SimTimeScale = 0 | 1 | 2 | 3 | 5 | 10;
 
 export type MpGainFloaterEvent = { id: number; amount: number };
 
@@ -21,12 +25,15 @@ let mpGainFloaterIdSeq = 0;
 
 type GameState = {
   massMp: number;
+  gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   /** Масштаб вида: у дыры / звёздная система / карта галактики (узлы). */
   viewTier: ViewTierId;
   activeTab: TabId;
-  /** Скорость игрового времени (пауза / ×1 / ×2 / ×3 / ×5). */
+  /** Скорость игрового времени (пауза / ×1 / ×2 / ×3 / ×5 / ×10). */
   simTimeScale: SimTimeScale;
+  systems: StarSystem[];
+  activeSystemId: string;
   /** Активные всплывающие подсказки «+MP» к счётчику (очищаются после анимации). */
   mpGainFloaters: MpGainFloaterEvent[];
   /** Игровое время окончания баффа джетов (сек); 0 — нет активного баффа. */
@@ -35,6 +42,9 @@ type GameState = {
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
   setJetBuffEndsAt: (simSec: number) => void;
+  setActiveSystem: (systemId: string) => void;
+  advanceGameTime: (simDt: number) => void;
+  acceleratePlanet: (systemId: string, planetId: string) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
   setSimTimeScale: (scale: SimTimeScale) => void;
@@ -47,7 +57,15 @@ function maxUnlockedViewTier(levels: UpgradeLevels): ViewTierId {
 }
 
 export const useGameStore = create<GameState>((set) => ({
+  ...(() => {
+    const systems = generateStarSystems();
+    return {
+      systems,
+      activeSystemId: systems[0]?.id ?? "",
+    };
+  })(),
   massMp: 0,
+  gameTimeSec: 0,
   upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
   viewTier: 0,
   activeTab: "game",
@@ -69,6 +87,48 @@ export const useGameStore = create<GameState>((set) => ({
       mpGainFloaters: s.mpGainFloaters.filter((e) => e.id !== id),
     })),
   setJetBuffEndsAt: (jetBuffEndsAtSimSec) => set({ jetBuffEndsAtSimSec }),
+  setActiveSystem: (systemId) =>
+    set((s) => {
+      if (!s.systems.some((sys) => sys.id === systemId)) return s;
+      return { activeSystemId: systemId };
+    }),
+  advanceGameTime: (simDt) =>
+    set((s) => {
+      if (simDt <= 0) return s;
+      return {
+        gameTimeSec: s.gameTimeSec + simDt,
+        systems: s.systems.map((system) => ({
+          ...system,
+          planets: system.planets.map((planet) =>
+            advancePlanetStages(planet, simDt),
+          ),
+        })),
+      };
+    }),
+  acceleratePlanet: (systemId, planetId) =>
+    set((s) => {
+      const system = s.systems.find((sys) => sys.id === systemId);
+      const planet = system?.planets.find((p) => p.id === planetId);
+      if (!planet) return s;
+
+      const cost = accelerationCostMp(planet);
+      if (s.massMp < cost) return s;
+
+      return {
+        massMp: s.massMp - cost,
+        systems: s.systems.map((sys) => {
+          if (sys.id !== systemId) return sys;
+          return {
+            ...sys,
+            planets: sys.planets.map((p) =>
+              p.id === planetId
+                ? advancePlanetStages(p, PLANET_ACCELERATION_SECONDS)
+                : p,
+            ),
+          };
+        }),
+      };
+    }),
   buyUpgrade: (branch) =>
     set((s) => {
       if (!canPurchaseUpgrade(s.upgradeLevels, branch, s.massMp)) return s;

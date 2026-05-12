@@ -4,7 +4,7 @@ import {
   type SimTimeScale,
 } from "../store/useGameStore";
 
-const SPEEDS: SimTimeScale[] = [0, 1, 2, 3, 5];
+const SPEEDS: SimTimeScale[] = [0, 1, 2, 3, 5, 10];
 
 export function TimeScaleControls() {
   const { t } = useTranslation();

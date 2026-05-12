@@ -2,7 +2,6 @@ import {
   BASE_GRAVITY_ACCEL,
   GRAVITY_CONST,
   GRAVITY_SOFTENING,
-  ESCAPE_MP_BASE,
   MAX_OBJECTS_ON_FIELD,
   OBJECT_MASS,
   OUTSIDE_GRAVITY_RATIO,
@@ -169,7 +168,7 @@ function outwardThrustAccel(
 export type StepOutcome =
   | { kind: "live"; obj: SimObject }
   | { kind: "consumed"; mp: number; objectKind: ObjectKind }
-  | { kind: "escaped"; bonusMp: number };
+  | { kind: "escaped" };
 
 /** Один шаг интегрирования — общая логика для симуляции и предпросмотра траектории. */
 export function advanceObjectOneStep(
@@ -195,7 +194,7 @@ export function advanceObjectOneStep(
   if (distStar0 < layout.starCollisionRadius) {
     return {
       kind: "consumed",
-      mp: obj.mpValue,
+      mp: 0,
       objectKind: obj.kind,
     };
   }
@@ -256,7 +255,7 @@ export function advanceObjectOneStep(
   if (distStar1 < layout.starCollisionRadius) {
     return {
       kind: "consumed",
-      mp: obj.mpValue,
+      mp: 0,
       objectKind: obj.kind,
     };
   }
@@ -267,22 +266,14 @@ export function advanceObjectOneStep(
       entered = true;
     }
     if (entered && newDist > layout.gravityRadius * 1.04) {
-      const pilot = obj.pilot01 ?? 1;
-      return {
-        kind: "escaped",
-        bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
-      };
+      return { kind: "escaped" };
     }
     const rShipStar = Math.hypot(
       newX - layout.star.x,
       newY - layout.star.y,
     );
     if (rShipStar > layout.systemRadius * 1.02) {
-      const pilot = obj.pilot01 ?? 1;
-      return {
-        kind: "escaped",
-        bonusMp: Math.floor(ESCAPE_MP_BASE * pilot),
-      };
+      return { kind: "escaped" };
     }
     return {
       kind: "live",
@@ -302,7 +293,7 @@ export function advanceObjectOneStep(
     newY - layout.star.y,
   );
   if (rFromStar > layout.systemRadius * 1.02) {
-    return { kind: "escaped", bonusMp: 0 };
+    return { kind: "escaped" };
   }
 
   return {
@@ -345,12 +336,12 @@ function windingAccumulate(
   return { accum, lapsCompleted };
 }
 
-/** Витки вокруг звезды и вокруг дыры независимо (награда за каждый полный 2π). */
+/** Витки вокруг звезды и вокруг дыры независимо (счётчик для UI). */
 function applyOrbitLapTracking(
   prev: SimObject,
   layout: SimLayout,
   live: SimObject,
-): { obj: SimObject; lapsCompleted: number } {
+): { obj: SimObject } {
   const nx = live.x;
   const ny = live.y;
   const ts = Math.atan2(prev.y - layout.star.y, prev.x - layout.star.x);
@@ -369,7 +360,6 @@ function applyOrbitLapTracking(
       orbitLapsStar: (prev.orbitLapsStar ?? 0) + ws.lapsCompleted,
       orbitLapsBh: (prev.orbitLapsBh ?? 0) + wb.lapsCompleted,
     },
-    lapsCompleted: ws.lapsCompleted + wb.lapsCompleted,
   };
 }
 
@@ -428,11 +418,11 @@ export function predictTrajectoryPoints(
   return { points: pts, endsWithBodyCollision };
 }
 
-export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
-
-export type EscapeEvent = {
+export type ConsumeEvent = {
   objectId: number;
-  bonusMp: number;
+  /** MP в валюту: только при поглощении горизонтом; 0 — звезда или столкновение тел. */
+  mp: number;
+  kind: ObjectKind;
 };
 
 /** Центр–центр: сумма радиусов спрайтов (\`KIND_RADIUS\` — половина стороны квадрата). */
@@ -452,6 +442,7 @@ function hitsOtherBody(self: SimObject, others: SimObject[]): boolean {
 
 /**
  * Столкновение тел друг с другом (фаза «уничтожение обоих»; дробление — позже).
+ * В валюту MP не идёт (только горизонт); в событиях mp: 0.
  * Вызывается после шага интегрирования по гравитации / горизонту / звезде.
  */
 export function resolveBodyCollisions(objects: SimObject[]): {
@@ -484,7 +475,7 @@ export function resolveBodyCollisions(objects: SimObject[]): {
     if (killed.has(o.id)) {
       consumed.push({
         objectId: o.id,
-        mp: o.mpValue,
+        mp: 0,
         kind: o.kind,
       });
     } else {
@@ -502,14 +493,9 @@ export function stepSimulation(
 ): {
   objects: SimObject[];
   consumed: ConsumeEvent[];
-  escaped: EscapeEvent[];
-  /** Сколько полных орбитальных витков завершено за этот шаг (звезда + дыра). */
-  orbitLapsCompleted: number;
 } {
   const consumed: ConsumeEvent[] = [];
-  const escaped: EscapeEvent[] = [];
   const next: SimObject[] = [];
-  let orbitLapsCompleted = 0;
 
   for (const obj of objects) {
     const r = advanceObjectOneStep(obj, layout, dt, upgradeLevels);
@@ -522,25 +508,16 @@ export function stepSimulation(
       continue;
     }
     if (r.kind === "escaped") {
-      escaped.push({
-        objectId: obj.id,
-        bonusMp: r.bonusMp,
-      });
       continue;
     }
-    const { obj: withOrbit, lapsCompleted } = applyOrbitLapTracking(
-      obj,
-      layout,
-      r.obj,
-    );
-    orbitLapsCompleted += lapsCompleted;
+    const { obj: withOrbit } = applyOrbitLapTracking(obj, layout, r.obj);
     next.push(withOrbit);
   }
 
   const { survivors, consumed: bodyHits } = resolveBodyCollisions(next);
   consumed.push(...bodyHits);
 
-  return { objects: survivors, consumed, escaped, orbitLapsCompleted };
+  return { objects: survivors, consumed };
 }
 
 export type SpawnControl = {

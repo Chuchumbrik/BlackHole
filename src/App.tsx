@@ -3,6 +3,7 @@ import { GameCanvas } from "./components/GameCanvas";
 import { TimeScaleControls } from "./components/TimeScaleControls";
 import { ViewScaleControls } from "./components/ViewScaleControls";
 import { MpGainFloaters } from "./components/MpGainFloaters";
+import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { useGameStore } from "./store/useGameStore";
 
@@ -39,7 +40,14 @@ function App() {
             <UpgradesPanel />
           </div>
         )}
-        {activeTab !== "game" && activeTab !== "upgrades" && (
+        {activeTab === "planet" && (
+          <div className="app-panel-overlay app-panel-planet">
+            <PlanetPanel />
+          </div>
+        )}
+        {activeTab !== "game" &&
+          activeTab !== "upgrades" &&
+          activeTab !== "planet" && (
           <div className="app-panel-placeholder">
             <p className="app-panel-title">
               {t(`app.tabs.${activeTab}`)}

@@ -184,6 +184,128 @@ body,
   -webkit-overflow-scrolling: touch;
 }
 
+.app-panel-planet {
+  -webkit-overflow-scrolling: touch;
+}
+
+.planet-panel {
+  max-width: 34rem;
+  margin: 0 auto;
+}
+
+.planet-head {
+  margin-bottom: 0.75rem;
+}
+
+.planet-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.planet-system {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.planet-system-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.planet-system-picker button {
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.planet-system-picker button.is-active {
+  border-color: rgba(155, 126, 217, 0.75);
+  background: rgba(155, 126, 217, 0.22);
+}
+
+.planet-card {
+  padding: 0.9rem 1rem;
+  border-radius: 0.72rem;
+  border: 1px solid rgba(155, 126, 217, 0.25);
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.planet-name {
+  margin: 0 0 0.3rem;
+  font-size: 1rem;
+}
+
+.planet-stage {
+  margin: 0 0 0.55rem;
+  font-size: 0.82rem;
+  color: #d1c9e5;
+}
+
+.planet-progress-track {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.planet-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #22d3ee, #34d399);
+}
+
+.planet-progress-text {
+  margin: 0.38rem 0 0.72rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.planet-params {
+  margin: 0 0 0.7rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.38rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.planet-meta {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  color: #b8e9df;
+}
+
+.planet-accelerate {
+  font: inherit;
+  font-size: 0.84rem;
+  padding: 0.42rem 0.88rem;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(52, 211, 153, 0.65);
+  background: rgba(16, 185, 129, 0.18);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.planet-accelerate:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.planet-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
 .upgrades-panel {
   max-width: 32rem;
   margin: 0 auto;

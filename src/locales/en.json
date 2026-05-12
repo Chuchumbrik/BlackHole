@@ -29,7 +29,8 @@
     "x1": "×1",
     "x2": "×2",
     "x3": "×3",
-    "x5": "×5"
+    "x5": "×5",
+    "x10": "×10"
   },
   "upgrades": {
     "title": "Black hole upgrades",
@@ -83,5 +84,23 @@
         "effect": "Passive MP/s that scales with branch level and current hole mass."
       }
     }
+  },
+  "planet": {
+    "title": "Planet development",
+    "empty": "No generated systems yet.",
+    "systemsLabel": "Star systems",
+    "activeSystem": "Active system: {{name}} · star class {{starClass}}",
+    "stageLabel": "Stage {{stage}} / {{max}}",
+    "progress": "Progress: {{percent}}% ({{current}}s / {{total}}s)",
+    "params": {
+      "orbitalDistance": "Orbital distance: {{value}}",
+      "gravityProxy": "Mass/gravity proxy: {{value}}",
+      "temperature": "Surface temperature: {{value}}",
+      "atmosphere": "Atmosphere density/composition: {{value}}",
+      "hydrosphere": "Hydrosphere: {{value}}",
+      "geology": "Geological activity: {{value}}"
+    },
+    "accelInfo": "Acceleration step: +{{seconds}}s (next stage gain: {{next}}s), multiplier ×{{multiplier}}, deviation sum {{deviation}}.",
+    "accelerate": "Accelerate stage ({{cost}} MP)"
   }
 }

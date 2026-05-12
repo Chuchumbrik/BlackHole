@@ -20,7 +20,6 @@ import {
   JET_IMPULSE_SPEED,
   JET_PROC_ATTEMPT_INTERVAL_SEC,
   JET_PROC_CHANCE_PER_LEVEL,
-  ORBIT_LAP_BONUS_MP,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
   STELLAR_SYSTEM_RADIUS_MUL,
@@ -49,6 +48,7 @@ import {
   mpIncomeMultiplier,
   type UpgradeLevels,
 } from "../game/upgrades";
+import type { Planet } from "../game/world/types";
 import { useGameStore } from "../store/useGameStore";
 
 const BODY_TEXTURE = Texture.WHITE;
@@ -57,7 +57,7 @@ function orbitLapsTotal(obj: SimObject): number {
   return (obj.orbitLapsStar ?? 0) + (obj.orbitLapsBh ?? 0);
 }
 
-/** MP при поглощении (горизонт / звезда / столкновение) — та же формула, что при начислении в тике. */
+/** MP при поглощении горизонтом (подсказка; звезда/столкновение тел MP не дают). */
 function consumptionMpOnDevour(
   obj: SimObject,
   levels: UpgradeLevels,
@@ -237,6 +237,39 @@ function paintMainStar(g: Graphics, layout: SimLayout): void {
   g.fill({ color: 0xfbbf24, alpha: 0.2 });
   g.circle(layout.star.x, layout.star.y, r);
   g.fill({ color: 0xf59e0b, alpha: 0.95 });
+}
+
+function paintPlanetSoiRings(
+  g: Graphics,
+  layout: SimLayout,
+  planets: Planet[],
+  simTimeSec: number,
+): void {
+  g.clear();
+  if (planets.length === 0) return;
+
+  const orbitMin = layout.horizonRadius * 4.5;
+  const orbitMax = Math.max(orbitMin + 12, layout.systemRadius * 0.85);
+
+  for (const planet of planets) {
+    const orbitRadius =
+      orbitMin + (orbitMax - orbitMin) * Math.max(0, Math.min(1, planet.orbitalDistance / 100));
+    const angle = planet.orbitPhaseRad + simTimeSec * planet.orbitSpeed;
+    const x = layout.star.x + Math.cos(angle) * orbitRadius;
+    const y = layout.star.y + Math.sin(angle) * orbitRadius;
+    const soiRadius =
+      layout.horizonRadius *
+      (1.45 + (planet.gravityProxy / 100) * 1.45 + (planet.atmosphere / 100) * 0.6);
+
+    g.circle(layout.star.x, layout.star.y, orbitRadius);
+    g.stroke({ width: 1, color: 0x38bdf8, alpha: 0.22 });
+
+    g.circle(x, y, soiRadius);
+    g.stroke({ width: 1.4, color: 0x34d399, alpha: 0.62 });
+
+    g.circle(x, y, Math.max(2.3, soiRadius * 0.18));
+    g.fill({ color: 0xa7f3d0, alpha: 0.92 });
+  }
 }
 
 /** Карта галактики (узлы-планеты + маркер дыры) — заготовка под прокачку узлов. */
@@ -446,6 +479,7 @@ export function GameCanvas() {
 
       const stars = new Graphics();
       const mainStar = new Graphics();
+      const planetSoi = new Graphics();
       const hole = new Graphics();
       const trails = new Graphics();
       const bodyLayer = new Container();
@@ -477,6 +511,7 @@ export function GameCanvas() {
 
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
+      worldRoot.addChild(planetSoi);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
@@ -490,8 +525,6 @@ export function GameCanvas() {
       let jetProcAccum = 0;
       let hawkingCarry = 0;
       let lastMs = performance.now();
-      /** Игровое время (сек) для анимации диска — не идёт вперёд на паузе. */
-      let simTimeSec = 0;
 
       let hoverObjectId: number | null = null;
       let selectedObjectId: number | null = null;
@@ -531,12 +564,22 @@ export function GameCanvas() {
       const syncSceneSize = () => {
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
+        const simTimeSec = useGameStore.getState().gameTimeSec;
+        const activeSystemId = useGameStore.getState().activeSystemId;
+        const systems = useGameStore.getState().systems;
+        const activeSystem = systems.find((s) => s.id === activeSystemId);
         const layout = layoutFromHost(host, levels);
         const jetEnd = useGameStore.getState().jetBuffEndsAtSimSec;
         const jetBuffVis =
           jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
         paintStars(stars, layout.width, layout.height);
         paintMainStar(mainStar, layout);
+        paintPlanetSoiRings(
+          planetSoi,
+          layout,
+          activeSystem?.planets ?? [],
+          simTimeSec,
+        );
         paintHole(
           hole,
           layout,
@@ -726,11 +769,15 @@ export function GameCanvas() {
 
         const simScale = useGameStore.getState().simTimeScale;
         const simDt = dt * simScale;
-        simTimeSec += simDt;
+        useGameStore.getState().advanceGameTime(simDt);
+        const simTimeSec = useGameStore.getState().gameTimeSec;
         lastSimTimeSecForPaint = simTimeSec;
 
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
+        const activeSystemId = useGameStore.getState().activeSystemId;
+        const systems = useGameStore.getState().systems;
+        const activeSystem = systems.find((s) => s.id === activeSystemId);
         const layout = layoutFromHost(host, levels);
 
         if (levels.jets > 0) {
@@ -776,12 +823,12 @@ export function GameCanvas() {
           upgradeLevels: levels,
         });
 
-        const {
-          objects: nextObjects,
-          consumed,
-          escaped,
-          orbitLapsCompleted,
-        } = stepSimulation(objects, layout, simDt, levels);
+        const { objects: nextObjects, consumed } = stepSimulation(
+          objects,
+          layout,
+          simDt,
+          levels,
+        );
         objects = nextObjects;
 
         if (
@@ -792,34 +839,16 @@ export function GameCanvas() {
         }
 
         if (consumed.length > 0) {
-          consumePulse = 1;
           let gain = 0;
           for (const c of consumed) {
             gain += Math.floor(
               c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
             );
           }
-          useGameStore.getState().addMassMp(gain);
-        }
-
-        if (escaped.length > 0) {
-          let bonus = 0;
-          for (const e of escaped) {
-            bonus += Math.floor(
-              e.bonusMp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
-            );
+          if (gain > 0) {
+            consumePulse = 1;
+            useGameStore.getState().addMassMp(gain);
           }
-          if (bonus > 0) useGameStore.getState().addMassMp(bonus);
-        }
-
-        if (orbitLapsCompleted > 0) {
-          const orbitGain = Math.floor(
-            orbitLapsCompleted *
-              ORBIT_LAP_BONUS_MP *
-              mpMult *
-              FIELD_MP_GLOBAL_MULTIPLIER,
-          );
-          if (orbitGain > 0) useGameStore.getState().addMassMp(orbitGain);
         }
 
         if (simScale > 0 && levels.hawking > 0) {
@@ -844,6 +873,12 @@ export function GameCanvas() {
           jetBuffActive,
         );
         paintMainStar(mainStar, layout);
+        paintPlanetSoiRings(
+          planetSoi,
+          layout,
+          activeSystem?.planets ?? [],
+          simTimeSec,
+        );
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
