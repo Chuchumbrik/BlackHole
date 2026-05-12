@@ -354,6 +354,72 @@ body,
   color: #fff;
 }
 
+.mp-gain-floater-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.mp-gain-floater {
+  position: absolute;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: clamp(0.88rem, 2.6vw, 1.05rem);
+  letter-spacing: 0.02em;
+  color: #ddd6fe;
+  text-shadow:
+    0 0 14px rgba(167, 139, 250, 0.95),
+    0 0 28px rgba(139, 92, 246, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.85);
+  animation: mp-gain-drift 0.92s cubic-bezier(0.2, 0.85, 0.35, 1) forwards;
+  will-change: transform, opacity, top;
+}
+
+@keyframes mp-gain-drift {
+  0% {
+    top: min(calc(100vh - 64px), 88vh);
+    opacity: 0;
+    transform: translate3d(0, 28px, 0) scale(0.9);
+  }
+  14% {
+    opacity: 1;
+  }
+  72% {
+    opacity: 1;
+  }
+  100% {
+    top: calc(4.35rem + env(safe-area-inset-top, 0px));
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mp-gain-floater {
+    animation-duration: 0.35s;
+    animation-timing-function: ease-out;
+  }
+
+  @keyframes mp-gain-drift {
+    0% {
+      top: min(calc(100vh - 48px), 90vh);
+      opacity: 0;
+      transform: none;
+    }
+    35% {
+      opacity: 1;
+    }
+    100% {
+      top: calc(4.35rem + env(safe-area-inset-top, 0px));
+      opacity: 0;
+      transform: none;
+    }
+  }
+}
+
 @media (max-width: 520px) {
   .app-header {
     flex-direction: column;

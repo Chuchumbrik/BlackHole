@@ -15,6 +15,12 @@ import {
   BH_ORBIT_RADIUS_FRACTION,
   BH_SCREEN_ANGLE_RAD,
   FIELD_MP_GLOBAL_MULTIPLIER,
+  JET_BASE_PROC_CHANCE,
+  JET_BUFF_DURATION_SEC,
+  JET_IMPULSE_SPEED,
+  JET_PROC_ATTEMPT_INTERVAL_SEC,
+  JET_PROC_CHANCE_PER_LEVEL,
+  ORBIT_LAP_BONUS_MP,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
   STELLAR_SYSTEM_RADIUS_MUL,
@@ -25,6 +31,7 @@ import {
 import { KIND_COLORS, KIND_RADIUS } from "../game/colors";
 import {
   advanceSpawnAccumulator,
+  applyJetImpulseToObjects,
   predictTrajectoryPoints,
   resetSimulationIds,
   type SimLayout,
@@ -38,12 +45,38 @@ import {
   combinedWorldScale,
   computeRadiiPx,
   effectiveGravityAccel,
+  hawkingMpPerSecond,
   mpIncomeMultiplier,
   type UpgradeLevels,
 } from "../game/upgrades";
 import { useGameStore } from "../store/useGameStore";
 
 const BODY_TEXTURE = Texture.WHITE;
+
+function orbitLapsTotal(obj: SimObject): number {
+  return (obj.orbitLapsStar ?? 0) + (obj.orbitLapsBh ?? 0);
+}
+
+/** MP при поглощении (горизонт / звезда / столкновение) — та же формула, что при начислении в тике. */
+function consumptionMpOnDevour(
+  obj: SimObject,
+  levels: UpgradeLevels,
+  jetBuffActive: boolean,
+): number {
+  const mpMult = mpIncomeMultiplier(levels, jetBuffActive);
+  return Math.floor(obj.mpValue * mpMult * FIELD_MP_GLOBAL_MULTIPLIER);
+}
+
+function objectLabelWithMp(
+  obj: SimObject,
+  levels: UpgradeLevels,
+  jetBuffActive: boolean,
+): string {
+  const mp = consumptionMpOnDevour(obj, levels, jetBuffActive);
+  const laps = orbitLapsTotal(obj);
+  const orbitHint = laps > 0 ? ` · ⟲${laps}` : "";
+  return `${obj.displayName} · +${mp.toLocaleString()} MP${orbitHint}`;
+}
 
 function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayout {
   const w = Math.max(el.clientWidth, 1);
@@ -100,6 +133,9 @@ function paintHole(
   pulse01: number,
   diskLevel: number,
   timeSec: number,
+  lensingLevel: number,
+  hawkingLevel: number,
+  jetBuffActive: boolean,
 ): void {
   const cx = layout.bh.x;
   const cy = layout.bh.y;
@@ -116,7 +152,21 @@ function paintHole(
   g.circle(cx, cy, r);
   g.fill({ color: 0x000000 });
 
+  if (lensingLevel > 0) {
+    const lr = r * (1.2 + Math.min(0.15, lensingLevel * 0.02));
+    g.circle(cx, cy, lr);
+    g.stroke({
+      width: 1.1,
+      color: 0x7dd3fc,
+      alpha: 0.1 + Math.min(0.22, lensingLevel * 0.035),
+    });
+  }
+
   if (diskLevel > 0) {
+    const hawkingPulse =
+      hawkingLevel > 0
+        ? Math.sin(timeSec * 2.8) * 0.04 * Math.min(1, hawkingLevel * 0.2)
+        : 0;
     const omega = 0.38 + diskLevel * 0.05;
     const arms = 3;
     for (let arm = 0; arm < arms; arm++) {
@@ -131,7 +181,10 @@ function paintHole(
       g.stroke({
         width: 1.15 + diskLevel * 0.12,
         color: 0xfbbf24,
-        alpha: Math.min(0.22 + diskLevel * 0.05, 0.55),
+        alpha: Math.min(
+          0.22 + diskLevel * 0.05 + hawkingPulse,
+          0.62,
+        ),
       });
       g.moveTo(
         cx + Math.cos(phase + 0.08) * rOuter,
@@ -141,12 +194,38 @@ function paintHole(
       g.stroke({
         width: 1,
         color: 0xf59e0b,
-        alpha: Math.min(0.18 + diskLevel * 0.05, 0.45),
+        alpha: Math.min(
+          0.18 + diskLevel * 0.05 + hawkingPulse * 0.8,
+          0.52,
+        ),
       });
     }
-    const alpha = Math.min(0.18 + diskLevel * 0.055, 0.72);
+    const alpha = Math.min(
+      0.18 + diskLevel * 0.055 + hawkingPulse * 1.1,
+      0.78,
+    );
     g.circle(cx, cy, r * (1.62 + pulse01 * 0.05));
     g.stroke({ width: 2.5, color: 0xf59e0b, alpha });
+  }
+
+  if (jetBuffActive) {
+    const poleA = timeSec * 2.2;
+    const r0 = diskLevel > 0 ? r * 0.35 : r * 0.45;
+    const r1 = diskLevel > 0 ? r * 2.4 : r * 2.1;
+    for (const pole of [poleA, poleA + Math.PI]) {
+      const x0 = cx + Math.cos(pole) * r0;
+      const y0 = cy + Math.sin(pole) * r0;
+      const x1 = cx + Math.cos(pole) * r1;
+      const y1 = cy + Math.sin(pole) * r1;
+      g.moveTo(x0, y0);
+      g.lineTo(x1, y1);
+      g.stroke({
+        width: diskLevel > 0 ? 2.2 : 1.6,
+        color: 0x38bdf8,
+        alpha: 0.5,
+        cap: "round",
+      });
+    }
   }
 }
 
@@ -407,6 +486,13 @@ export function GameCanvas() {
       const galaxy = new Graphics();
       galaxyRoot.addChild(galaxy);
 
+      let lastSimTimeSecForPaint = 0;
+      let jetProcAccum = 0;
+      let hawkingCarry = 0;
+      let lastMs = performance.now();
+      /** Игровое время (сек) для анимации диска — не идёт вперёд на паузе. */
+      let simTimeSec = 0;
+
       let hoverObjectId: number | null = null;
       let selectedObjectId: number | null = null;
 
@@ -446,9 +532,21 @@ export function GameCanvas() {
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
         const layout = layoutFromHost(host, levels);
+        const jetEnd = useGameStore.getState().jetBuffEndsAtSimSec;
+        const jetBuffVis =
+          jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
         paintStars(stars, layout.width, layout.height);
         paintMainStar(mainStar, layout);
-        paintHole(hole, layout, consumePulse, levels.disk, performance.now() / 1000);
+        paintHole(
+          hole,
+          layout,
+          consumePulse,
+          levels.disk,
+          performance.now() / 1000,
+          levels.lensing,
+          levels.hawking,
+          jetBuffVis,
+        );
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects, layout);
         applyCamera(levels, layout, viewTier);
@@ -545,10 +643,6 @@ export function GameCanvas() {
       wheelCleanup = () =>
         canvasEl.removeEventListener("wheel", onWheel);
 
-      let lastMs = performance.now();
-      /** Игровое время (сек) для анимации диска — не идёт вперёд на паузе. */
-      let simTimeSec = 0;
-
       const paintTrajectories = (
         layout: SimLayout,
         levels: UpgradeLevels,
@@ -563,13 +657,58 @@ export function GameCanvas() {
         const dashWorld = 6.5 / safeScale;
         const gapWorld = 5.5 / safeScale;
 
+        /** Последний сегмент при столкновении с телом — предупреждающий цвет. */
+        const TRAIL_COLLISION = 0xfb923c;
+
         const showTrail = (obj: SimObject) => {
-          const pts = predictTrajectoryPoints(obj, layout, levels);
+          const { points: pts, endsWithBodyCollision } =
+            predictTrajectoryPoints(obj, layout, levels, {
+              othersSnapshot: objects,
+            });
           if (pts.length < 2) return;
           const hot = hoverObjectId === obj.id;
-          const color = hot ? 0xffffff : 0x8b93a5;
-          const alpha = hot ? 0.92 : 0.42;
-          strokeDashedPolyline(trails, pts, color, alpha, dashWorld, gapWorld);
+          const hasOrbit = orbitLapsTotal(obj) > 0;
+          const color = hasOrbit
+            ? hot
+              ? 0xd8b4fe
+              : 0x8b7ccf
+            : hot
+              ? 0xffffff
+              : 0x8b93a5;
+          const alpha = hot ? 0.92 : hasOrbit ? 0.52 : 0.42;
+
+          if (endsWithBodyCollision && pts.length >= 2) {
+            const alphaHit = hot ? 0.96 : 0.78;
+            if (pts.length >= 3) {
+              strokeDashedPolyline(
+                trails,
+                pts.slice(0, -1),
+                color,
+                alpha,
+                dashWorld,
+                gapWorld,
+              );
+              strokeDashedPolyline(
+                trails,
+                pts.slice(-2),
+                TRAIL_COLLISION,
+                alphaHit,
+                dashWorld,
+                gapWorld,
+              );
+            } else {
+              strokeDashedPolyline(
+                trails,
+                pts,
+                TRAIL_COLLISION,
+                alphaHit,
+                dashWorld,
+                gapWorld,
+              );
+            }
+          } else {
+            strokeDashedPolyline(trails, pts, color, alpha, dashWorld, gapWorld);
+          }
         };
 
         for (const obj of objects) {
@@ -588,11 +727,43 @@ export function GameCanvas() {
         const simScale = useGameStore.getState().simTimeScale;
         const simDt = dt * simScale;
         simTimeSec += simDt;
+        lastSimTimeSecForPaint = simTimeSec;
 
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
         const layout = layoutFromHost(host, levels);
-        const mpMult = mpIncomeMultiplier(levels);
+
+        if (levels.jets > 0) {
+          jetProcAccum += simDt;
+        } else {
+          jetProcAccum = 0;
+        }
+        while (
+          levels.jets > 0 &&
+          jetProcAccum >= JET_PROC_ATTEMPT_INTERVAL_SEC
+        ) {
+          jetProcAccum -= JET_PROC_ATTEMPT_INTERVAL_SEC;
+          const buffEnd = useGameStore.getState().jetBuffEndsAtSimSec;
+          if (simTimeSec >= buffEnd) {
+            const p = Math.min(
+              0.92,
+              JET_BASE_PROC_CHANCE +
+                Math.max(0, levels.jets - 1) * JET_PROC_CHANCE_PER_LEVEL,
+            );
+            if (Math.random() < p) {
+              useGameStore
+                .getState()
+                .setJetBuffEndsAt(simTimeSec + JET_BUFF_DURATION_SEC);
+              applyJetImpulseToObjects(objects, layout, JET_IMPULSE_SPEED);
+            }
+          }
+        }
+
+        const jetBuffEndsAt = useGameStore.getState().jetBuffEndsAtSimSec;
+        const jetBuffActive =
+          jetBuffEndsAt > 0 && simTimeSec < jetBuffEndsAt;
+
+        const mpMult = mpIncomeMultiplier(levels, jetBuffActive);
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
@@ -600,14 +771,17 @@ export function GameCanvas() {
           simDt,
           BASE_SPAWN_PER_SECOND,
         );
-        objects = trySpawn(objects, layout, spawnCount, { shipsUnlocked });
+        objects = trySpawn(objects, layout, spawnCount, {
+          shipsUnlocked,
+          upgradeLevels: levels,
+        });
 
-        const { objects: nextObjects, consumed, escaped } = stepSimulation(
-          objects,
-          layout,
-          simDt,
-          levels,
-        );
+        const {
+          objects: nextObjects,
+          consumed,
+          escaped,
+          orbitLapsCompleted,
+        } = stepSimulation(objects, layout, simDt, levels);
         objects = nextObjects;
 
         if (
@@ -638,9 +812,37 @@ export function GameCanvas() {
           if (bonus > 0) useGameStore.getState().addMassMp(bonus);
         }
 
+        if (orbitLapsCompleted > 0) {
+          const orbitGain = Math.floor(
+            orbitLapsCompleted *
+              ORBIT_LAP_BONUS_MP *
+              mpMult *
+              FIELD_MP_GLOBAL_MULTIPLIER,
+          );
+          if (orbitGain > 0) useGameStore.getState().addMassMp(orbitGain);
+        }
+
+        if (simScale > 0 && levels.hawking > 0) {
+          const massMp = useGameStore.getState().massMp;
+          const hRate = hawkingMpPerSecond(levels, massMp);
+          hawkingCarry += hRate * simDt;
+          const hGain = Math.floor(hawkingCarry);
+          hawkingCarry -= hGain;
+          if (hGain > 0) useGameStore.getState().addMassMp(hGain);
+        }
+
         consumePulse = Math.max(0, consumePulse - simDt * 3.5);
 
-        paintHole(hole, layout, consumePulse, levels.disk, simTimeSec);
+        paintHole(
+          hole,
+          layout,
+          consumePulse,
+          levels.disk,
+          simTimeSec,
+          levels.lensing,
+          levels.hawking,
+          jetBuffActive,
+        );
         paintMainStar(mainStar, layout);
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodySprites(bodyLayer, spritePool, objects, layout);
@@ -671,7 +873,11 @@ export function GameCanvas() {
           ) {
             const hov = objects.find((o) => o.id === hoverObjectId);
             if (hov) {
-              hoverTooltip.text = hov.displayName;
+              hoverTooltip.text = objectLabelWithMp(
+                hov,
+                levels,
+                jetBuffActive,
+              );
               const liftH =
                 (KIND_RADIUS[hov.kind] * 2 + 10) / worldScale;
               hoverTooltip.position.set(hov.x, hov.y - liftH);
@@ -686,7 +892,11 @@ export function GameCanvas() {
           if (selectedObjectId !== null) {
             const sel = objects.find((o) => o.id === selectedObjectId);
             if (sel) {
-              selectionLabel.text = sel.displayName;
+              selectionLabel.text = objectLabelWithMp(
+                sel,
+                levels,
+                jetBuffActive,
+              );
               const lift =
                 (KIND_RADIUS[sel.kind] * 2 + 10) / worldScale;
               selectionLabel.position.set(sel.x, sel.y - lift);

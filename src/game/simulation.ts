@@ -28,6 +28,14 @@ export type SimObject = {
   vy: number;
   mass: number;
   mpValue: number;
+  /** Накопленный азимутальный ход относительно звезды (рад, со знаком) — для витков. */
+  _orbitStarAccumRad?: number;
+  /** То же относительно центра чёрной дыры. */
+  _orbitBhAccumRad?: number;
+  /** Полных орбитальных витков вокруг звезды (накопительно). */
+  orbitLapsStar?: number;
+  /** Полных витков вокруг чёрной дыры (накопительно). */
+  orbitLapsBh?: number;
   /** Корабль (kind 4): множители при спавне */
   thrust01?: number;
   pilot01?: number;
@@ -69,8 +77,11 @@ function randomBoundaryVelocity(): { vx: number; vy: number } {
   return { vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed };
 }
 
-export function spawnOutsideGravity(layout: SimLayout): SimObject {
-  const kind = rollObjectKind();
+export function spawnOutsideGravity(
+  layout: SimLayout,
+  upgradeLevels: UpgradeLevels,
+): SimObject {
+  const kind = rollObjectKind(upgradeLevels);
   const mpValue = rollMpForKind(kind);
   const spawnAngle = Math.random() * Math.PI * 2;
   const r = layout.systemRadius;
@@ -306,16 +317,79 @@ export function advanceObjectOneStep(
   };
 }
 
+function unwrapAngleDelta(fromRad: number, toRad: number): number {
+  let d = toRad - fromRad;
+  while (d > Math.PI) d -= 2 * Math.PI;
+  while (d < -Math.PI) d += 2 * Math.PI;
+  return d;
+}
+
+/** Один центр: накопление signed winding за шаг; полные обороты 2π. */
+function windingAccumulate(
+  prevAccum: number | undefined,
+  thetaStart: number,
+  thetaEnd: number,
+): { accum: number; lapsCompleted: number } {
+  const d = unwrapAngleDelta(thetaStart, thetaEnd);
+  let accum = prevAccum ?? 0;
+  accum += d;
+  let lapsCompleted = 0;
+  while (accum >= 2 * Math.PI) {
+    accum -= 2 * Math.PI;
+    lapsCompleted++;
+  }
+  while (accum <= -2 * Math.PI) {
+    accum += 2 * Math.PI;
+    lapsCompleted++;
+  }
+  return { accum, lapsCompleted };
+}
+
+/** Витки вокруг звезды и вокруг дыры независимо (награда за каждый полный 2π). */
+function applyOrbitLapTracking(
+  prev: SimObject,
+  layout: SimLayout,
+  live: SimObject,
+): { obj: SimObject; lapsCompleted: number } {
+  const nx = live.x;
+  const ny = live.y;
+  const ts = Math.atan2(prev.y - layout.star.y, prev.x - layout.star.x);
+  const te = Math.atan2(ny - layout.star.y, nx - layout.star.x);
+  const ws = windingAccumulate(prev._orbitStarAccumRad, ts, te);
+
+  const bs = Math.atan2(prev.y - layout.bh.y, prev.x - layout.bh.x);
+  const be = Math.atan2(ny - layout.bh.y, nx - layout.bh.x);
+  const wb = windingAccumulate(prev._orbitBhAccumRad, bs, be);
+
+  return {
+    obj: {
+      ...live,
+      _orbitStarAccumRad: ws.accum,
+      _orbitBhAccumRad: wb.accum,
+      orbitLapsStar: (prev.orbitLapsStar ?? 0) + ws.lapsCompleted,
+      orbitLapsBh: (prev.orbitLapsBh ?? 0) + wb.lapsCompleted,
+    },
+    lapsCompleted: ws.lapsCompleted + wb.lapsCompleted,
+  };
+}
+
 /** Верхние границы предпросмотра — для орбит без «конца» (не улетает и не поглощается). */
 const TRAJECTORY_PREVIEW_MAX_SIM_SECONDS = 900;
 /** Должно хватать на \`maxSeconds\` при текущем шаге: \(900 / 0.034 \approx 26471\) плюс запас. */
 const TRAJECTORY_PREVIEW_MAX_POINTS = 32000;
 const TRAJECTORY_PREVIEW_STEP_SECONDS = 0.034;
 
+export type TrajectoryPreviewResult = {
+  points: { x: number; y: number }[];
+  /** Траектория оборвалась из‑за пересечения с телом из \`othersSnapshot\`. */
+  endsWithBodyCollision: boolean;
+};
+
 /**
  * Точки предпросмотра траектории (тот же шаг интегрирования, что и в симуляции).
  * Идёт до **терминального события**: поглощение горизонтом/звездой, побег за систему (и для корабля —
- * свои правила в \`advanceObjectOneStep\`), либо до лимита времени/числа шагов (замкнутые орбиты).
+ * свои правила в \`advanceObjectOneStep\`), при \`othersSnapshot\` — до **столкновения** с другим телом
+ * (позиции «чужих» тел не двигаются — снимок на момент построения предпросмотра), либо до лимита времени/точек.
  */
 export function predictTrajectoryPoints(
   start: SimObject,
@@ -325,24 +399,33 @@ export function predictTrajectoryPoints(
     maxSeconds?: number;
     stepSeconds?: number;
     maxPoints?: number;
+    /** Снимок прочих объектов для проверки столкновений (как \`resolveBodyCollisions\`). */
+    othersSnapshot?: SimObject[];
   },
-): { x: number; y: number }[] {
+): TrajectoryPreviewResult {
   const maxSec = options?.maxSeconds ?? TRAJECTORY_PREVIEW_MAX_SIM_SECONDS;
   const stepDt = options?.stepSeconds ?? TRAJECTORY_PREVIEW_STEP_SECONDS;
   const maxPoints = options?.maxPoints ?? TRAJECTORY_PREVIEW_MAX_POINTS;
+  const others = options?.othersSnapshot;
 
   let o: SimObject = { ...start };
   const pts: { x: number; y: number }[] = [{ x: o.x, y: o.y }];
   let t = 0;
+  let endsWithBodyCollision = false;
 
   while (t < maxSec && pts.length < maxPoints) {
     const r = advanceObjectOneStep(o, layout, stepDt, upgradeLevels);
     if (r.kind !== "live") break;
     o = r.obj;
+    if (others && hitsOtherBody(o, others)) {
+      pts.push({ x: o.x, y: o.y });
+      endsWithBodyCollision = true;
+      break;
+    }
     pts.push({ x: o.x, y: o.y });
     t += stepDt;
   }
-  return pts;
+  return { points: pts, endsWithBodyCollision };
 }
 
 export type ConsumeEvent = { objectId: number; mp: number; kind: ObjectKind };
@@ -355,6 +438,16 @@ export type EscapeEvent = {
 /** Центр–центр: сумма радиусов спрайтов (\`KIND_RADIUS\` — половина стороны квадрата). */
 function bodySeparationMin(a: SimObject, b: SimObject): number {
   return KIND_RADIUS[a.kind] + KIND_RADIUS[b.kind];
+}
+
+/** Пересечение с любым другим телом из снимка (то же условие, что у столкновений на поле). */
+function hitsOtherBody(self: SimObject, others: SimObject[]): boolean {
+  for (const b of others) {
+    if (b.id === self.id) continue;
+    const dist = Math.hypot(self.x - b.x, self.y - b.y);
+    if (dist < bodySeparationMin(self, b)) return true;
+  }
+  return false;
 }
 
 /**
@@ -410,10 +503,13 @@ export function stepSimulation(
   objects: SimObject[];
   consumed: ConsumeEvent[];
   escaped: EscapeEvent[];
+  /** Сколько полных орбитальных витков завершено за этот шаг (звезда + дыра). */
+  orbitLapsCompleted: number;
 } {
   const consumed: ConsumeEvent[] = [];
   const escaped: EscapeEvent[] = [];
   const next: SimObject[] = [];
+  let orbitLapsCompleted = 0;
 
   for (const obj of objects) {
     const r = advanceObjectOneStep(obj, layout, dt, upgradeLevels);
@@ -432,13 +528,19 @@ export function stepSimulation(
       });
       continue;
     }
-    next.push(r.obj);
+    const { obj: withOrbit, lapsCompleted } = applyOrbitLapTracking(
+      obj,
+      layout,
+      r.obj,
+    );
+    orbitLapsCompleted += lapsCompleted;
+    next.push(withOrbit);
   }
 
   const { survivors, consumed: bodyHits } = resolveBodyCollisions(next);
   consumed.push(...bodyHits);
 
-  return { objects: survivors, consumed, escaped };
+  return { objects: survivors, consumed, escaped, orbitLapsCompleted };
 }
 
 export type SpawnControl = {
@@ -463,14 +565,34 @@ export function trySpawn(
   objects: SimObject[],
   layout: SimLayout,
   count: number,
-  options: { shipsUnlocked: boolean },
+  options: { shipsUnlocked: boolean; upgradeLevels: UpgradeLevels },
 ): SimObject[] {
   const result = [...objects];
   for (let i = 0; i < count; i++) {
     if (result.length >= MAX_OBJECTS_ON_FIELD) break;
     const ship =
       options.shipsUnlocked && Math.random() < SHIP_SPAWN_FRACTION;
-    result.push(ship ? spawnShip(layout) : spawnOutsideGravity(layout));
+    result.push(
+      ship ? spawnShip(layout) : spawnOutsideGravity(layout, options.upgradeLevels),
+    );
   }
   return result;
+}
+
+/** Импульс скорости всех тел к центру дыры (релятивистские джеты). */
+export function applyJetImpulseToObjects(
+  objects: SimObject[],
+  layout: SimLayout,
+  impulseSpeed: number,
+): void {
+  for (const o of objects) {
+    const dx = layout.bh.x - o.x;
+    const dy = layout.bh.y - o.y;
+    const dist = Math.hypot(dx, dy) || 1e-6;
+    if (dist < layout.horizonRadius) continue;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    o.vx += nx * impulseSpeed;
+    o.vy += ny * impulseSpeed;
+  }
 }

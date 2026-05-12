@@ -21,3 +21,8 @@ export const VIEW_TIER_GALAXY_MIN_SUM = 14;
 
 /** Корабли в потоке спавна. */
 export const SHIPS_UNLOCK_MIN_SUM = 10;
+
+/** Фаза 3 — ветка A (4–6): порог суммы уровней всех веток (включая уже открытые). */
+export const SUM_FOR_JETS_UNLOCK = 16;
+export const SUM_FOR_LENSING_UNLOCK = 22;
+export const SUM_FOR_HAWKING_UNLOCK = 28;

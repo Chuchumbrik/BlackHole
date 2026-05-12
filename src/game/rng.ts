@@ -1,5 +1,7 @@
 import type { ObjectKind } from "./balance";
 import { MP_RANGE, SPAWN_WEIGHTS } from "./balance";
+import { LENSING_RARE_WEIGHT_MULT_PER_LEVEL } from "./balance/branchA46";
+import type { UpgradeLevels } from "./upgrades";
 
 /** Типы только для обломков (без корабля-побега). */
 export type DebrisKind = 0 | 1 | 2 | 3;
@@ -9,12 +11,19 @@ export function randIntInclusive(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
 }
 
-/** Ролл типа объекта по весам ТЗ (55 / 25 / 15 / 5). */
-export function rollObjectKind(): DebrisKind {
-  const r = Math.random() * 100;
+/** Ролл типа объекта по весам ТЗ; линзирование усиливает вес «редкого» (kind 3). */
+export function rollObjectKind(upgradeLevels?: UpgradeLevels): DebrisKind {
+  const lens = upgradeLevels?.lensing ?? 0;
+  const weights = SPAWN_WEIGHTS.map((w, i) =>
+    i === 3 && lens > 0
+      ? w * Math.pow(LENSING_RARE_WEIGHT_MULT_PER_LEVEL, lens)
+      : w,
+  );
+  const sum = weights.reduce((a, b) => a + b, 0);
+  const r = Math.random() * sum;
   let acc = 0;
-  for (let i = 0; i < SPAWN_WEIGHTS.length; i++) {
-    acc += SPAWN_WEIGHTS[i];
+  for (let i = 0; i < weights.length; i++) {
+    acc += weights[i];
     if (r < acc) return i as DebrisKind;
   }
   return 3;

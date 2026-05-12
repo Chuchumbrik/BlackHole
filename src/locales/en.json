@@ -4,6 +4,7 @@
     "subtitle": "MVP · PixiJS + React",
     "mass": "Mass: {{value}} MP",
     "massHint": "· pull objects into the horizon",
+    "mpGainFloater": "+{{value}} MP",
     "tabs": {
       "game": "Space",
       "upgrades": "Upgrades",
@@ -39,12 +40,18 @@
       "size": "Now: ×{{mul}} vs base horizon; at this window size horizon ≈ {{px}} px",
       "gravity": "Now: ×{{mul}} vs base gravity zone; at this window radius ≈ {{px}} px",
       "disk": "Now: disk MP multiplier ×{{mul}} (relative to base without other branches)",
-      "efficiency": "Now: global MP ×{{mp}}, pull strength ×{{pull}}"
+      "efficiency": "Now: global MP ×{{mp}}, pull strength ×{{pull}}",
+      "jets": "Now: jets level {{level}} (periodic ×1.8 field MP bursts and inward impulse).",
+      "lensing": "Now: rare debris (high-MP type) weight ×{{mul}} vs base without lensing.",
+      "hawking": "Now: passive influx ≈ {{mps}} MP/s at current mass (scales with mass and level)."
     },
     "buy": "Buy",
     "lock": {
       "disk": "Available from the start (branch A, phase 2).",
-      "efficiency": "Unlocks when the sum of all branch levels is ≥ 10."
+      "efficiency": "Requires sum of all branch levels ≥ {{need}} (yours: {{sum}}).",
+      "jets": "Requires sum of all branch levels ≥ {{need}} (yours: {{sum}}).",
+      "lensing": "Requires sum of all branch levels ≥ {{need}} (yours: {{sum}}).",
+      "hawking": "Requires sum of all branch levels ≥ {{need}} (yours: {{sum}})."
     },
     "branches": {
       "size": {
@@ -62,6 +69,18 @@
       "efficiency": {
         "name": "Efficiency",
         "effect": "+3.5% global MP and +2.2% pull strength per level (multiplicative)."
+      },
+      "jets": {
+        "name": "Relativistic jets",
+        "effect": "Random bursts: ~20s of ×1.8 field MP and an inward velocity kick; more frequent with level."
+      },
+      "lensing": {
+        "name": "Gravitational lensing",
+        "effect": "Each level increases spawn weight for rare high-MP debris."
+      },
+      "hawking": {
+        "name": "Hawking radiation",
+        "effect": "Passive MP/s that scales with branch level and current hole mass."
       }
     }
   }

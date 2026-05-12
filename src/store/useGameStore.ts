@@ -15,6 +15,10 @@ export type ViewTierId = 0 | 1 | 2;
 /** Множитель времени симуляции: 0 — пауза, иначе ускорение относительно реального времени. */
 export type SimTimeScale = 0 | 1 | 2 | 3 | 5;
 
+export type MpGainFloaterEvent = { id: number; amount: number };
+
+let mpGainFloaterIdSeq = 0;
+
 type GameState = {
   massMp: number;
   upgradeLevels: UpgradeLevels;
@@ -23,8 +27,14 @@ type GameState = {
   activeTab: TabId;
   /** Скорость игрового времени (пауза / ×1 / ×2 / ×3 / ×5). */
   simTimeScale: SimTimeScale;
+  /** Активные всплывающие подсказки «+MP» к счётчику (очищаются после анимации). */
+  mpGainFloaters: MpGainFloaterEvent[];
+  /** Игровое время окончания баффа джетов (сек); 0 — нет активного баффа. */
+  jetBuffEndsAtSimSec: number;
   addMassMp: (amount: number) => void;
+  dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
+  setJetBuffEndsAt: (simSec: number) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
   setSimTimeScale: (scale: SimTimeScale) => void;
@@ -42,8 +52,23 @@ export const useGameStore = create<GameState>((set) => ({
   viewTier: 0,
   activeTab: "game",
   simTimeScale: 1,
+  mpGainFloaters: [],
+  jetBuffEndsAtSimSec: 0,
   addMassMp: (amount) =>
-    set((s) => ({ massMp: s.massMp + Math.max(0, Math.floor(amount)) })),
+    set((s) => {
+      const add = Math.max(0, Math.floor(amount));
+      if (add <= 0) return s;
+      const id = ++mpGainFloaterIdSeq;
+      return {
+        massMp: s.massMp + add,
+        mpGainFloaters: [...s.mpGainFloaters, { id, amount: add }],
+      };
+    }),
+  dismissMpGainFloater: (id) =>
+    set((s) => ({
+      mpGainFloaters: s.mpGainFloaters.filter((e) => e.id !== id),
+    })),
+  setJetBuffEndsAt: (jetBuffEndsAtSimSec) => set({ jetBuffEndsAtSimSec }),
   buyUpgrade: (branch) =>
     set((s) => {
       if (!canPurchaseUpgrade(s.upgradeLevels, branch, s.massMp)) return s;
