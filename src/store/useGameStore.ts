@@ -9,6 +9,13 @@ import {
   type UpgradeLevels,
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
+import {
+  loadSave,
+  writeSave,
+  clearSave,
+  SAVE_SCHEMA_VERSION,
+  type SaveData,
+} from "../game/save/saveGame";
 import { accelerationCostMp, advancePlanetStages } from "../game/world/planetProgress";
 import { tickPlanetLife } from "../game/world/planetLife";
 import type { Planet, StarSystem } from "../game/world/types";
@@ -39,6 +46,8 @@ type GameState = {
   mpGainFloaters: MpGainFloaterEvent[];
   /** Игровое время окончания баффа джетов (сек); 0 — нет активного баффа. */
   jetBuffEndsAtSimSec: number;
+  /** Сглаженная ставка дохода MP/с (для оффлайн-начисления); пишется из игрового цикла. */
+  incomeEmaMpPerSec: number;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
@@ -52,7 +61,31 @@ type GameState = {
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
   setSimTimeScale: (scale: SimTimeScale) => void;
+  /** Записать сглаженную ставку дохода (из игрового цикла). */
+  setIncomeEma: (mpPerSec: number) => void;
+  /** Сохранить текущий прогресс в localStorage. */
+  saveNow: () => void;
+  /** Полный сброс прогресса (с очисткой сейва). */
+  resetProgress: () => void;
 };
+
+/** Собрать снимок сейва из состояния. */
+function buildSaveData(s: GameState): SaveData {
+  return {
+    schemaVersion: SAVE_SCHEMA_VERSION,
+    massMp: s.massMp,
+    gameTimeSec: s.gameTimeSec,
+    upgradeLevels: s.upgradeLevels,
+    systems: s.systems,
+    activeSystemId: s.activeSystemId,
+    activePlanetId: s.activePlanetId,
+    viewTier: s.viewTier,
+    simTimeScale: s.simTimeScale,
+    jetBuffEndsAtSimSec: s.jetBuffEndsAtSimSec,
+    savedAtMs: Date.now(),
+    incomeEmaMpPerSec: s.incomeEmaMpPerSec,
+  };
+}
 
 function maxUnlockedViewTier(levels: UpgradeLevels): ViewTierId {
   if (!isViewTierUnlocked(1, levels)) return 0;
@@ -60,24 +93,30 @@ function maxUnlockedViewTier(levels: UpgradeLevels): ViewTierId {
   return 2;
 }
 
-export const useGameStore = create<GameState>((set) => ({
-  ...(() => {
-    const systems = generateStarSystems();
-    return {
-      systems,
-      activeSystemId: systems[0]?.id ?? "",
-      activePlanetId: null,
-    };
-  })(),
-  massMp: 0,
-  gameTimeSec: 0,
-  upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
-  viewTier: 0,
-  activeTab: "game",
-  simTimeScale: 1,
-  mpGainFloaters: [],
-  jetBuffEndsAtSimSec: 0,
-  addMassMp: (amount) =>
+export const useGameStore = create<GameState>((set, get) => {
+  const saved = loadSave();
+  const systems = saved?.systems ?? generateStarSystems();
+  const upgradeLevels = saved?.upgradeLevels ?? { ...ZERO_UPGRADE_LEVELS };
+  const viewTierCap = maxUnlockedViewTier(upgradeLevels);
+  const initialViewTier = Math.min(
+    saved?.viewTier ?? 0,
+    viewTierCap,
+  ) as ViewTierId;
+
+  return {
+    systems,
+    activeSystemId: saved?.activeSystemId ?? systems[0]?.id ?? "",
+    activePlanetId: saved?.activePlanetId ?? null,
+    massMp: saved?.massMp ?? 0,
+    gameTimeSec: saved?.gameTimeSec ?? 0,
+    upgradeLevels,
+    viewTier: initialViewTier,
+    activeTab: "game",
+    simTimeScale: saved?.simTimeScale ?? 1,
+    mpGainFloaters: [],
+    jetBuffEndsAtSimSec: saved?.jetBuffEndsAtSimSec ?? 0,
+    incomeEmaMpPerSec: saved?.incomeEmaMpPerSec ?? 0,
+    addMassMp: (amount) =>
     set((s) => {
       const add = Math.max(0, Math.floor(amount));
       if (add <= 0) return s;
@@ -173,4 +212,25 @@ export const useGameStore = create<GameState>((set) => ({
       return { viewTier };
     }),
   setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
-}));
+  setIncomeEma: (incomeEmaMpPerSec) => set({ incomeEmaMpPerSec }),
+  saveNow: () => writeSave(buildSaveData(get())),
+  resetProgress: () =>
+    set(() => {
+      clearSave();
+      const fresh = generateStarSystems();
+      return {
+        massMp: 0,
+        gameTimeSec: 0,
+        upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
+        systems: fresh,
+        activeSystemId: fresh[0]?.id ?? "",
+        activePlanetId: null,
+        viewTier: 0,
+        simTimeScale: 1,
+        jetBuffEndsAtSimSec: 0,
+        incomeEmaMpPerSec: 0,
+        mpGainFloaters: [],
+      };
+    }),
+  };
+});

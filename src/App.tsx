@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { GameCanvas } from "./components/GameCanvas";
 import { TimeScaleControls } from "./components/TimeScaleControls";
@@ -22,6 +23,23 @@ function App() {
   const massMp = useGameStore((s) => s.massMp);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
+
+  // Автосейв: каждые 10 с и при сворачивании/закрытии вкладки.
+  useEffect(() => {
+    const save = () => useGameStore.getState().saveNow();
+    const interval = window.setInterval(save, 10_000);
+    const onVis = () => {
+      if (document.visibilityState === "hidden") save();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("beforeunload", save);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("beforeunload", save);
+    };
+  }, []);
+
   return (
     <div className="app-root">
       <div className="app-game-layer">
