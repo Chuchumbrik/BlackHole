@@ -28,6 +28,10 @@ export type SaveData = {
   savedAtMs: number;
   /** Сглаженная ставка дохода MP/с — для оффлайн-начисления. */
   incomeEmaMpPerSec: number;
+  /** Накопленные очки престижа (опционально — старые сейвы без поля). */
+  prestigePoints?: number;
+  /** Уровни перков престижа по id (опционально). */
+  prestigePerkLevels?: Record<string, number>;
 };
 
 /** Прочитать сейв. null, если его нет, он битый или несовместимой версии. */

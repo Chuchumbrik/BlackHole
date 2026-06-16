@@ -6,6 +6,7 @@ import { ViewScaleControls } from "./components/ViewScaleControls";
 import { MpGainFloaters } from "./components/MpGainFloaters";
 import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
+import { PrestigePanel } from "./components/PrestigePanel";
 import { useGameStore } from "./store/useGameStore";
 
 const APP_VERSION = __APP_VERSION__;
@@ -65,9 +66,15 @@ function App() {
             <PlanetPanel />
           </div>
         )}
+        {activeTab === "prestige" && (
+          <div className="app-panel-overlay app-panel-prestige">
+            <PrestigePanel />
+          </div>
+        )}
         {activeTab !== "game" &&
           activeTab !== "upgrades" &&
-          activeTab !== "planet" && (
+          activeTab !== "planet" &&
+          activeTab !== "prestige" && (
           <div className="app-panel-placeholder">
             <p className="app-panel-title">
               {t(`app.tabs.${activeTab}`)}

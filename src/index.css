@@ -668,3 +668,22 @@ body,
 .app-offline-card button:hover {
   background: #818cf8;
 }
+
+/* Вкладка «Престиж» */
+.prestige-panel { padding: 22px 26px; max-width: 460px; }
+.prestige-pp { font-size: 20px; color: #c4b5fd; margin: 4px 0 14px; }
+.prestige-row { font-size: 14px; color: #cbd5e1; margin: 4px 0; }
+.prestige-btn {
+  margin-top: 14px;
+  background: #7c3aed;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 20px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.prestige-btn:hover { background: #8b5cf6; }
+.prestige-btn-ghost { background: #1e293b; }
+.prestige-btn-ghost:hover { background: #334155; }
+.prestige-confirm-actions { display: flex; gap: 10px; }

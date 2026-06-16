@@ -9,6 +9,7 @@ import {
   type UpgradeLevels,
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
+import { ppFromMass } from "../game/prestige";
 import {
   loadSave,
   writeSave,
@@ -50,6 +51,10 @@ type GameState = {
   incomeEmaMpPerSec: number;
   /** Начисленный оффлайн-доход для показа окна «пока вас не было»; 0 — нет. */
   pendingOfflineMp: number;
+  /** Накопленные очки престижа (между ранами). */
+  prestigePoints: number;
+  /** Уровни перков престижа по id. */
+  prestigePerkLevels: Record<string, number>;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
@@ -67,6 +72,8 @@ type GameState = {
   setIncomeEma: (mpPerSec: number) => void;
   /** Закрыть окно оффлайн-дохода. */
   clearPendingOffline: () => void;
+  /** Сжатие: начислить PP по текущей массе и начать новый ран. */
+  doPrestige: () => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -88,6 +95,8 @@ function buildSaveData(s: GameState): SaveData {
     jetBuffEndsAtSimSec: s.jetBuffEndsAtSimSec,
     savedAtMs: Date.now(),
     incomeEmaMpPerSec: s.incomeEmaMpPerSec,
+    prestigePoints: s.prestigePoints,
+    prestigePerkLevels: s.prestigePerkLevels,
   };
 }
 
@@ -136,6 +145,8 @@ export const useGameStore = create<GameState>((set, get) => {
     mpGainFloaters: [],
     jetBuffEndsAtSimSec: saved?.jetBuffEndsAtSimSec ?? 0,
     incomeEmaMpPerSec: saved?.incomeEmaMpPerSec ?? 0,
+    prestigePoints: saved?.prestigePoints ?? 0,
+    prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     addMassMp: (amount) =>
     set((s) => {
       const add = Math.max(0, Math.floor(amount));
@@ -234,6 +245,26 @@ export const useGameStore = create<GameState>((set, get) => {
   setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
   setIncomeEma: (incomeEmaMpPerSec) => set({ incomeEmaMpPerSec }),
   clearPendingOffline: () => set({ pendingOfflineMp: 0 }),
+  doPrestige: () =>
+    set((s) => {
+      const gain = ppFromMass(s.massMp);
+      if (gain <= 0) return s;
+      const fresh = generateStarSystems();
+      return {
+        prestigePoints: s.prestigePoints + gain,
+        massMp: 0,
+        upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
+        systems: fresh,
+        activeSystemId: fresh[0]?.id ?? "",
+        activePlanetId: null,
+        viewTier: 0,
+        gameTimeSec: 0,
+        jetBuffEndsAtSimSec: 0,
+        incomeEmaMpPerSec: 0,
+        pendingOfflineMp: 0,
+        mpGainFloaters: [],
+      };
+    }),
   saveNow: () => writeSave(buildSaveData(get())),
   resetProgress: () =>
     set(() => {
@@ -251,6 +282,8 @@ export const useGameStore = create<GameState>((set, get) => {
         jetBuffEndsAtSimSec: 0,
         incomeEmaMpPerSec: 0,
         pendingOfflineMp: 0,
+        prestigePoints: 0,
+        prestigePerkLevels: {},
         mpGainFloaters: [],
       };
     }),
