@@ -14,7 +14,7 @@ export const SUM_FOR_DISK_UNLOCK = 0;
 export const SUM_FOR_EFFICIENCY_UNLOCK = 10;
 
 /** Режим вида «звёздная система». */
-export const VIEW_TIER_SYSTEM_MIN_SUM = 6;
+export const VIEW_TIER_SYSTEM_MIN_SUM = 4;
 
 /** Режим вида «галактика». */
 export const VIEW_TIER_GALAXY_MIN_SUM = 14;

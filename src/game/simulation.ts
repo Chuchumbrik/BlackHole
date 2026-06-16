@@ -83,8 +83,20 @@ export function resetSimulationIds(): void {
 }
 
 /** Случайная скорость при спавне на границе системы (направление и модуль рандом). */
-function randomBoundaryVelocity(): { vx: number; vy: number } {
-  const dir = Math.random() * Math.PI * 2;
+/**
+ * Стартовая скорость объекта на ободе: смещена ВНУТРЬ системы (к центру) с
+ * угловым разбросом, чтобы тела действительно влетали в систему и проходили
+ * зону притяжения, а не разлетались наружу (иначе ранний захват почти нулевой).
+ */
+function randomBoundaryVelocity(
+  fromX: number,
+  fromY: number,
+  centerX: number,
+  centerY: number,
+): { vx: number; vy: number } {
+  const inward = Math.atan2(centerY - fromY, centerX - fromX);
+  const spread = (Math.random() - 0.5) * 1.7; // ±~0.85 рад
+  const dir = inward + spread;
   const speed = 12 + Math.random() * 34;
   return { vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed };
 }
@@ -104,7 +116,7 @@ export function spawnOutsideGravity(
   const r = layout.systemRadius;
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
-  const { vx, vy } = randomBoundaryVelocity();
+  const { vx, vy } = randomBoundaryVelocity(x, y, layout.bh.x, layout.bh.y);
   const id = nextId++;
   const mass =
     OBJECT_MASS[kind] * Math.pow(Math.max(0.35, radiusPx / baseR), 2.2);
@@ -138,7 +150,7 @@ export function spawnShip(layout: SimLayout): SimObject {
   const r = layout.systemRadius;
   const x = layout.star.x + Math.cos(spawnAngle) * r;
   const y = layout.star.y + Math.sin(spawnAngle) * r;
-  const { vx, vy } = randomBoundaryVelocity();
+  const { vx, vy } = randomBoundaryVelocity(x, y, layout.bh.x, layout.bh.y);
   const id = nextId++;
   const mass = OBJECT_MASS[4] * Math.pow(Math.max(0.4, radiusPx / baseR), 2);
   const shapeSeed = Math.floor(Math.random() * 1_000_000_000);

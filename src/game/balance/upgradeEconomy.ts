@@ -3,7 +3,7 @@
  * Источник: obsidian/07 — «Улучшения чёрной дыры»; формула цены — как в 02.
  */
 
-export const UPGRADE_FIRST_LEVEL_COST_MP = 12;
+export const UPGRADE_FIRST_LEVEL_COST_MP = 8;
 export const UPGRADE_COST_MULTIPLIER_PER_LEVEL = 1.53;
 
 /**
