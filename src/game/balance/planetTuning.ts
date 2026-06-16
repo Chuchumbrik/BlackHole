@@ -26,3 +26,9 @@ export const PLANET_ECOSYSTEM_HIGH = 62;
 
 /** Секунд игрового времени на полоску «зарождение жизни» при стабильной экосистеме. */
 export const PLANET_LIFE_EMERGENCE_TOTAL_SEC = 480;
+
+/** Цивилизация: секунд игрового времени на один тир (после рождения жизни), потолок тира. */
+export const PLANET_CIV_STAGE_SEC = 150;
+export const PLANET_CIV_MAX_LEVEL = 4;
+/** Базовый интервал запуска кораблей-«дани» при тире 1 (делится на тир — чаще на высоких). */
+export const PLANET_TRIBUTE_INTERVAL_SEC = 7;

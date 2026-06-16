@@ -179,7 +179,14 @@ export function PlanetPanel() {
         {planet.lifeBorn && (
           <div className="planet-life-block">
             <p className="planet-life-born">{t("planet.lifeBorn")}</p>
-            <p className="planet-civ-teaser">{t("planet.civTeaser")}</p>
+            <p className="planet-civ-level">
+              Цивилизация: тир {planet.civLevel}/4
+            </p>
+            <p className="planet-civ-teaser">
+              {planet.civLevel >= 1
+                ? "Цивилизация запускает корабли в космос — часть захватывает дыра (пассивный MP)."
+                : "Цивилизация зарождается… на высших тирах начнёт запускать корабли."}
+            </p>
           </div>
         )}
 

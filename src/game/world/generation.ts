@@ -55,6 +55,8 @@ function genPlanet(systemIdx: number, planetIdx: number): Planet {
     lifeEmergenceSec: 0,
     lifeBorn: false,
     mpYieldMult: 1,
+    civLevel: 0,
+    civProgressSec: 0,
     radiusScale,
   };
 }

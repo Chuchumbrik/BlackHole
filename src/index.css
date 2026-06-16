@@ -739,3 +739,6 @@ body,
   padding: 8px 18px; border-radius: 9px; font-size: 14px; z-index: 55;
   box-shadow: 0 8px 24px rgba(0,0,0,0.45);
 }
+
+/* Цивилизация планеты */
+.planet-civ-level { font-size: 13px; color: #a5b4fc; font-weight: 600; margin: 6px 0 2px; }

@@ -176,6 +176,46 @@ export function spawnShip(layout: SimLayout): SimObject {
 }
 
 /**
+ * Корабль-«дань»: цивилизованная планета запускает его в космос (целит к дыре
+ * со спредом). Часть таких кораблей захватывается дырой → пассивный MP. Это
+ * диегетическое обоснование дани (ты видишь поток ракет от планеты к дыре).
+ */
+export function spawnTributeShip(
+  x: number,
+  y: number,
+  bhX: number,
+  bhY: number,
+): SimObject {
+  const q = rollShipQualities();
+  const baseR = KIND_RADIUS[4];
+  const sizeU = 0.5 + Math.random() * 0.5;
+  const radiusPx = Math.max(3, Math.round(baseR * sizeU * 10) / 10);
+  const sizeMul = Math.pow(radiusPx / baseR, 1.15);
+  const mpValue = rollMpForKind(4, sizeMul);
+  const ang = Math.atan2(bhY - y, bhX - x) + (Math.random() - 0.5) * 0.7;
+  const speed = 46 + Math.random() * 40;
+  const id = nextId++;
+  const mass = OBJECT_MASS[4] * Math.pow(Math.max(0.4, radiusPx / baseR), 2);
+  return {
+    id,
+    kind: 4,
+    displayName: buildObjectDisplayName(4, id),
+    x,
+    y,
+    vx: Math.cos(ang) * speed,
+    vy: Math.sin(ang) * speed,
+    mass,
+    mpValue,
+    radiusPx,
+    shapeSeed: Math.floor(Math.random() * 1_000_000_000),
+    spinRate: (Math.random() < 0.5 ? -1 : 1) * (0.2 + Math.random() * 1.1),
+    thrust01: q.thrust01 * 0.5, // слабее тяга — больше шанс захвата (это «дань»)
+    pilot01: q.pilot01 * 0.5,
+    shipEnteredGravity: false,
+  };
+}
+
+/**
  * Выброс обломков при разрушении планеты (столкновение планет). Осколки летят
  * наружу из точки разрушения и затем могут быть захвачены/поглощены дырой.
  */

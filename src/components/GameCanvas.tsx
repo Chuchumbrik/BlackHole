@@ -18,6 +18,7 @@ import {
   JET_IMPULSE_SPEED,
   JET_PROC_ATTEMPT_INTERVAL_SEC,
   JET_PROC_CHANCE_PER_LEVEL,
+  PLANET_TRIBUTE_INTERVAL_SEC,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
   STELLAR_SYSTEM_RADIUS_MUL,
@@ -34,6 +35,7 @@ import {
   type SimObject,
   objRadius,
   spawnDebrisBurst,
+  spawnTributeShip,
   stepSimulation,
   trySpawn,
   type SpawnControl,
@@ -531,6 +533,8 @@ export function GameCanvas() {
     let planetPosById = new Map<string, { x: number; y: number }>();
     /** Планеты с дестабилизированной орбитой (предупреждение игроку). */
     let planetUnstableIds = new Set<string>();
+    /** Таймеры запуска кораблей-«дани» по id планеты (игр.сек). */
+    const tributeAccum = new Map<string, number>();
     /** EMA дохода MP/игр.сек (для оффлайна) + аккумулятор записи в стор. */
     let incomeEma = useGameStore.getState().incomeEmaMpPerSec;
     let emaWriteAccum = 0;
@@ -1151,6 +1155,25 @@ export function GameCanvas() {
             planetPosById.get(pl.id),
           ),
         );
+
+        // Дань: цивилизованные планеты запускают корабли к дыре (часть захватывается → MP).
+        if (simDt > 0 && objects.length < 260) {
+          for (const pl of pList0) {
+            if (pl.civLevel <= 0) continue;
+            const pos = planetPosById.get(pl.id);
+            if (!pos) continue;
+            const interval = PLANET_TRIBUTE_INTERVAL_SEC / pl.civLevel;
+            const acc = (tributeAccum.get(pl.id) ?? 0) + simDt;
+            if (acc >= interval) {
+              tributeAccum.set(pl.id, acc - interval);
+              objects = objects.concat(
+                spawnTributeShip(pos.x, pos.y, layout.bh.x, layout.bh.y),
+              );
+            } else {
+              tributeAccum.set(pl.id, acc);
+            }
+          }
+        }
 
         const { objects: nextObjects, consumed } = stepSimulation(
           objects,

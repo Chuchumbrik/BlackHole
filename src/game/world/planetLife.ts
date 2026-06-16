@@ -2,6 +2,8 @@ import {
   PLANET_ECOSYSTEM_HIGH,
   PLANET_ECOSYSTEM_LOW,
   PLANET_LIFE_EMERGENCE_TOTAL_SEC,
+  PLANET_CIV_STAGE_SEC,
+  PLANET_CIV_MAX_LEVEL,
 } from "../balance/planetTuning";
 import type { Planet } from "./types";
 
@@ -83,8 +85,16 @@ export function tickPlanetLife(planet: Planet, dtSec: number): Planet {
     }
   }
 
+  let civProgressSec = planet.civProgressSec;
+  let civLevel = planet.civLevel;
   if (lifeBorn) {
     mpYieldMult = Math.max(0.22, mpYieldMult - dtSec * 1.2e-5);
+    // Цивилизация растёт со временем после зарождения жизни.
+    civProgressSec += dtSec;
+    civLevel = Math.min(
+      PLANET_CIV_MAX_LEVEL,
+      Math.floor(civProgressSec / PLANET_CIV_STAGE_SEC),
+    );
   }
 
   return {
@@ -92,5 +102,7 @@ export function tickPlanetLife(planet: Planet, dtSec: number): Planet {
     lifeEmergenceSec,
     lifeBorn,
     mpYieldMult,
+    civProgressSec,
+    civLevel,
   };
 }
