@@ -50,6 +50,7 @@ import {
 } from "../game/upgrades";
 import { planetSwallowMpBase } from "../game/world/planetLife";
 import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
+import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import {
   buildPlanetPhysicsSnapshot,
   pickPlanetAtWorld,
@@ -1019,14 +1020,17 @@ export function GameCanvas() {
         const perkLevels = useGameStore.getState().prestigePerkLevels;
         const pmods = prestigeModifiers(perkLevels);
         const runStart = prestigeRunStart(perkLevels);
+        const mpu = mpUpgradeModifiers(
+          useGameStore.getState().mpUpgradeLevels,
+        );
         const mpMult =
-          mpIncomeMultiplier(levels, jetBuffActive) * pmods.mpMul;
+          mpIncomeMultiplier(levels, jetBuffActive) * pmods.mpMul * mpu.mpMul;
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
           simDt,
-          BASE_SPAWN_PER_SECOND * runStart.spawnRateMul,
+          BASE_SPAWN_PER_SECOND * runStart.spawnRateMul * mpu.spawnRateMul,
         );
         objects = trySpawn(objects, layout, spawnCount, {
           shipsUnlocked,
@@ -1173,7 +1177,8 @@ export function GameCanvas() {
 
         if (simScale > 0 && levels.hawking > 0) {
           const massMp = useGameStore.getState().massMp;
-          const hRate = hawkingMpPerSecond(levels, massMp) * pmods.hawkingMul;
+          const hRate =
+            hawkingMpPerSecond(levels, massMp) * pmods.hawkingMul * mpu.hawkingMul;
           hawkingCarry += hRate * simDt;
           const hGain = Math.floor(hawkingCarry);
           hawkingCarry -= hGain;

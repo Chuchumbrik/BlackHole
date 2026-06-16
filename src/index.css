@@ -699,3 +699,10 @@ body,
 .prestige-perk-buy { margin-top: 0; padding: 7px 14px; font-size: 13px; }
 .prestige-perk-buy:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
 .prestige-perk-max { font-size: 13px; color: #6ee7b7; }
+
+/* Секция особых MP-апгрейдов */
+.upgrades-extra-title { font-size: 15px; color: #fbbf24; margin: 18px 0 10px; border-top: 1px solid #1e293b; padding-top: 14px; }
+.upgrade-head { display: flex; justify-content: space-between; align-items: baseline; }
+.upgrade-lvl { font-size: 12px; color: #94a3b8; }
+.upgrade-desc { font-size: 12px; color: #94a3b8; margin: 5px 0; }
+.upgrade-cost { font-size: 12px; color: #cbd5e1; margin: 5px 0; }

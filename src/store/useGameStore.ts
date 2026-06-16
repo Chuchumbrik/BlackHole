@@ -11,6 +11,7 @@ import {
 import { generateStarSystems } from "../game/world/generation";
 import { ppFromMass } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost, prestigeRunStart } from "../game/prestigePerks";
+import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
 import {
   loadSave,
   writeSave,
@@ -56,6 +57,8 @@ type GameState = {
   prestigePoints: number;
   /** Уровни перков престижа по id. */
   prestigePerkLevels: Record<string, number>;
+  /** Уровни data-driven MP-апгрейдов по id (ран-скоуп, сброс при сжатии). */
+  mpUpgradeLevels: Record<string, number>;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch) => void;
@@ -77,6 +80,8 @@ type GameState = {
   doPrestige: () => void;
   /** Купить уровень перка престижа за PP. */
   buyPrestigePerk: (id: string) => void;
+  /** Купить уровень MP-апгрейда за MP. */
+  buyMpUpgrade: (id: string) => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -100,6 +105,7 @@ function buildSaveData(s: GameState): SaveData {
     incomeEmaMpPerSec: s.incomeEmaMpPerSec,
     prestigePoints: s.prestigePoints,
     prestigePerkLevels: s.prestigePerkLevels,
+    mpUpgradeLevels: s.mpUpgradeLevels,
   };
 }
 
@@ -150,6 +156,7 @@ export const useGameStore = create<GameState>((set, get) => {
     incomeEmaMpPerSec: saved?.incomeEmaMpPerSec ?? 0,
     prestigePoints: saved?.prestigePoints ?? 0,
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
+    mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     addMassMp: (amount) =>
     set((s) => {
       const add = Math.max(0, Math.floor(amount));
@@ -266,6 +273,7 @@ export const useGameStore = create<GameState>((set, get) => {
         jetBuffEndsAtSimSec: 0,
         incomeEmaMpPerSec: 0,
         pendingOfflineMp: 0,
+        mpUpgradeLevels: {},
         mpGainFloaters: [],
       };
     }),
@@ -280,6 +288,19 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         prestigePoints: s.prestigePoints - cost,
         prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl + 1 },
+      };
+    }),
+  buyMpUpgrade: (id) =>
+    set((s) => {
+      const def = MP_UPGRADES.find((u) => u.id === id);
+      if (!def) return s;
+      const lvl = s.mpUpgradeLevels[id] ?? 0;
+      if (lvl >= def.maxLevel) return s;
+      const cost = mpUpgradeCost(def, lvl);
+      if (s.massMp < cost) return s;
+      return {
+        massMp: s.massMp - cost,
+        mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl + 1 },
       };
     }),
   saveNow: () => writeSave(buildSaveData(get())),
@@ -301,6 +322,7 @@ export const useGameStore = create<GameState>((set, get) => {
         pendingOfflineMp: 0,
         prestigePoints: 0,
         prestigePerkLevels: {},
+        mpUpgradeLevels: {},
         mpGainFloaters: [],
       };
     }),

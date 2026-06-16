@@ -32,6 +32,8 @@ export type SaveData = {
   prestigePoints?: number;
   /** Уровни перков престижа по id (опционально). */
   prestigePerkLevels?: Record<string, number>;
+  /** Уровни data-driven MP-апгрейдов по id (опционально; сбрасываются при сжатии). */
+  mpUpgradeLevels?: Record<string, number>;
 };
 
 /** Прочитать сейв. null, если его нет, он битый или несовместимой версии. */

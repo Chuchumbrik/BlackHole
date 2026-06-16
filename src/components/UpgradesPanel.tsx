@@ -21,6 +21,7 @@ import {
   type UpgradeLevels,
 } from "../game/upgrades";
 import { useGameStore } from "../store/useGameStore";
+import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
 
 function formatMultiplier(x: number): string {
   return x.toLocaleString(undefined, {
@@ -82,6 +83,8 @@ export function UpgradesPanel() {
   const massMp = useGameStore((s) => s.massMp);
   const upgradeLevels = useGameStore((s) => s.upgradeLevels);
   const buyUpgrade = useGameStore((s) => s.buyUpgrade);
+  const mpUpgradeLevels = useGameStore((s) => s.mpUpgradeLevels);
+  const buyMpUpgrade = useGameStore((s) => s.buyMpUpgrade);
   const sum = levelSum(upgradeLevels);
   const viewportMin = useViewportMinPx();
   const snap = upgradeBranchSnapshot(upgradeLevels, massMp);
@@ -168,6 +171,43 @@ export function UpgradesPanel() {
                     onClick={() => buyUpgrade(branch)}
                   >
                     {t("upgrades.buy")}
+                  </button>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      <h3 className="upgrades-extra-title">Особые улучшения</h3>
+      <ul className="upgrades-list">
+        {MP_UPGRADES.map((up) => {
+          const lvl = mpUpgradeLevels[up.id] ?? 0;
+          const maxed = lvl >= up.maxLevel;
+          const cost = mpUpgradeCost(up, lvl);
+          const affordable = massMp >= cost;
+          return (
+            <li key={up.id}>
+              <div className="upgrade-head">
+                <h3>{up.name}</h3>
+                <span className="upgrade-lvl">
+                  Ур. {lvl}/{up.maxLevel}
+                </span>
+              </div>
+              <p className="upgrade-desc">{up.desc}</p>
+              {maxed ? (
+                <p className="upgrade-cost">Максимум</p>
+              ) : (
+                <>
+                  <p className="upgrade-cost">
+                    Следующий уровень: {cost.toLocaleString("ru-RU")} MP
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!affordable}
+                    onClick={() => buyMpUpgrade(up.id)}
+                  >
+                    Купить
                   </button>
                 </>
               )}
