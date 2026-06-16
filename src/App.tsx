@@ -7,6 +7,7 @@ import { MpGainFloaters } from "./components/MpGainFloaters";
 import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { PrestigePanel } from "./components/PrestigePanel";
+import { AchievementsPanel } from "./components/AchievementsPanel";
 import { useGameStore } from "./store/useGameStore";
 
 const APP_VERSION = __APP_VERSION__;
@@ -26,6 +27,8 @@ function App() {
   const setTab = useGameStore((s) => s.setTab);
   const pendingOfflineMp = useGameStore((s) => s.pendingOfflineMp);
   const clearPendingOffline = useGameStore((s) => s.clearPendingOffline);
+  const achievementToast = useGameStore((s) => s.achievementToast);
+  const clearAchievementToast = useGameStore((s) => s.clearAchievementToast);
 
   // Автосейв: каждые 10 с и при сворачивании/закрытии вкладки.
   useEffect(() => {
@@ -42,6 +45,13 @@ function App() {
       window.removeEventListener("beforeunload", save);
     };
   }, []);
+
+  // Автоскрытие тоста достижения.
+  useEffect(() => {
+    if (!achievementToast) return;
+    const id = window.setTimeout(() => clearAchievementToast(), 3500);
+    return () => window.clearTimeout(id);
+  }, [achievementToast, clearAchievementToast]);
 
   return (
     <div className="app-root">
@@ -71,15 +81,9 @@ function App() {
             <PrestigePanel />
           </div>
         )}
-        {activeTab !== "game" &&
-          activeTab !== "upgrades" &&
-          activeTab !== "planet" &&
-          activeTab !== "prestige" && (
-          <div className="app-panel-placeholder">
-            <p className="app-panel-title">
-              {t(`app.tabs.${activeTab}`)}
-            </p>
-            <p className="app-panel-hint">Экран из ТЗ — в следующих PR.</p>
+        {activeTab === "stats" && (
+          <div className="app-panel-overlay app-panel-stats">
+            <AchievementsPanel />
           </div>
         )}
       </div>
@@ -133,6 +137,12 @@ function App() {
               Забрать
             </button>
           </div>
+        </div>
+      )}
+
+      {achievementToast && (
+        <div className="ach-toast" role="status">
+          🏆 Достижение: <b>{achievementToast}</b>
         </div>
       )}
 

@@ -59,6 +59,10 @@ type GameState = {
   prestigePerkLevels: Record<string, number>;
   /** Уровни data-driven MP-апгрейдов по id (ран-скоуп, сброс при сжатии). */
   mpUpgradeLevels: Record<string, number>;
+  /** Открытые достижения (постоянные, переживают сжатие). */
+  achievementsUnlocked: string[];
+  /** Имя только что открытого достижения для тоста; null — нет. */
+  achievementToast: string | null;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch, count?: number) => void;
@@ -87,6 +91,9 @@ type GameState = {
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
   buyMultiplier: number;
   setBuyMultiplier: (m: number) => void;
+  /** Открыть достижение (если ещё не открыто) и показать тост. */
+  unlockAchievement: (id: string, name: string) => void;
+  clearAchievementToast: () => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -111,6 +118,7 @@ function buildSaveData(s: GameState): SaveData {
     prestigePoints: s.prestigePoints,
     prestigePerkLevels: s.prestigePerkLevels,
     mpUpgradeLevels: s.mpUpgradeLevels,
+    achievementsUnlocked: s.achievementsUnlocked,
   };
 }
 
@@ -162,6 +170,8 @@ export const useGameStore = create<GameState>((set, get) => {
     prestigePoints: saved?.prestigePoints ?? 0,
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
+    achievementsUnlocked: saved?.achievementsUnlocked ?? [],
+    achievementToast: null,
     buyMultiplier: 1,
     addMassMp: (amount) =>
     set((s) => {
@@ -277,6 +287,15 @@ export const useGameStore = create<GameState>((set, get) => {
     }),
   setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
   setBuyMultiplier: (buyMultiplier) => set({ buyMultiplier }),
+  unlockAchievement: (id, name) =>
+    set((s) => {
+      if (s.achievementsUnlocked.includes(id)) return s;
+      return {
+        achievementsUnlocked: [...s.achievementsUnlocked, id],
+        achievementToast: name,
+      };
+    }),
+  clearAchievementToast: () => set({ achievementToast: null }),
   setIncomeEma: (incomeEmaMpPerSec) => set({ incomeEmaMpPerSec }),
   clearPendingOffline: () => set({ pendingOfflineMp: 0 }),
   doPrestige: () =>
@@ -361,6 +380,8 @@ export const useGameStore = create<GameState>((set, get) => {
         prestigePoints: 0,
         prestigePerkLevels: {},
         mpUpgradeLevels: {},
+        achievementsUnlocked: [],
+        achievementToast: null,
         mpGainFloaters: [],
       };
     }),

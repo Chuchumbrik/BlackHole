@@ -45,12 +45,14 @@ import {
   computeRadiiPx,
   effectiveGravityAccel,
   hawkingMpPerSecond,
+  levelSum,
   mpIncomeMultiplier,
   type UpgradeLevels,
 } from "../game/upgrades";
 import { planetSwallowMpBase } from "../game/world/planetLife";
 import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
+import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
   buildPlanetPhysicsSnapshot,
   pickPlanetAtWorld,
@@ -1023,8 +1025,14 @@ export function GameCanvas() {
         const mpu = mpUpgradeModifiers(
           useGameStore.getState().mpUpgradeLevels,
         );
+        const achMul = achievementMpMul(
+          useGameStore.getState().achievementsUnlocked,
+        );
         const mpMult =
-          mpIncomeMultiplier(levels, jetBuffActive) * pmods.mpMul * mpu.mpMul;
+          mpIncomeMultiplier(levels, jetBuffActive) *
+          pmods.mpMul *
+          mpu.mpMul *
+          achMul;
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
@@ -1201,7 +1209,19 @@ export function GameCanvas() {
         emaWriteAccum += dt;
         if (emaWriteAccum >= 1) {
           emaWriteAccum = 0;
-          useGameStore.getState().setIncomeEma(incomeEma);
+          const st = useGameStore.getState();
+          st.setIncomeEma(incomeEma);
+          // Проверка достижений (раз в ~секунду).
+          const fresh = newlyUnlocked(
+            {
+              massMp: st.massMp,
+              prestigePoints: st.prestigePoints,
+              gameTimeSec: st.gameTimeSec,
+              upgradeSum: levelSum(st.upgradeLevels),
+            },
+            st.achievementsUnlocked,
+          );
+          for (const a of fresh) st.unlockAchievement(a.id, a.name);
         }
 
         consumePulse = Math.max(0, consumePulse - simDt * 3.5);

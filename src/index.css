@@ -712,3 +712,22 @@ body,
 .buy-mult-label { font-size: 12px; color: #94a3b8; margin-right: 2px; }
 .buy-mult button { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 7px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
 .buy-mult button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; }
+
+/* Достижения */
+.ach-panel { padding: 22px 26px; max-width: 480px; }
+.ach-summary { font-size: 13px; color: #94a3b8; margin: 4px 0 14px; }
+.ach-list { list-style: none; padding: 0; margin: 0; }
+.ach { background: #0e1422; border: 1px solid #1e293b; border-radius: 10px; padding: 11px 14px; margin-bottom: 9px; opacity: 0.6; }
+.ach.is-got { opacity: 1; border-color: #3f6212; }
+.ach-head { display: flex; justify-content: space-between; align-items: baseline; }
+.ach-name { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+.ach-mul { font-size: 12px; color: #fbbf24; }
+.ach-desc { font-size: 12px; color: #94a3b8; margin: 5px 0; }
+.ach-status { font-size: 11px; color: #6ee7b7; }
+.ach:not(.is-got) .ach-status { color: #64748b; }
+.ach-toast {
+  position: fixed; left: 50%; bottom: 30px; transform: translateX(-50%);
+  background: #1e293b; border: 1px solid #3f6212; color: #e2e8f0;
+  padding: 10px 18px; border-radius: 10px; font-size: 14px; z-index: 60;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}

@@ -34,6 +34,8 @@ export type SaveData = {
   prestigePerkLevels?: Record<string, number>;
   /** Уровни data-driven MP-апгрейдов по id (опционально; сбрасываются при сжатии). */
   mpUpgradeLevels?: Record<string, number>;
+  /** Открытые достижения (опционально; постоянные, переживают сжатие). */
+  achievementsUnlocked?: string[];
 };
 
 /** Прочитать сейв. null, если его нет, он битый или несовместимой версии. */
