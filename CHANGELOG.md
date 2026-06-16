@@ -2,6 +2,12 @@
 
 Формат основан на практике [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).
 
+## [0.5.3] — 2026-06-16
+
+### Изменено
+
+- **Каркас (Фаза A, шаг 1):** введён единый сборщик модификаторов `src/game/modifiers.ts` (`computeModifiers` + именованные каналы: `mpMul`, `gravityRadiusMul`, `gravityAccelMul`, `horizonMul`, `rareWeightMul`, `shipThrustMul`, резерв `spawnRateMul`/`costMul`). Функции `upgrades.ts` (`mpIncomeMultiplier`, `computeRadiiPx`, `effectiveGravityAccel`, `cameraWorldScale`, `shipThrustMultiplierFromLevels`) теперь тонкие обёртки над ним — поведение 1-в-1. Подготовка точки подключения перков престижа и бонусов достижений.
+
 ## [0.5.2] — 2026-05-12
 
 ### Изменено

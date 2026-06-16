@@ -11,8 +11,6 @@ import {
   GRAVITY_RADIUS_MIN_OVER_HORIZON,
   JET_FIELD_MP_MULT,
   SHIPS_UNLOCK_MIN_SUM,
-  SHIP_THRUST_DISK_FACTOR_PER_LEVEL,
-  SHIP_THRUST_EFFICIENCY_FACTOR_PER_LEVEL,
   SUM_FOR_DISK_UNLOCK,
   SUM_FOR_EFFICIENCY_UNLOCK,
   SUM_FOR_HAWKING_UNLOCK,
@@ -31,6 +29,7 @@ import {
   HAWKING_PER_LEVEL_FACTOR,
   LENSING_RARE_WEIGHT_MULT_PER_LEVEL,
 } from "./balance/branchA46";
+import { computeModifiers } from "./modifiers";
 
 export const UPGRADE_BRANCHES = [
   "size",
@@ -121,9 +120,7 @@ export function mpIncomeMultiplier(
   levels: UpgradeLevels,
   jetBuffActive: boolean,
 ): number {
-  const base =
-    Math.pow(F.diskGlobalMp, levels.disk) *
-    Math.pow(F.efficiencyGlobalMp, levels.efficiency);
+  const base = computeModifiers({ upgradeLevels: levels }).mpMul;
   return jetBuffActive ? base * JET_FIELD_MP_MULT : base;
 }
 
@@ -132,10 +129,11 @@ export function computeRadiiPx(
   minDimensionPx: number,
   levels: UpgradeLevels,
 ): { horizon: number; gravity: number } {
+  const mods = computeModifiers({ upgradeLevels: levels });
   const baseHorizon = minDimensionPx * BASE_HORIZON_FRACTION;
   const baseGravity = minDimensionPx * BASE_GRAVITY_FRACTION;
-  const horizon = baseHorizon * Math.pow(F.horizon, levels.size);
-  let gravity = baseGravity * Math.pow(F.gravityRadius, levels.gravity);
+  const horizon = baseHorizon * mods.horizonMul;
+  let gravity = baseGravity * mods.gravityRadiusMul;
   const minGravity = horizon * GRAVITY_RADIUS_MIN_OVER_HORIZON;
   if (gravity < minGravity) gravity = minGravity;
   return { horizon, gravity };
@@ -145,7 +143,7 @@ export function computeRadiiPx(
 export function effectiveGravityAccel(levels: UpgradeLevels): number {
   return (
     BASE_GRAVITY_ACCEL *
-    Math.pow(F.efficiencyPull, levels.efficiency)
+    computeModifiers({ upgradeLevels: levels }).gravityAccelMul
   );
 }
 
@@ -154,7 +152,7 @@ export function effectiveGravityAccel(levels: UpgradeLevels): number {
  * относительный размер дыры на экране не растёт бесконечно.
  */
 export function cameraWorldScale(levels: UpgradeLevels): number {
-  const ratio = 1 / Math.pow(F.horizon, levels.size);
+  const ratio = 1 / computeModifiers({ upgradeLevels: levels }).horizonMul;
   return Math.max(CAMERA_SCALE_MIN, Math.min(1, ratio));
 }
 
@@ -172,10 +170,7 @@ export function areShipsUnlocked(levels: UpgradeLevels): boolean {
 }
 
 export function shipThrustMultiplierFromLevels(levels: UpgradeLevels): number {
-  return (
-    Math.pow(SHIP_THRUST_DISK_FACTOR_PER_LEVEL, levels.disk) *
-    Math.pow(SHIP_THRUST_EFFICIENCY_FACTOR_PER_LEVEL, levels.efficiency)
-  );
+  return computeModifiers({ upgradeLevels: levels }).shipThrustMul;
 }
 
 export function combinedWorldScale(
