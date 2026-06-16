@@ -10,6 +10,8 @@ export function PrestigePanel() {
   const prestigePerkLevels = useGameStore((s) => s.prestigePerkLevels);
   const doPrestige = useGameStore((s) => s.doPrestige);
   const buyPrestigePerk = useGameStore((s) => s.buyPrestigePerk);
+  const buyMultiplier = useGameStore((s) => s.buyMultiplier);
+  const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
   const [confirming, setConfirming] = useState(false);
 
   const gain = ppFromMass(massMp);
@@ -74,6 +76,19 @@ export function PrestigePanel() {
 
       <div className="prestige-perks">
         <h3 className="prestige-perks-title">Перки престижа</h3>
+        <div className="buy-mult">
+          <span className="buy-mult-label">Покупать:</span>
+          {[1, 2, 5, 10].map((m) => (
+            <button
+              key={m}
+              type="button"
+              className={buyMultiplier === m ? "is-active" : undefined}
+              onClick={() => setBuyMultiplier(m)}
+            >
+              ×{m}
+            </button>
+          ))}
+        </div>
         {PRESTIGE_PERKS.map((perk) => {
           const lvl = prestigePerkLevels[perk.id] ?? 0;
           const maxed = lvl >= perk.maxLevel;
@@ -95,7 +110,7 @@ export function PrestigePanel() {
                   type="button"
                   className="prestige-btn prestige-perk-buy"
                   disabled={!affordable}
-                  onClick={() => buyPrestigePerk(perk.id)}
+                  onClick={() => buyPrestigePerk(perk.id, buyMultiplier)}
                 >
                   Купить · {cost} PP
                 </button>

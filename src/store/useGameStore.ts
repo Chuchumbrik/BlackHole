@@ -61,7 +61,7 @@ type GameState = {
   mpUpgradeLevels: Record<string, number>;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
-  buyUpgrade: (branch: UpgradeBranch) => void;
+  buyUpgrade: (branch: UpgradeBranch, count?: number) => void;
   setJetBuffEndsAt: (simSec: number) => void;
   setActiveSystem: (systemId: string) => void;
   advanceGameTime: (simDt: number) => void;
@@ -81,9 +81,12 @@ type GameState = {
   /** Сжатие: начислить PP по текущей массе и начать новый ран. */
   doPrestige: () => void;
   /** Купить уровень перка престижа за PP. */
-  buyPrestigePerk: (id: string) => void;
+  buyPrestigePerk: (id: string, count?: number) => void;
   /** Купить уровень MP-апгрейда за MP. */
-  buyMpUpgrade: (id: string) => void;
+  buyMpUpgrade: (id: string, count?: number) => void;
+  /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
+  buyMultiplier: number;
+  setBuyMultiplier: (m: number) => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -159,6 +162,7 @@ export const useGameStore = create<GameState>((set, get) => {
     prestigePoints: saved?.prestigePoints ?? 0,
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
+    buyMultiplier: 1,
     addMassMp: (amount) =>
     set((s) => {
       const add = Math.max(0, Math.floor(amount));
@@ -248,22 +252,21 @@ export const useGameStore = create<GameState>((set, get) => {
         };
       }),
     })),
-  buyUpgrade: (branch) =>
+  buyUpgrade: (branch, count = 1) =>
     set((s) => {
-      if (!canPurchaseUpgrade(s.upgradeLevels, branch, s.massMp)) return s;
-      const cost = nextUpgradeCostMp(s.upgradeLevels, branch);
-      const upgradeLevels = {
-        ...s.upgradeLevels,
-        [branch]: s.upgradeLevels[branch] + 1,
-      };
+      let mass = s.massMp;
+      const upgradeLevels = { ...s.upgradeLevels };
+      let bought = 0;
+      for (let i = 0; i < count; i++) {
+        if (!canPurchaseUpgrade(upgradeLevels, branch, mass)) break;
+        mass -= nextUpgradeCostMp(upgradeLevels, branch);
+        upgradeLevels[branch] += 1;
+        bought++;
+      }
+      if (bought === 0) return s;
       const cap = maxUnlockedViewTier(upgradeLevels);
-      const viewTier =
-        s.viewTier > cap ? cap : s.viewTier;
-      return {
-        massMp: s.massMp - cost,
-        upgradeLevels,
-        viewTier,
-      };
+      const viewTier = s.viewTier > cap ? cap : s.viewTier;
+      return { massMp: mass, upgradeLevels, viewTier };
     }),
   setTab: (activeTab) => set({ activeTab }),
   setViewTier: (tier) =>
@@ -273,6 +276,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return { viewTier };
     }),
   setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
+  setBuyMultiplier: (buyMultiplier) => set({ buyMultiplier }),
   setIncomeEma: (incomeEmaMpPerSec) => set({ incomeEmaMpPerSec }),
   clearPendingOffline: () => set({ pendingOfflineMp: 0 }),
   doPrestige: () =>
@@ -297,30 +301,44 @@ export const useGameStore = create<GameState>((set, get) => {
         mpGainFloaters: [],
       };
     }),
-  buyPrestigePerk: (id) =>
+  buyPrestigePerk: (id, count = 1) =>
     set((s) => {
       const def = PRESTIGE_PERKS.find((p) => p.id === id);
       if (!def) return s;
-      const lvl = s.prestigePerkLevels[id] ?? 0;
-      if (lvl >= def.maxLevel) return s;
-      const cost = perkCost(def, lvl);
-      if (s.prestigePoints < cost) return s;
+      let pp = s.prestigePoints;
+      let lvl = s.prestigePerkLevels[id] ?? 0;
+      let bought = 0;
+      for (let i = 0; i < count && lvl < def.maxLevel; i++) {
+        const cost = perkCost(def, lvl);
+        if (pp < cost) break;
+        pp -= cost;
+        lvl++;
+        bought++;
+      }
+      if (bought === 0) return s;
       return {
-        prestigePoints: s.prestigePoints - cost,
-        prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl + 1 },
+        prestigePoints: pp,
+        prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl },
       };
     }),
-  buyMpUpgrade: (id) =>
+  buyMpUpgrade: (id, count = 1) =>
     set((s) => {
       const def = MP_UPGRADES.find((u) => u.id === id);
       if (!def) return s;
-      const lvl = s.mpUpgradeLevels[id] ?? 0;
-      if (lvl >= def.maxLevel) return s;
-      const cost = mpUpgradeCost(def, lvl);
-      if (s.massMp < cost) return s;
+      let mass = s.massMp;
+      let lvl = s.mpUpgradeLevels[id] ?? 0;
+      let bought = 0;
+      for (let i = 0; i < count && lvl < def.maxLevel; i++) {
+        const cost = mpUpgradeCost(def, lvl);
+        if (mass < cost) break;
+        mass -= cost;
+        lvl++;
+        bought++;
+      }
+      if (bought === 0) return s;
       return {
-        massMp: s.massMp - cost,
-        mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl + 1 },
+        massMp: mass,
+        mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl },
       };
     }),
   saveNow: () => writeSave(buildSaveData(get())),

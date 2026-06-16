@@ -85,6 +85,8 @@ export function UpgradesPanel() {
   const buyUpgrade = useGameStore((s) => s.buyUpgrade);
   const mpUpgradeLevels = useGameStore((s) => s.mpUpgradeLevels);
   const buyMpUpgrade = useGameStore((s) => s.buyMpUpgrade);
+  const buyMultiplier = useGameStore((s) => s.buyMultiplier);
+  const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
   const sum = levelSum(upgradeLevels);
   const viewportMin = useViewportMinPx();
   const snap = upgradeBranchSnapshot(upgradeLevels, massMp);
@@ -96,6 +98,19 @@ export function UpgradesPanel() {
       <p className="upgrades-panel-meta">
         {t("upgrades.holeLevel", { value: sum.toLocaleString("ru-RU") })}
       </p>
+      <div className="buy-mult">
+        <span className="buy-mult-label">Покупать:</span>
+        {[1, 2, 5, 10].map((m) => (
+          <button
+            key={m}
+            type="button"
+            className={buyMultiplier === m ? "is-active" : undefined}
+            onClick={() => setBuyMultiplier(m)}
+          >
+            ×{m}
+          </button>
+        ))}
+      </div>
       <ul className="upgrades-card-list">
         {UPGRADE_BRANCHES.map((branch) => {
           const level = upgradeLevels[branch];
@@ -168,7 +183,7 @@ export function UpgradesPanel() {
                     type="button"
                     className="upgrades-buy"
                     disabled={!canBuy}
-                    onClick={() => buyUpgrade(branch)}
+                    onClick={() => buyUpgrade(branch, buyMultiplier)}
                   >
                     {t("upgrades.buy")}
                   </button>
@@ -205,7 +220,7 @@ export function UpgradesPanel() {
                   <button
                     type="button"
                     disabled={!affordable}
-                    onClick={() => buyMpUpgrade(up.id)}
+                    onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
                   >
                     Купить
                   </button>
