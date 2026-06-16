@@ -37,6 +37,8 @@ export function buildPlanetPhysicsSnapshot(
   simTimeSec: number,
   planetIndex: number,
   totalPlanets: number,
+  /** Если задано — позиция берётся отсюда (динамическое тело), иначе кинематика. */
+  posOverride?: { x: number; y: number },
 ): PlanetPhysicsSnapshot {
   const orbitMin = ctx.horizonRadius * 4.5;
   const orbitMax = Math.max(orbitMin + 12, ctx.systemRadius * 0.85);
@@ -46,8 +48,8 @@ export function buildPlanetPhysicsSnapshot(
   const orbitBlend = slotFrac * 0.62 + paramFrac * 0.38;
   const orbitRadius = orbitMin + (orbitMax - orbitMin) * orbitBlend;
   const angle = planet.orbitPhaseRad + simTimeSec * planet.orbitSpeed;
-  const x = ctx.starX + Math.cos(angle) * orbitRadius;
-  const y = ctx.starY + Math.sin(angle) * orbitRadius;
+  const x = posOverride ? posOverride.x : ctx.starX + Math.cos(angle) * orbitRadius;
+  const y = posOverride ? posOverride.y : ctx.starY + Math.sin(angle) * orbitRadius;
   const soiRadius =
     ctx.horizonRadius *
     (1.45 + (planet.gravityProxy / 100) * 1.45 + (planet.atmosphere / 100) * 0.6);
@@ -74,12 +76,21 @@ export function pickPlanetAtWorld(
   planets: Planet[],
   ctx: PlanetLayoutContext,
   simTimeSec: number,
+  /** Позиции динамических тел по id (если планеты интегрируются физикой). */
+  posById?: Map<string, { x: number; y: number }>,
 ): Planet | null {
   let best: { planet: Planet; d: number } | null = null;
   const n = planets.length;
   for (let planetIndex = 0; planetIndex < planets.length; planetIndex++) {
     const planet = planets[planetIndex];
-    const s = buildPlanetPhysicsSnapshot(planet, ctx, simTimeSec, planetIndex, n);
+    const s = buildPlanetPhysicsSnapshot(
+      planet,
+      ctx,
+      simTimeSec,
+      planetIndex,
+      n,
+      posById?.get(planet.id),
+    );
     const hitR = Math.max(s.surfaceRadius * 2.2, 14);
     const d = Math.hypot(wx - s.x, wy - s.y);
     if (d < hitR && (!best || d < best.d)) {

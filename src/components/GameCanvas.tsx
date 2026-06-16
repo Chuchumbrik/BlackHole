@@ -53,6 +53,11 @@ import {
   pickPlanetAtWorld,
   planetContextFromSimLayout,
 } from "../game/world/planetLayout";
+import {
+  seedPlanetBodies,
+  integratePlanetBodies,
+  type PlanetBody,
+} from "../game/world/planetPhysics";
 import { buildPlanetHoverText } from "../game/world/planetHoverText";
 import {
   lerpRgb,
@@ -279,6 +284,7 @@ function paintPlanetSoiRings(
   simTimeSec: number,
   fillRgbById: Map<string, Rgb>,
   orbitHighlightPlanetId: string | null,
+  posById?: Map<string, { x: number; y: number }>,
 ): void {
   g.clear();
   if (planets.length === 0) return;
@@ -291,6 +297,7 @@ function paintPlanetSoiRings(
       simTimeSec,
       planetIndex,
       n,
+      posById?.get(planet.id),
     );
     const orbitR = Math.hypot(s.x - layout.star.x, s.y - layout.star.y);
     const hot = orbitHighlightPlanetId === planet.id;
@@ -494,6 +501,12 @@ export function GameCanvas() {
 
     resetSimulationIds();
     let objects: SimObject[] = [];
+    // Динамические тела планет (Фаза P): персистентны между кадрами, пере-сеются
+    // при смене системы и реконсилируются при удалении/добавлении планет.
+    let planetBodies: PlanetBody[] = [];
+    let planetBodiesSystemId: string | null = null;
+    /** Свежая карта позиций тел по id — для рендера/пика вне тика. */
+    let planetPosById = new Map<string, { x: number; y: number }>();
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -672,6 +685,7 @@ export function GameCanvas() {
           simTimeSec,
           planetFillSmooth,
           hoverPlanet?.id ?? null,
+          planetPosById,
         );
         paintHole(
           hole,
@@ -758,6 +772,7 @@ export function GameCanvas() {
                 sys?.planets ?? [],
                 pCtx,
                 simT,
+                planetPosById,
               )
             : null;
         const minS = Math.min(layoutPm.width, layoutPm.height);
@@ -856,7 +871,14 @@ export function GameCanvas() {
         const pTr = activeSys?.planets ?? [];
         const nTr = pTr.length;
         const planetSnaps = pTr.map((pl: Planet, pi: number) =>
-          buildPlanetPhysicsSnapshot(pl, pCtx, gameT, pi, nTr),
+          buildPlanetPhysicsSnapshot(
+            pl,
+            pCtx,
+            gameT,
+            pi,
+            nTr,
+            planetPosById.get(pl.id),
+          ),
         );
 
         const showTrail = (obj: SimObject) => {
@@ -989,8 +1011,38 @@ export function GameCanvas() {
         const planetCtx = planetContextFromSimLayout(layout);
         const pList0 = activeSystem?.planets ?? [];
         const nPl0 = pList0.length;
+
+        // --- Динамика планет (Фаза P): засев/реконсиляция + интеграция ---
+        const starSrc = {
+          x: layout.star.x,
+          y: layout.star.y,
+          mass: layout.star.mass,
+        };
+        const bhSrc = { x: layout.bh.x, y: layout.bh.y, mass: layout.bhMass };
+        if ((activeSystemId ?? null) !== planetBodiesSystemId) {
+          planetBodies = seedPlanetBodies(pList0, planetCtx, starSrc);
+          planetBodiesSystemId = activeSystemId ?? null;
+        } else if (planetBodies.length > nPl0) {
+          // планета(ы) удалены (поглощение/разрушение) — выжившие сохраняют свои тела
+          const ids = new Set(pList0.map((p) => p.id));
+          planetBodies = planetBodies.filter((b) => ids.has(b.id));
+        }
+        if (simDt > 0) {
+          integratePlanetBodies(planetBodies, starSrc, bhSrc, simDt);
+        }
+        planetPosById = new Map(
+          planetBodies.map((b) => [b.id, { x: b.x, y: b.y }]),
+        );
+
         const planetSnaps = pList0.map((pl: Planet, pi: number) =>
-          buildPlanetPhysicsSnapshot(pl, planetCtx, simTimeSec, pi, nPl0),
+          buildPlanetPhysicsSnapshot(
+            pl,
+            planetCtx,
+            simTimeSec,
+            pi,
+            nPl0,
+            planetPosById.get(pl.id),
+          ),
         );
 
         const { objects: nextObjects, consumed } = stepSimulation(
@@ -1013,6 +1065,7 @@ export function GameCanvas() {
               simTimeSec,
               pi,
               nSnap,
+              planetPosById.get(pl.id),
             );
             const dBh = Math.hypot(s.x - layout.bh.x, s.y - layout.bh.y);
             if (dBh < layout.horizonRadius) {
@@ -1122,6 +1175,7 @@ export function GameCanvas() {
           simTimeSec,
           planetFillSmooth,
           hoverPlanet?.id ?? null,
+          planetPosById,
         );
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodyGraphics(
@@ -1230,6 +1284,7 @@ export function GameCanvas() {
                 simTimeSec,
                 Math.max(0, hi),
                 planetsArr.length,
+                planetPosById.get(hp.id),
               );
               const liftP = (s.surfaceRadius * 2 + 14) / worldScale;
               planetTooltip.position.set(s.x, s.y - liftP);
