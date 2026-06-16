@@ -54,6 +54,12 @@ import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
+  pickEvent,
+  eventById,
+  EVENT_FIRST_DELAY_SEC,
+  EVENT_COOLDOWN_SEC,
+} from "../game/events";
+import {
   buildPlanetPhysicsSnapshot,
   pickPlanetAtWorld,
   planetContextFromSimLayout,
@@ -528,6 +534,10 @@ export function GameCanvas() {
     /** EMA дохода MP/игр.сек (для оффлайна) + аккумулятор записи в стор. */
     let incomeEma = useGameStore.getState().incomeEmaMpPerSec;
     let emaWriteAccum = 0;
+    /** Планировщик периодических событий (игровое время). */
+    let eventActiveId: string | null = null;
+    let eventEndsAtSec = 0;
+    let eventNextAtSec = -1;
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -1028,17 +1038,47 @@ export function GameCanvas() {
         const achMul = achievementMpMul(
           useGameStore.getState().achievementsUnlocked,
         );
+
+        // --- Периодические события ---
+        if (eventNextAtSec < 0) {
+          eventNextAtSec = simTimeSec + EVENT_FIRST_DELAY_SEC;
+        }
+        if (eventActiveId && simTimeSec >= eventEndsAtSec) {
+          eventActiveId = null;
+          eventNextAtSec = simTimeSec + EVENT_COOLDOWN_SEC;
+          useGameStore.getState().setActiveEvent(null);
+        }
+        if (!eventActiveId && simScale > 0 && simTimeSec >= eventNextAtSec) {
+          const def = pickEvent(Math.random());
+          eventActiveId = def.id;
+          eventEndsAtSec = simTimeSec + def.durationSec;
+          useGameStore.getState().setActiveEvent(def.name);
+          if (def.spawnBurst > 0) {
+            objects = trySpawn(objects, layout, def.spawnBurst, {
+              shipsUnlocked: areShipsUnlocked(levels),
+              upgradeLevels: levels,
+            });
+          }
+        }
+        const ev = eventById(eventActiveId);
+        const eventSpawnMul = ev?.spawnMul ?? 1;
+        const eventMpMul = ev?.mpMul ?? 1;
+
         const mpMult =
           mpIncomeMultiplier(levels, jetBuffActive) *
           pmods.mpMul *
           mpu.mpMul *
-          achMul;
+          achMul *
+          eventMpMul;
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
           simDt,
-          BASE_SPAWN_PER_SECOND * runStart.spawnRateMul * mpu.spawnRateMul,
+          BASE_SPAWN_PER_SECOND *
+            runStart.spawnRateMul *
+            mpu.spawnRateMul *
+            eventSpawnMul,
         );
         objects = trySpawn(objects, layout, spawnCount, {
           shipsUnlocked,

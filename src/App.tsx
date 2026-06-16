@@ -29,6 +29,7 @@ function App() {
   const clearPendingOffline = useGameStore((s) => s.clearPendingOffline);
   const achievementToast = useGameStore((s) => s.achievementToast);
   const clearAchievementToast = useGameStore((s) => s.clearAchievementToast);
+  const activeEventName = useGameStore((s) => s.activeEventName);
 
   // Автосейв: каждые 10 с и при сворачивании/закрытии вкладки.
   useEffect(() => {
@@ -137,6 +138,12 @@ function App() {
               Забрать
             </button>
           </div>
+        </div>
+      )}
+
+      {activeEventName && (
+        <div className="event-banner" role="status">
+          ⚡ Событие: <b>{activeEventName}</b>
         </div>
       )}
 

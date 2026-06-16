@@ -63,6 +63,8 @@ type GameState = {
   achievementsUnlocked: string[];
   /** Имя только что открытого достижения для тоста; null — нет. */
   achievementToast: string | null;
+  /** Имя активного периодического события (баннер); null — нет. */
+  activeEventName: string | null;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch, count?: number) => void;
@@ -94,6 +96,8 @@ type GameState = {
   /** Открыть достижение (если ещё не открыто) и показать тост. */
   unlockAchievement: (id: string, name: string) => void;
   clearAchievementToast: () => void;
+  /** Установить/снять активное событие (для баннера). */
+  setActiveEvent: (name: string | null) => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -172,6 +176,7 @@ export const useGameStore = create<GameState>((set, get) => {
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
+    activeEventName: null,
     buyMultiplier: 1,
     addMassMp: (amount) =>
     set((s) => {
@@ -296,6 +301,7 @@ export const useGameStore = create<GameState>((set, get) => {
       };
     }),
   clearAchievementToast: () => set({ achievementToast: null }),
+  setActiveEvent: (activeEventName) => set({ activeEventName }),
   setIncomeEma: (incomeEmaMpPerSec) => set({ incomeEmaMpPerSec }),
   clearPendingOffline: () => set({ pendingOfflineMp: 0 }),
   doPrestige: () =>
