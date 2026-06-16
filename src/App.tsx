@@ -23,6 +23,8 @@ function App() {
   const massMp = useGameStore((s) => s.massMp);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
+  const pendingOfflineMp = useGameStore((s) => s.pendingOfflineMp);
+  const clearPendingOffline = useGameStore((s) => s.clearPendingOffline);
 
   // Автосейв: каждые 10 с и при сворачивании/закрытии вкладки.
   useEffect(() => {
@@ -109,6 +111,23 @@ function App() {
           ))}
         </nav>
       </div>
+
+      {pendingOfflineMp > 0 && (
+        <div className="app-offline-overlay" role="dialog" aria-modal="true">
+          <div className="app-offline-card">
+            <p className="app-offline-title">Пока вас не было</p>
+            <p className="app-offline-amount">
+              +{pendingOfflineMp.toLocaleString("ru-RU")} MP
+            </p>
+            <p className="app-offline-hint">
+              Поглощение продолжалось без вас (75 %, кап 12 ч).
+            </p>
+            <button type="button" onClick={clearPendingOffline}>
+              Забрать
+            </button>
+          </div>
+        </div>
+      )}
 
       <MpGainFloaters />
     </div>

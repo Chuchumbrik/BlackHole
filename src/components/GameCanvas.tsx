@@ -521,6 +521,9 @@ export function GameCanvas() {
     let planetPosById = new Map<string, { x: number; y: number }>();
     /** Планеты с дестабилизированной орбитой (предупреждение игроку). */
     let planetUnstableIds = new Set<string>();
+    /** EMA дохода MP/игр.сек (для оффлайна) + аккумулятор записи в стор. */
+    let incomeEma = useGameStore.getState().incomeEmaMpPerSec;
+    let emaWriteAccum = 0;
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -966,6 +969,8 @@ export function GameCanvas() {
         useGameStore.getState().advanceGameTime(simDt);
         const simTimeSec = useGameStore.getState().gameTimeSec;
         lastSimTimeSecForPaint = simTimeSec;
+        // Масса до начислений тика — для замера дохода (в тике трат нет).
+        const massAtTickStart = useGameStore.getState().massMp;
 
         const levels = useGameStore.getState().upgradeLevels;
         const viewTier = useGameStore.getState().viewTier;
@@ -1168,6 +1173,19 @@ export function GameCanvas() {
           const hGain = Math.floor(hawkingCarry);
           hawkingCarry -= hGain;
           if (hGain > 0) useGameStore.getState().addMassMp(hGain);
+        }
+
+        // EMA дохода MP/игр.сек (для оффлайн-начисления): прирост массы за тик / simDt.
+        if (simDt > 0) {
+          const gained = useGameStore.getState().massMp - massAtTickStart;
+          const rate = gained / simDt;
+          const alpha = 1 - Math.exp(-simDt / 30); // сглаживание ~30 игр.сек
+          incomeEma += (rate - incomeEma) * alpha;
+        }
+        emaWriteAccum += dt;
+        if (emaWriteAccum >= 1) {
+          emaWriteAccum = 0;
+          useGameStore.getState().setIncomeEma(incomeEma);
         }
 
         consumePulse = Math.max(0, consumePulse - simDt * 3.5);
