@@ -59,13 +59,14 @@ function genPlanet(systemIdx: number, planetIdx: number): Planet {
   };
 }
 
-export function generateStarSystems(): StarSystem[] {
+export function generateStarSystems(extraPlanets = 0): StarSystem[] {
+  const bonus = Math.max(0, Math.floor(extraPlanets));
   const systemsCount = randomInt(PLANET_SYSTEM_COUNT_MIN, PLANET_SYSTEM_COUNT_MAX);
   return Array.from({ length: systemsCount }, (_, systemIdx) => {
     const planetsCount =
-      systemIdx === 0
+      (systemIdx === 0
         ? randomInt(PLANETS_FIRST_SYSTEM_MIN, PLANETS_FIRST_SYSTEM_MAX)
-        : randomInt(PLANETS_PER_SYSTEM_MIN, PLANETS_PER_SYSTEM_MAX);
+        : randomInt(PLANETS_PER_SYSTEM_MIN, PLANETS_PER_SYSTEM_MAX)) + bonus;
     const systemName = SYSTEM_NAMES[systemIdx % SYSTEM_NAMES.length];
     return {
       id: id("system", systemIdx),

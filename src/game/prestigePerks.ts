@@ -1,25 +1,33 @@
 /**
- * Каталог перков престижа (data-driven). Покупаются за PP, действуют между
- * ранами. Тип B — постоянные модификаторы дохода (применяются в игровом цикле).
- * Тип A (старт рана: спавн/планеты/стартовая масса) — шаг R3.
+ * Каталог перков престижа (data-driven). Покупаются за PP.
  *
- * Добавить перк = дописать запись сюда (контент, не код).
+ * Тип B (постоянные модификаторы дохода) — применяются в игровом цикле через
+ * `prestigeModifiers`. Тип A (модификаторы старта рана: спавн/планеты/стартовая
+ * масса) — через `prestigeRunStart`, читаются генерацией/спавном/коллапсом.
+ *
+ * Добавить перк = дописать запись сюда.
  */
-export type PrestigePerkChannel = "mpMul" | "hawkingMul";
+export type PrestigePerkKind =
+  | "mpMul" // B: ×MP-доход
+  | "hawkingMul" // B: ×пассив хокинга
+  | "spawnRateMul" // A: ×частота спавна
+  | "extraPlanets" // A: +планет на систему
+  | "startMass"; // A: +стартовая масса MP
 
 export type PrestigePerkDef = {
   id: string;
   name: string;
   desc: string;
-  baseCost: number; // в PP
-  costMult: number; // рост цены за уровень
+  baseCost: number; // PP
+  costMult: number;
   maxLevel: number;
-  channel: PrestigePerkChannel;
-  /** Мультипликатор канала за уровень (мультипликативно). */
+  kind: PrestigePerkKind;
+  /** mul-виды: множитель за уровень; аддитивные (extraPlanets/startMass): прибавка за уровень. */
   perLevel: number;
 };
 
 export const PRESTIGE_PERKS: PrestigePerkDef[] = [
+  // — Тип B (постоянные) —
   {
     id: "compressed_singularity",
     name: "Сжатая сингулярность",
@@ -27,7 +35,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     baseCost: 1,
     costMult: 1.9,
     maxLevel: 25,
-    channel: "mpMul",
+    kind: "mpMul",
     perLevel: 1.05,
   },
   {
@@ -37,8 +45,39 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     baseCost: 2,
     costMult: 1.9,
     maxLevel: 25,
-    channel: "hawkingMul",
+    kind: "hawkingMul",
     perLevel: 1.08,
+  },
+  // — Тип A (старт рана) —
+  {
+    id: "field_density",
+    name: "Плотность поля",
+    desc: "+12 % к частоте спавна объектов за уровень",
+    baseCost: 2,
+    costMult: 2.0,
+    maxLevel: 15,
+    kind: "spawnRateMul",
+    perLevel: 1.12,
+  },
+  {
+    id: "planet_broods",
+    name: "Звёздные выводки",
+    desc: "+1 планета в системе за уровень (нового рана)",
+    baseCost: 3,
+    costMult: 2.4,
+    maxLevel: 4,
+    kind: "extraPlanets",
+    perLevel: 1,
+  },
+  {
+    id: "warm_start",
+    name: "Тёплый старт",
+    desc: "+60 MP стартовой массы нового рана за уровень",
+    baseCost: 2,
+    costMult: 1.8,
+    maxLevel: 20,
+    kind: "startMass",
+    perLevel: 60,
   },
 ];
 
@@ -49,7 +88,7 @@ export function perkCost(def: PrestigePerkDef, level: number): number {
 
 export type PrestigeModifiers = { mpMul: number; hawkingMul: number };
 
-/** Свернуть уровни перков в постоянные множители дохода. */
+/** Тип B: постоянные множители дохода. */
 export function prestigeModifiers(
   perkLevels: Record<string, number>,
 ): PrestigeModifiers {
@@ -57,7 +96,33 @@ export function prestigeModifiers(
   for (const def of PRESTIGE_PERKS) {
     const lvl = perkLevels[def.id] ?? 0;
     if (lvl <= 0) continue;
-    m[def.channel] *= Math.pow(def.perLevel, lvl);
+    if (def.kind === "mpMul") m.mpMul *= Math.pow(def.perLevel, lvl);
+    else if (def.kind === "hawkingMul") m.hawkingMul *= Math.pow(def.perLevel, lvl);
   }
   return m;
+}
+
+export type PrestigeRunStart = {
+  spawnRateMul: number;
+  extraPlanets: number;
+  startMassMp: number;
+};
+
+/** Тип A: модификаторы старта рана. */
+export function prestigeRunStart(
+  perkLevels: Record<string, number>,
+): PrestigeRunStart {
+  const r: PrestigeRunStart = {
+    spawnRateMul: 1,
+    extraPlanets: 0,
+    startMassMp: 0,
+  };
+  for (const def of PRESTIGE_PERKS) {
+    const lvl = perkLevels[def.id] ?? 0;
+    if (lvl <= 0) continue;
+    if (def.kind === "spawnRateMul") r.spawnRateMul *= Math.pow(def.perLevel, lvl);
+    else if (def.kind === "extraPlanets") r.extraPlanets += def.perLevel * lvl;
+    else if (def.kind === "startMass") r.startMassMp += def.perLevel * lvl;
+  }
+  return r;
 }

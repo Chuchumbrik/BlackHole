@@ -49,7 +49,7 @@ import {
   type UpgradeLevels,
 } from "../game/upgrades";
 import { planetSwallowMpBase } from "../game/world/planetLife";
-import { prestigeModifiers } from "../game/prestigePerks";
+import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import {
   buildPlanetPhysicsSnapshot,
   pickPlanetAtWorld,
@@ -1016,9 +1016,9 @@ export function GameCanvas() {
         const jetBuffActive =
           jetBuffEndsAt > 0 && simTimeSec < jetBuffEndsAt;
 
-        const pmods = prestigeModifiers(
-          useGameStore.getState().prestigePerkLevels,
-        );
+        const perkLevels = useGameStore.getState().prestigePerkLevels;
+        const pmods = prestigeModifiers(perkLevels);
+        const runStart = prestigeRunStart(perkLevels);
         const mpMult =
           mpIncomeMultiplier(levels, jetBuffActive) * pmods.mpMul;
         const shipsUnlocked = areShipsUnlocked(levels);
@@ -1026,7 +1026,7 @@ export function GameCanvas() {
         const spawnCount = advanceSpawnAccumulator(
           spawnControl,
           simDt,
-          BASE_SPAWN_PER_SECOND,
+          BASE_SPAWN_PER_SECOND * runStart.spawnRateMul,
         );
         objects = trySpawn(objects, layout, spawnCount, {
           shipsUnlocked,

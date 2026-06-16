@@ -10,7 +10,7 @@ import {
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
 import { ppFromMass } from "../game/prestige";
-import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
+import { PRESTIGE_PERKS, perkCost, prestigeRunStart } from "../game/prestigePerks";
 import {
   loadSave,
   writeSave,
@@ -252,10 +252,11 @@ export const useGameStore = create<GameState>((set, get) => {
     set((s) => {
       const gain = ppFromMass(s.massMp);
       if (gain <= 0) return s;
-      const fresh = generateStarSystems();
+      const rs = prestigeRunStart(s.prestigePerkLevels);
+      const fresh = generateStarSystems(rs.extraPlanets);
       return {
         prestigePoints: s.prestigePoints + gain,
-        massMp: 0,
+        massMp: rs.startMassMp,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,
         activeSystemId: fresh[0]?.id ?? "",
