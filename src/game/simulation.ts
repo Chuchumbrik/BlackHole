@@ -280,20 +280,23 @@ export type StepOutcome =
       objectKind: ObjectKind;
       /** Для предпросмотра траекторий и отладки. */
       via?: "horizon" | "star" | "planet" | "body";
+      /** id планеты при via:"planet" — для отката развития. */
+      planetId?: string;
       atX: number;
       atY: number;
     }
   | { kind: "escaped" };
 
+/** id планеты, в поверхность которой врезался объект, иначе null. */
 function hitsPlanetSurface(
   obj: SimObject,
   planets: PlanetPhysicsSnapshot[],
-): boolean {
+): string | null {
   for (const p of planets) {
     const d = Math.hypot(obj.x - p.x, obj.y - p.y);
-    if (d < p.surfaceRadius + objRadius(obj)) return true;
+    if (d < p.surfaceRadius + objRadius(obj)) return p.id;
   }
-  return false;
+  return null;
 }
 
 /** Один шаг интегрирования — общая логика для симуляции и предпросмотра траектории. */
@@ -411,12 +414,14 @@ export function advanceObjectOneStep(
 
   if (planetInfluences.length > 0) {
     const probe = { ...obj, x: newX, y: newY };
-    if (hitsPlanetSurface(probe, planetInfluences)) {
+    const hitPlanetId = hitsPlanetSurface(probe, planetInfluences);
+    if (hitPlanetId) {
       return {
         kind: "consumed",
         mp: 0,
         objectKind: obj.kind,
         via: "planet",
+        planetId: hitPlanetId,
         atX: newX,
         atY: newY,
       };
@@ -608,6 +613,8 @@ export type ConsumeEvent = {
   mp: number;
   kind: ObjectKind;
   via?: "horizon" | "star" | "planet" | "body";
+  /** id планеты при via:"planet" — для отката развития. */
+  planetId?: string;
   atX?: number;
   atY?: number;
 };
@@ -702,6 +709,7 @@ export function stepSimulation(
         mp: r.mp,
         kind: r.objectKind,
         via: r.via,
+        planetId: r.planetId,
         atX: r.atX,
         atY: r.atY,
       });

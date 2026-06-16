@@ -69,6 +69,8 @@ type GameState = {
   activePlanetId: string | null;
   setActivePlanet: (planetId: string | null) => void;
   removePlanet: (systemId: string, planetId: string) => void;
+  /** Откат развития планеты от удара астероида (снижает прогресс/жизнь/выход MP). */
+  damagePlanet: (systemId: string, planetId: string) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
   setSimTimeScale: (scale: SimTimeScale) => void;
@@ -228,6 +230,24 @@ export const useGameStore = create<GameState>((set, get) => {
         s.activePlanetId === planetId ? null : s.activePlanetId;
       return { systems, activePlanetId: ap };
     }),
+  damagePlanet: (systemId, planetId) =>
+    set((s) => ({
+      systems: s.systems.map((sys) => {
+        if (sys.id !== systemId) return sys;
+        return {
+          ...sys,
+          planets: sys.planets.map((p: Planet) => {
+            if (p.id !== planetId) return p;
+            return {
+              ...p,
+              stageProgressSec: Math.max(0, p.stageProgressSec - 8),
+              lifeEmergenceSec: Math.max(0, p.lifeEmergenceSec - 20),
+              mpYieldMult: Math.max(0.3, p.mpYieldMult * 0.95),
+            };
+          }),
+        };
+      }),
+    })),
   buyUpgrade: (branch) =>
     set((s) => {
       if (!canPurchaseUpgrade(s.upgradeLevels, branch, s.massMp)) return s;

@@ -1160,6 +1160,12 @@ export function GameCanvas() {
             gain += Math.floor(
               c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
             );
+            // Удар обломка в планету → откат её развития.
+            if (c.via === "planet" && c.planetId && activeSystem) {
+              useGameStore
+                .getState()
+                .damagePlanet(activeSystem.id, c.planetId);
+            }
             if (c.atX != null && c.atY != null) {
               hitFlashes.push({
                 x: c.atX,
