@@ -687,3 +687,15 @@ body,
 .prestige-btn-ghost { background: #1e293b; }
 .prestige-btn-ghost:hover { background: #334155; }
 .prestige-confirm-actions { display: flex; gap: 10px; }
+
+/* Магазин перков престижа */
+.prestige-perks { margin-top: 22px; border-top: 1px solid #1e293b; padding-top: 16px; }
+.prestige-perks-title { font-size: 15px; color: #e2e8f0; margin: 0 0 12px; }
+.prestige-perk { background: #0e1422; border: 1px solid #1e293b; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.prestige-perk-head { display: flex; justify-content: space-between; align-items: baseline; }
+.prestige-perk-name { font-size: 14px; font-weight: 600; color: #ddd6fe; }
+.prestige-perk-lvl { font-size: 12px; color: #94a3b8; }
+.prestige-perk-desc { font-size: 12px; color: #94a3b8; margin: 6px 0 10px; }
+.prestige-perk-buy { margin-top: 0; padding: 7px 14px; font-size: 13px; }
+.prestige-perk-buy:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+.prestige-perk-max { font-size: 13px; color: #6ee7b7; }

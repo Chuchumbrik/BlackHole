@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
 import { ppFromMass, PRESTIGE_THRESHOLD_MP } from "../game/prestige";
+import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 
 /** Вкладка «Престиж»: коллапс рана ради очков престижа (PP). */
 export function PrestigePanel() {
   const massMp = useGameStore((s) => s.massMp);
   const prestigePoints = useGameStore((s) => s.prestigePoints);
+  const prestigePerkLevels = useGameStore((s) => s.prestigePerkLevels);
   const doPrestige = useGameStore((s) => s.doPrestige);
+  const buyPrestigePerk = useGameStore((s) => s.buyPrestigePerk);
   const [confirming, setConfirming] = useState(false);
 
   const gain = ppFromMass(massMp);
@@ -68,6 +71,39 @@ export function PrestigePanel() {
           </div>
         </div>
       )}
+
+      <div className="prestige-perks">
+        <h3 className="prestige-perks-title">Перки престижа</h3>
+        {PRESTIGE_PERKS.map((perk) => {
+          const lvl = prestigePerkLevels[perk.id] ?? 0;
+          const maxed = lvl >= perk.maxLevel;
+          const cost = perkCost(perk, lvl);
+          const affordable = prestigePoints >= cost;
+          return (
+            <div key={perk.id} className="prestige-perk">
+              <div className="prestige-perk-head">
+                <span className="prestige-perk-name">{perk.name}</span>
+                <span className="prestige-perk-lvl">
+                  Ур. {lvl}/{perk.maxLevel}
+                </span>
+              </div>
+              <p className="prestige-perk-desc">{perk.desc}</p>
+              {maxed ? (
+                <span className="prestige-perk-max">Максимум</span>
+              ) : (
+                <button
+                  type="button"
+                  className="prestige-btn prestige-perk-buy"
+                  disabled={!affordable}
+                  onClick={() => buyPrestigePerk(perk.id)}
+                >
+                  Купить · {cost} PP
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

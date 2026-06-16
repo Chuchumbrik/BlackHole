@@ -10,6 +10,7 @@ import {
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
 import { ppFromMass } from "../game/prestige";
+import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 import {
   loadSave,
   writeSave,
@@ -74,6 +75,8 @@ type GameState = {
   clearPendingOffline: () => void;
   /** Сжатие: начислить PP по текущей массе и начать новый ран. */
   doPrestige: () => void;
+  /** Купить уровень перка престижа за PP. */
+  buyPrestigePerk: (id: string) => void;
   /** Сохранить текущий прогресс в localStorage. */
   saveNow: () => void;
   /** Полный сброс прогресса (с очисткой сейва). */
@@ -263,6 +266,19 @@ export const useGameStore = create<GameState>((set, get) => {
         incomeEmaMpPerSec: 0,
         pendingOfflineMp: 0,
         mpGainFloaters: [],
+      };
+    }),
+  buyPrestigePerk: (id) =>
+    set((s) => {
+      const def = PRESTIGE_PERKS.find((p) => p.id === id);
+      if (!def) return s;
+      const lvl = s.prestigePerkLevels[id] ?? 0;
+      if (lvl >= def.maxLevel) return s;
+      const cost = perkCost(def, lvl);
+      if (s.prestigePoints < cost) return s;
+      return {
+        prestigePoints: s.prestigePoints - cost,
+        prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl + 1 },
       };
     }),
   saveNow: () => writeSave(buildSaveData(get())),
