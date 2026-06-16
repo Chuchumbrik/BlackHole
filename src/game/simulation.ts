@@ -175,6 +175,46 @@ export function spawnShip(layout: SimLayout): SimObject {
   };
 }
 
+/**
+ * Выброс обломков при разрушении планеты (столкновение планет). Осколки летят
+ * наружу из точки разрушения и затем могут быть захвачены/поглощены дырой.
+ */
+export function spawnDebrisBurst(
+  x: number,
+  y: number,
+  count: number,
+): SimObject[] {
+  const out: SimObject[] = [];
+  for (let i = 0; i < count; i++) {
+    const kind = Math.random() < 0.55 ? 1 : 2;
+    const baseR = KIND_RADIUS[kind];
+    const sizeU = 0.6 + Math.random() * 1.1;
+    const radiusPx = Math.max(2.2, Math.round(baseR * sizeU * 10) / 10);
+    const sizeMul = Math.pow(radiusPx / baseR, 1.22);
+    const mpValue = rollMpForKind(kind, sizeMul);
+    const dir = (i / Math.max(1, count)) * Math.PI * 2 + Math.random() * 0.6;
+    const speed = 38 + Math.random() * 78;
+    const id = nextId++;
+    const mass =
+      OBJECT_MASS[kind] * Math.pow(Math.max(0.35, radiusPx / baseR), 2.2);
+    out.push({
+      id,
+      kind,
+      displayName: buildObjectDisplayName(kind, id),
+      x: x + Math.cos(dir) * 3,
+      y: y + Math.sin(dir) * 3,
+      vx: Math.cos(dir) * speed,
+      vy: Math.sin(dir) * speed,
+      mass,
+      mpValue,
+      radiusPx,
+      shapeSeed: Math.floor(Math.random() * 1_000_000_000),
+      spinRate: (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 2.6),
+    });
+  }
+  return out;
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   if (edge1 <= edge0) return x >= edge1 ? 1 : 0;
   const u = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));

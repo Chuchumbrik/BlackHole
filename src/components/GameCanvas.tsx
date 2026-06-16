@@ -33,6 +33,7 @@ import {
   type SimLayout,
   type SimObject,
   objRadius,
+  spawnDebrisBurst,
   stepSimulation,
   trySpawn,
   type SpawnControl,
@@ -56,6 +57,9 @@ import {
 import {
   seedPlanetBodies,
   integratePlanetBodies,
+  detectPlanetCollisions,
+  orbitInstability,
+  ORBIT_INSTABILITY_WARN,
   type PlanetBody,
 } from "../game/world/planetPhysics";
 import { buildPlanetHoverText } from "../game/world/planetHoverText";
@@ -285,6 +289,7 @@ function paintPlanetSoiRings(
   fillRgbById: Map<string, Rgb>,
   orbitHighlightPlanetId: string | null,
   posById?: Map<string, { x: number; y: number }>,
+  unstableIds?: Set<string>,
 ): void {
   g.clear();
   if (planets.length === 0) return;
@@ -319,6 +324,13 @@ function paintPlanetSoiRings(
         ? { width: 2.4, color: 0x6ee7b7, alpha: 0.9 }
         : { width: 1.4, color: 0x34d399, alpha: 0.62 },
     );
+
+    // Предупреждение: орбита дестабилизирована гравитацией дыры.
+    if (unstableIds?.has(planet.id)) {
+      const pulse = 0.5 + 0.5 * Math.sin(simTimeSec * 6);
+      g.circle(s.x, s.y, Math.max(4, s.surfaceRadius) + 6 + pulse * 5);
+      g.stroke({ width: 2.2, color: 0xef4444, alpha: 0.45 + pulse * 0.45 });
+    }
 
     const rgb = fillRgbById.get(planet.id) ?? planetPaletteRgb(planet);
     g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
@@ -507,6 +519,8 @@ export function GameCanvas() {
     let planetBodiesSystemId: string | null = null;
     /** Свежая карта позиций тел по id — для рендера/пика вне тика. */
     let planetPosById = new Map<string, { x: number; y: number }>();
+    /** Планеты с дестабилизированной орбитой (предупреждение игроку). */
+    let planetUnstableIds = new Set<string>();
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -686,6 +700,7 @@ export function GameCanvas() {
           planetFillSmooth,
           hoverPlanet?.id ?? null,
           planetPosById,
+          planetUnstableIds,
         );
         paintHole(
           hole,
@@ -1030,6 +1045,36 @@ export function GameCanvas() {
         if (simDt > 0) {
           integratePlanetBodies(planetBodies, starSrc, bhSrc, simDt);
         }
+
+        // Столкновения планет → разрушение на обломки (тела очистит реконсиляция след. кадра).
+        if (simDt > 0 && planetBodies.length > 1 && activeSystem) {
+          const hits = detectPlanetCollisions(planetBodies);
+          if (hits.length > 0) {
+            const destroyed = new Set<string>();
+            for (const [a, b] of hits) {
+              destroyed.add(a);
+              destroyed.add(b);
+            }
+            for (const id of destroyed) {
+              const body = planetBodies.find((bb) => bb.id === id);
+              if (body) {
+                objects = objects.concat(spawnDebrisBurst(body.x, body.y, 9));
+                hitFlashes.push({ x: body.x, y: body.y, t: 0, via: "body" });
+              }
+              useGameStore.getState().removePlanet(activeSystem.id, id);
+            }
+          }
+        }
+
+        // Предупреждение о нестабильной орбите (гравитация дыры конкурирует со звездой).
+        planetUnstableIds = new Set(
+          planetBodies
+            .filter(
+              (b) => orbitInstability(b, starSrc, bhSrc) > ORBIT_INSTABILITY_WARN,
+            )
+            .map((b) => b.id),
+        );
+
         planetPosById = new Map(
           planetBodies.map((b) => [b.id, { x: b.x, y: b.y }]),
         );
@@ -1176,6 +1221,7 @@ export function GameCanvas() {
           planetFillSmooth,
           hoverPlanet?.id ?? null,
           planetPosById,
+          planetUnstableIds,
         );
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodyGraphics(
