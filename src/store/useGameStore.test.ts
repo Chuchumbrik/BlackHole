@@ -3,7 +3,11 @@ import { useGameStore } from "./useGameStore";
 import { nextUpgradeCostMp, ZERO_UPGRADE_LEVELS } from "../game/upgrades";
 import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
 import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
+import { PRESTIGE_SPENT_PER_PP } from "../game/prestige";
 import type { Planet, StarSystem } from "../game/world/types";
+
+/** Потратить ровно 4×порог → 2 PP (floor(sqrt(4))), независимо от калибровки. */
+const SPENT_FOR_2_PP = PRESTIGE_SPENT_PER_PP * 4;
 
 const mkPlanet = (over: Partial<Planet> = {}): Planet => ({
   id: "pl1",
@@ -117,7 +121,7 @@ describe("store: оптовая покупка апгрейдов", () => {
 describe("store: prestige (по потраченной массе)", () => {
   it("сжатие начисляет PP по massSpentRun и сбрасывает счётчик трат", () => {
     setup(100);
-    useGameStore.setState({ massSpentRun: 20_000 }); // 4×PER_PP → 2 PP
+    useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP }); // 4×PER_PP → 2 PP
     useGameStore.getState().doPrestige();
     const s = useGameStore.getState();
     expect(s.prestigePoints).toBe(2);
@@ -132,9 +136,9 @@ describe("store: prestige (по потраченной массе)", () => {
   });
   it("lifetimePp накапливается и НЕ сбрасывается тратой PP (для достижений)", () => {
     setup(100);
-    useGameStore.setState({ massSpentRun: 20_000 });
+    useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });
     useGameStore.getState().doPrestige(); // +2 PP, lifetime 2
-    useGameStore.setState({ massSpentRun: 20_000 });
+    useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });
     useGameStore.getState().doPrestige(); // ещё +2, lifetime 4
     const s = useGameStore.getState();
     expect(s.lifetimePp).toBe(4);
