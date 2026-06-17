@@ -34,6 +34,7 @@ import {
   type SimLayout,
   type SimObject,
   objRadius,
+  addObjectsCapped,
   spawnDebrisBurst,
   spawnTributeShip,
   stepSimulation,
@@ -541,7 +542,10 @@ export function GameCanvas() {
     /** Планировщик периодических событий (игровое время). */
     let eventActiveId: string | null = null;
     let eventEndsAtSec = 0;
-    let eventNextAtSec = -1;
+    let eventNextAtSec = EVENT_FIRST_DELAY_SEC;
+    /** Часы событий в РЕАЛЬНОМ времени (растут при simScale>0) — чтобы события
+     *  не мелькали на ×10 и замирали на паузе. */
+    let eventClock = 0;
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -1043,19 +1047,17 @@ export function GameCanvas() {
           useGameStore.getState().achievementsUnlocked,
         );
 
-        // --- Периодические события ---
-        if (eventNextAtSec < 0) {
-          eventNextAtSec = simTimeSec + EVENT_FIRST_DELAY_SEC;
-        }
-        if (eventActiveId && simTimeSec >= eventEndsAtSec) {
+        // --- Периодические события (в РЕАЛЬНОМ времени, замирают на паузе) ---
+        if (simScale > 0) eventClock += dt;
+        if (eventActiveId && eventClock >= eventEndsAtSec) {
           eventActiveId = null;
-          eventNextAtSec = simTimeSec + EVENT_COOLDOWN_SEC;
+          eventNextAtSec = eventClock + EVENT_COOLDOWN_SEC;
           useGameStore.getState().setActiveEvent(null);
         }
-        if (!eventActiveId && simScale > 0 && simTimeSec >= eventNextAtSec) {
+        if (!eventActiveId && simScale > 0 && eventClock >= eventNextAtSec) {
           const def = pickEvent(Math.random());
           eventActiveId = def.id;
-          eventEndsAtSec = simTimeSec + def.durationSec;
+          eventEndsAtSec = eventClock + def.durationSec;
           useGameStore.getState().setActiveEvent(def.name);
           if (def.spawnBurst > 0) {
             objects = trySpawn(objects, layout, def.spawnBurst, {
@@ -1103,10 +1105,26 @@ export function GameCanvas() {
         if ((activeSystemId ?? null) !== planetBodiesSystemId) {
           planetBodies = seedPlanetBodies(pList0, planetCtx, starSrc);
           planetBodiesSystemId = activeSystemId ?? null;
-        } else if (planetBodies.length > nPl0) {
-          // планета(ы) удалены (поглощение/разрушение) — выжившие сохраняют свои тела
-          const ids = new Set(pList0.map((p) => p.id));
-          planetBodies = planetBodies.filter((b) => ids.has(b.id));
+        } else {
+          // Реконсиляция по id в ОБЕ стороны: удалить тела исчезнувших планет и
+          // досеять недостающие (выжившие сохраняют свою динамическую позицию).
+          const planetIdSet = new Set(pList0.map((p) => p.id));
+          const bodyIdSet = new Set(planetBodies.map((b) => b.id));
+          const sameSet =
+            planetBodies.length === nPl0 &&
+            pList0.every((p) => bodyIdSet.has(p.id));
+          if (!sameSet) {
+            const kept = planetBodies.filter((b) => planetIdSet.has(b.id));
+            const keptIds = new Set(kept.map((b) => b.id));
+            if (kept.length < nPl0) {
+              // досев недостающих по корректным слотам (из полного засева)
+              const seeded = seedPlanetBodies(pList0, planetCtx, starSrc);
+              for (const sb of seeded) {
+                if (!keptIds.has(sb.id)) kept.push(sb);
+              }
+            }
+            planetBodies = kept;
+          }
         }
         if (simDt > 0) {
           integratePlanetBodies(planetBodies, starSrc, bhSrc, simDt);
@@ -1124,7 +1142,10 @@ export function GameCanvas() {
             for (const id of destroyed) {
               const body = planetBodies.find((bb) => bb.id === id);
               if (body) {
-                objects = objects.concat(spawnDebrisBurst(body.x, body.y, 9));
+                objects = addObjectsCapped(
+                  objects,
+                  spawnDebrisBurst(body.x, body.y, 9),
+                );
                 hitFlashes.push({ x: body.x, y: body.y, t: 0, via: "body" });
               }
               useGameStore.getState().removePlanet(activeSystem.id, id);
@@ -1157,7 +1178,7 @@ export function GameCanvas() {
         );
 
         // Дань: цивилизованные планеты запускают корабли к дыре (часть захватывается → MP).
-        if (simDt > 0 && objects.length < 260) {
+        if (simDt > 0) {
           for (const pl of pList0) {
             if (pl.civLevel <= 0) continue;
             const pos = planetPosById.get(pl.id);
@@ -1166,11 +1187,18 @@ export function GameCanvas() {
             const acc = (tributeAccum.get(pl.id) ?? 0) + simDt;
             if (acc >= interval) {
               tributeAccum.set(pl.id, acc - interval);
-              objects = objects.concat(
+              objects = addObjectsCapped(objects, [
                 spawnTributeShip(pos.x, pos.y, layout.bh.x, layout.bh.y),
-              );
+              ]);
             } else {
               tributeAccum.set(pl.id, acc);
+            }
+          }
+          // Чистка таймеров дани от удалённых планет (анти-утечка Map).
+          if (tributeAccum.size > pList0.length) {
+            const ids = new Set(pList0.map((p) => p.id));
+            for (const id of [...tributeAccum.keys()]) {
+              if (!ids.has(id)) tributeAccum.delete(id);
             }
           }
         }
@@ -1265,11 +1293,13 @@ export function GameCanvas() {
           if (hGain > 0) useGameStore.getState().addMassMp(hGain);
         }
 
-        // EMA дохода MP/игр.сек (для оффлайн-начисления): прирост массы за тик / simDt.
-        if (simDt > 0) {
+        // EMA дохода в MP/РЕАЛЬНУЮ секунду (для оффлайна): прирост массы за тик / dt.
+        // Реальная ставка согласована с оффлайн-формулой (× реальное время × 75%)
+        // и отражает фактическую скорость заработка при текущем ускорении.
+        if (simDt > 0 && dt > 0) {
           const gained = useGameStore.getState().massMp - massAtTickStart;
-          const rate = gained / simDt;
-          const alpha = 1 - Math.exp(-simDt / 30); // сглаживание ~30 игр.сек
+          const rate = gained / dt;
+          const alpha = 1 - Math.exp(-dt / 30); // сглаживание ~30 реальных сек
           incomeEma += (rate - incomeEma) * alpha;
         }
         emaWriteAccum += dt;

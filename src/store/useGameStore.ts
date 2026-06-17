@@ -219,14 +219,20 @@ export const useGameStore = create<GameState>((set, get) => {
   advanceGameTime: (simDt) =>
     set((s) => {
       if (simDt <= 0) return s;
+      // Развиваем жизнь/стадии только в АКТИВНОЙ системе: фоновые не растут и не
+      // истощаются «вслепую» (иначе цивилизации фоновых систем выжимались без дани).
       return {
         gameTimeSec: s.gameTimeSec + simDt,
-        systems: s.systems.map((system) => ({
-          ...system,
-          planets: system.planets.map((planet: Planet) =>
-            tickPlanetLife(advancePlanetStages(planet, simDt), simDt),
-          ),
-        })),
+        systems: s.systems.map((system) =>
+          system.id !== s.activeSystemId
+            ? system
+            : {
+                ...system,
+                planets: system.planets.map((planet: Planet) =>
+                  tickPlanetLife(advancePlanetStages(planet, simDt), simDt),
+                ),
+              },
+        ),
       };
     }),
   acceleratePlanet: (systemId, planetId) =>

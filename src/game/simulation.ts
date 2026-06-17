@@ -180,6 +180,21 @@ export function spawnShip(layout: SimLayout): SimObject {
  * со спредом). Часть таких кораблей захватывается дырой → пассивный MP. Это
  * диегетическое обоснование дани (ты видишь поток ракет от планеты к дыре).
  */
+/**
+ * Добавить новые объекты с соблюдением потолка поля `MAX_OBJECTS_ON_FIELD`.
+ * Единая точка для дани/обломков, чтобы поле не пухло сверх лимита (производительность).
+ */
+export function addObjectsCapped(
+  objects: SimObject[],
+  extra: SimObject[],
+): SimObject[] {
+  const free = MAX_OBJECTS_ON_FIELD - objects.length;
+  if (free <= 0) return objects;
+  return free >= extra.length
+    ? objects.concat(extra)
+    : objects.concat(extra.slice(0, free));
+}
+
 export function spawnTributeShip(
   x: number,
   y: number,
