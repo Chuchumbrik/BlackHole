@@ -4,6 +4,7 @@ import {
   levelSum,
   nextUpgradeCostMp,
   canPurchaseUpgrade,
+  planUpgradePurchase,
   mpIncomeMultiplier,
   hawkingMpPerSecond,
   type UpgradeLevels,
@@ -45,6 +46,42 @@ describe("upgrades: покупка и анлоки", () => {
     expect(canPurchaseUpgrade(lv({ size: 1 }), "jets", 1e9)).toBe(false);
     const unlocked = lv({ size: SUM_FOR_JETS_UNLOCK });
     expect(canPurchaseUpgrade(unlocked, "jets", 1e9)).toBe(true);
+  });
+});
+
+describe("upgrades: planUpgradePurchase (оптовая, цена под множитель)", () => {
+  const sumCost = (branch: "size", n: number) => {
+    let total = 0;
+    const tmp = { ...ZERO_UPGRADE_LEVELS };
+    for (let i = 0; i < n; i++) {
+      total += nextUpgradeCostMp(tmp, branch);
+      tmp[branch] += 1;
+    }
+    return total;
+  };
+  it("при достатке массы берёт ровно count и сумму растущих цен", () => {
+    const want = sumCost("size", 5);
+    const plan = planUpgradePurchase(ZERO_UPGRADE_LEVELS, "size", 1e9, 5);
+    expect(plan.count).toBe(5);
+    expect(plan.totalCost).toBe(want);
+    // сумма 5 уровней строго больше, чем 5×(цена первого) — цена пересчитывается
+    expect(plan.totalCost).toBeGreaterThan(
+      5 * nextUpgradeCostMp(ZERO_UPGRADE_LEVELS, "size"),
+    );
+  });
+  it("ограничивается доступной массой (capped < count)", () => {
+    const twoLevels = sumCost("size", 2);
+    const plan = planUpgradePurchase(ZERO_UPGRADE_LEVELS, "size", twoLevels, 10);
+    expect(plan.count).toBe(2);
+    expect(plan.totalCost).toBe(twoLevels);
+  });
+  it("нулевая масса → count 0, цена 0", () => {
+    const plan = planUpgradePurchase(ZERO_UPGRADE_LEVELS, "size", 0, 10);
+    expect(plan).toEqual({ count: 0, totalCost: 0 });
+  });
+  it("учитывает блокировку ветки (jets заблокированы)", () => {
+    const plan = planUpgradePurchase(lv({ size: 1 }), "jets", 1e9, 10);
+    expect(plan.count).toBe(0);
   });
 });
 

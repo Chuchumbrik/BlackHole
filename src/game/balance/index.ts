@@ -74,7 +74,11 @@ export {
   VELOCITY_DAMPING,
 } from "./simulationPhysics";
 
-export { FIELD_MP_GLOBAL_MULTIPLIER } from "./economyTuning";
+export {
+  FIELD_MP_GLOBAL_MULTIPLIER,
+  INCOME_SOFTCAP,
+  softCapIncomeMul,
+} from "./economyTuning";
 
 export {
   PLANET_ACCELERATION_BASE_MP,

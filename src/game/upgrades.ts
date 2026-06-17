@@ -115,6 +115,32 @@ export function canPurchaseUpgrade(
   return true;
 }
 
+/**
+ * План оптовой покупки ветки: сколько уровней реально купится за `count`
+ * (с учётом баланса и разблокировок) и их суммарная цена. Единый источник
+ * истины для стора (списание) и панели (отображение цены под множитель).
+ */
+export function planUpgradePurchase(
+  levels: UpgradeLevels,
+  branch: UpgradeBranch,
+  massMp: number,
+  count: number,
+): { count: number; totalCost: number } {
+  const tmp = { ...levels };
+  let mass = massMp;
+  let totalCost = 0;
+  let bought = 0;
+  for (let i = 0; i < count; i++) {
+    if (!canPurchaseUpgrade(tmp, branch, mass)) break;
+    const c = nextUpgradeCostMp(tmp, branch);
+    mass -= c;
+    totalCost += c;
+    tmp[branch] += 1;
+    bought++;
+  }
+  return { count: bought, totalCost };
+}
+
 /** Множитель MP при поглощении (диск × эффективность × джеты при баффе). */
 export function mpIncomeMultiplier(
   levels: UpgradeLevels,

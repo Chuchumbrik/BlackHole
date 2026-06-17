@@ -67,6 +67,24 @@ describe("UpgradesPanel (UI)", () => {
       expect(screen.getByRole("button", { name: m })).toBeInTheDocument();
     }
   });
+  it("цена пересчитывается под множитель: ×10 показывает суммарную цену и метку ×10", () => {
+    useGameStore.setState({
+      massMp: 1e9,
+      upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
+      buyMultiplier: 1,
+    });
+    const { unmount } = render(<UpgradesPanel />);
+    // ×1 — одиночная цена «Следующий уровень»
+    expect(screen.getAllByText(/Следующий уровень:/).length).toBeGreaterThan(0);
+    unmount();
+    useGameStore.setState({ buyMultiplier: 10 });
+    render(<UpgradesPanel />);
+    // ×10 — кнопки помечены ×10 и появляется суммарная строка «10 ур.: … MP»
+    expect(
+      screen.getAllByRole("button", { name: /Купить ×10/ }).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getAllByText(/10 ур\.:/).length).toBeGreaterThan(0);
+  });
 });
 
 describe("PlanetPanel (UI)", () => {

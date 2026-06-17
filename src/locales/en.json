@@ -37,6 +37,9 @@
     "holeLevel": "Hole level (sum of branches): {{value}}",
     "levelShort": "Lv {{value}}",
     "nextCost": "Next level: {{value}} MP",
+    "bulkCost": "{{count}} lv: {{value}} MP",
+    "bulkCostCapped": "{{count}} lv (mass allows): {{value}} MP",
+    "buyN": "Buy ×{{count}}",
     "current": {
       "size": "Now: ×{{mul}} vs base horizon; at this window size horizon ≈ {{px}} px",
       "gravity": "Now: ×{{mul}} vs base gravity zone; radius ≈ {{px}} px (never below the horizon; pull fades smoothly past the zone edge).",

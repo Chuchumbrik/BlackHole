@@ -9,16 +9,15 @@ import {
 } from "../game/balance";
 import {
   ZERO_UPGRADE_LEVELS,
-  canPurchaseUpgrade,
   isViewTierUnlocked,
-  nextUpgradeCostMp,
+  planUpgradePurchase,
   type UpgradeBranch,
   type UpgradeLevels,
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
 import { ppFromMass } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost, prestigeRunStart } from "../game/prestigePerks";
-import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
+import { MP_UPGRADES, planMpUpgradePurchase } from "../game/mpUpgrades";
 import {
   loadSave,
   writeSave,
@@ -353,19 +352,15 @@ export const useGameStore = create<GameState>((set, get) => {
     }),
   buyUpgrade: (branch, count = 1) =>
     set((s) => {
-      let mass = s.massMp;
-      const upgradeLevels = { ...s.upgradeLevels };
-      let bought = 0;
-      for (let i = 0; i < count; i++) {
-        if (!canPurchaseUpgrade(upgradeLevels, branch, mass)) break;
-        mass -= nextUpgradeCostMp(upgradeLevels, branch);
-        upgradeLevels[branch] += 1;
-        bought++;
-      }
-      if (bought === 0) return s;
+      const plan = planUpgradePurchase(s.upgradeLevels, branch, s.massMp, count);
+      if (plan.count === 0) return s;
+      const upgradeLevels = {
+        ...s.upgradeLevels,
+        [branch]: s.upgradeLevels[branch] + plan.count,
+      };
       const cap = maxUnlockedViewTier(upgradeLevels);
       const viewTier = s.viewTier > cap ? cap : s.viewTier;
-      return { massMp: mass, upgradeLevels, viewTier };
+      return { massMp: s.massMp - plan.totalCost, upgradeLevels, viewTier };
     }),
   setTab: (activeTab) => set({ activeTab }),
   setViewTier: (tier) =>
@@ -436,20 +431,12 @@ export const useGameStore = create<GameState>((set, get) => {
     set((s) => {
       const def = MP_UPGRADES.find((u) => u.id === id);
       if (!def) return s;
-      let mass = s.massMp;
-      let lvl = s.mpUpgradeLevels[id] ?? 0;
-      let bought = 0;
-      for (let i = 0; i < count && lvl < def.maxLevel; i++) {
-        const cost = mpUpgradeCost(def, lvl);
-        if (mass < cost) break;
-        mass -= cost;
-        lvl++;
-        bought++;
-      }
-      if (bought === 0) return s;
+      const lvl0 = s.mpUpgradeLevels[id] ?? 0;
+      const plan = planMpUpgradePurchase(def, lvl0, s.massMp, count);
+      if (plan.count === 0) return s;
       return {
-        massMp: mass,
-        mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl },
+        massMp: s.massMp - plan.totalCost,
+        mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl0 + plan.count },
       };
     }),
   saveNow: () => writeSave(buildSaveData(get())),

@@ -56,6 +56,31 @@ export function mpUpgradeCost(def: MpUpgradeDef, level: number): number {
   return Math.ceil(def.baseCost * Math.pow(def.costMult, level));
 }
 
+/**
+ * План оптовой покупки MP-апгрейда: сколько уровней купится за `count`
+ * (с учётом баланса и `maxLevel`) и их суммарная цена.
+ */
+export function planMpUpgradePurchase(
+  def: MpUpgradeDef,
+  level: number,
+  massMp: number,
+  count: number,
+): { count: number; totalCost: number } {
+  let lvl = level;
+  let mass = massMp;
+  let totalCost = 0;
+  let bought = 0;
+  for (let i = 0; i < count && lvl < def.maxLevel; i++) {
+    const c = mpUpgradeCost(def, lvl);
+    if (mass < c) break;
+    mass -= c;
+    totalCost += c;
+    lvl++;
+    bought++;
+  }
+  return { count: bought, totalCost };
+}
+
 export type MpUpgradeMods = {
   mpMul: number;
   spawnRateMul: number;

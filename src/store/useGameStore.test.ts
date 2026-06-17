@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { useGameStore } from "./useGameStore";
 import { nextUpgradeCostMp, ZERO_UPGRADE_LEVELS } from "../game/upgrades";
+import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
+import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 import type { Planet, StarSystem } from "../game/world/types";
 
 const mkPlanet = (over: Partial<Planet> = {}): Planet => ({
@@ -56,6 +58,46 @@ describe("store: оптовая покупка апгрейдов", () => {
     setup(1_000_000);
     useGameStore.getState().buyUpgrade("size", 5);
     expect(useGameStore.getState().upgradeLevels.size).toBe(5);
+  });
+  it("×N списывает СУММУ пересчитанных по уровням цен (не плоскую)", () => {
+    const N = 5;
+    let expected = 0;
+    const tmp = { ...ZERO_UPGRADE_LEVELS };
+    for (let i = 0; i < N; i++) {
+      expected += nextUpgradeCostMp(tmp, "disk");
+      tmp.disk += 1;
+    }
+    setup(1_000_000);
+    const before = useGameStore.getState().massMp;
+    useGameStore.getState().buyUpgrade("disk", N);
+    expect(useGameStore.getState().upgradeLevels.disk).toBe(N);
+    expect(before - useGameStore.getState().massMp).toBe(expected);
+    // цена за следующий уровень действительно выросла (пересчёт работает):
+    expect(nextUpgradeCostMp(useGameStore.getState().upgradeLevels, "disk")).toBeGreaterThan(
+      nextUpgradeCostMp(ZERO_UPGRADE_LEVELS, "disk"),
+    );
+  });
+  it("×N для MP-апгрейда: N уровней и сумма пересчитанных цен", () => {
+    const def = MP_UPGRADES[0];
+    const N = 4;
+    let expected = 0;
+    for (let i = 0; i < N; i++) expected += mpUpgradeCost(def, i);
+    setup(1_000_000);
+    const before = useGameStore.getState().massMp;
+    useGameStore.getState().buyMpUpgrade(def.id, N);
+    expect(useGameStore.getState().mpUpgradeLevels[def.id]).toBe(N);
+    expect(before - useGameStore.getState().massMp).toBe(expected);
+  });
+  it("×N для перка престижа: N уровней и сумма PP-цен", () => {
+    const def = PRESTIGE_PERKS[0];
+    const N = 3;
+    let expected = 0;
+    for (let i = 0; i < N; i++) expected += perkCost(def, i);
+    useGameStore.setState({ prestigePoints: 100000, prestigePerkLevels: {} });
+    const before = useGameStore.getState().prestigePoints;
+    useGameStore.getState().buyPrestigePerk(def.id, N);
+    expect(useGameStore.getState().prestigePerkLevels[def.id]).toBe(N);
+    expect(before - useGameStore.getState().prestigePoints).toBe(expected);
   });
   it("берёт максимум по балансу и не уходит в минус", () => {
     const twoLevels =

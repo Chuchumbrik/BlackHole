@@ -16,12 +16,12 @@ import {
   isLensingUnlocked,
   levelSum,
   nextUpgradeCostMp,
-  canPurchaseUpgrade,
+  planUpgradePurchase,
   upgradeBranchSnapshot,
   type UpgradeLevels,
 } from "../game/upgrades";
 import { useGameStore } from "../store/useGameStore";
-import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
+import { MP_UPGRADES, mpUpgradeCost, planMpUpgradePurchase } from "../game/mpUpgrades";
 
 function formatMultiplier(x: number): string {
   return x.toLocaleString(undefined, {
@@ -114,13 +114,14 @@ export function UpgradesPanel() {
       <ul className="upgrades-card-list">
         {UPGRADE_BRANCHES.map((branch) => {
           const level = upgradeLevels[branch];
-          const cost = nextUpgradeCostMp(upgradeLevels, branch);
-          const locked = branchLocked(branch, upgradeLevels);
-          const canBuy = canPurchaseUpgrade(
+          const plan = planUpgradePurchase(
             upgradeLevels,
             branch,
             massMp,
+            buyMultiplier,
           );
+          const locked = branchLocked(branch, upgradeLevels);
+          const canBuy = plan.count > 0;
 
           const currentLine =
             branch === "size"
@@ -175,9 +176,22 @@ export function UpgradesPanel() {
               ) : (
                 <>
                   <p className="upgrades-card-cost">
-                    {t("upgrades.nextCost", {
-                      value: cost.toLocaleString("ru-RU"),
-                    })}
+                    {buyMultiplier === 1 || !canBuy
+                      ? t("upgrades.nextCost", {
+                          value: nextUpgradeCostMp(
+                            upgradeLevels,
+                            branch,
+                          ).toLocaleString("ru-RU"),
+                        })
+                      : t(
+                          plan.count < buyMultiplier
+                            ? "upgrades.bulkCostCapped"
+                            : "upgrades.bulkCost",
+                          {
+                            count: plan.count,
+                            value: plan.totalCost.toLocaleString("ru-RU"),
+                          },
+                        )}
                   </p>
                   <button
                     type="button"
@@ -185,7 +199,9 @@ export function UpgradesPanel() {
                     disabled={!canBuy}
                     onClick={() => buyUpgrade(branch, buyMultiplier)}
                   >
-                    {t("upgrades.buy")}
+                    {buyMultiplier === 1
+                      ? t("upgrades.buy")
+                      : t("upgrades.buyN", { count: Math.max(plan.count, 1) })}
                   </button>
                 </>
               )}
@@ -199,8 +215,8 @@ export function UpgradesPanel() {
         {MP_UPGRADES.map((up) => {
           const lvl = mpUpgradeLevels[up.id] ?? 0;
           const maxed = lvl >= up.maxLevel;
-          const cost = mpUpgradeCost(up, lvl);
-          const affordable = massMp >= cost;
+          const plan = planMpUpgradePurchase(up, lvl, massMp, buyMultiplier);
+          const affordable = plan.count > 0;
           return (
             <li key={up.id}>
               <div className="upgrade-head">
@@ -215,14 +231,23 @@ export function UpgradesPanel() {
               ) : (
                 <>
                   <p className="upgrade-cost">
-                    Следующий уровень: {cost.toLocaleString("ru-RU")} MP
+                    {buyMultiplier === 1 || !affordable
+                      ? `Следующий уровень: ${mpUpgradeCost(
+                          up,
+                          lvl,
+                        ).toLocaleString("ru-RU")} MP`
+                      : `${plan.count}${
+                          plan.count < buyMultiplier ? " (хватает массы)" : ""
+                        } ур.: ${plan.totalCost.toLocaleString("ru-RU")} MP`}
                   </p>
                   <button
                     type="button"
                     disabled={!affordable}
                     onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
                   >
-                    Купить
+                    {buyMultiplier === 1
+                      ? "Купить"
+                      : `Купить ×${Math.max(plan.count, 1)}`}
                   </button>
                 </>
               )}

@@ -20,6 +20,7 @@ import {
   JET_PROC_ATTEMPT_INTERVAL_SEC,
   JET_PROC_CHANCE_PER_LEVEL,
   PLANET_TRIBUTE_INTERVAL_SEC,
+  softCapIncomeMul,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
   STELLAR_SYSTEM_RADIUS_MUL,
@@ -1209,12 +1210,13 @@ export function GameCanvas() {
         const eventSpawnMul = ev?.spawnMul ?? 1;
         const eventMpMul = ev?.mpMul ?? 1;
 
-        const mpMult =
+        const mpMult = softCapIncomeMul(
           mpIncomeMultiplier(levels, jetBuffActive) *
-          pmods.mpMul *
-          mpu.mpMul *
-          achMul *
-          eventMpMul;
+            pmods.mpMul *
+            mpu.mpMul *
+            achMul *
+            eventMpMul,
+        );
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(
