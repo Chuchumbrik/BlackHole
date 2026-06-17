@@ -57,6 +57,7 @@ function genPlanet(systemIdx: number, planetIdx: number): Planet {
     mpYieldMult: 1,
     civLevel: 0,
     civProgressSec: 0,
+    shieldUntilSec: 0,
     radiusScale,
   };
 }

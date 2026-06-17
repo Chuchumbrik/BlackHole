@@ -1,5 +1,12 @@
 import { create } from "zustand";
-import { PLANET_ACCELERATION_SECONDS } from "../game/balance";
+import {
+  PLANET_ACCELERATION_SECONDS,
+  PLANET_GOLDEN_MID,
+  PLANET_TERRAFORM_STEP,
+  PLANET_TERRAFORM_COST_MP,
+  PLANET_SHIELD_DURATION_SEC,
+  PLANET_SHIELD_COST_MP,
+} from "../game/balance";
 import {
   ZERO_UPGRADE_LEVELS,
   canPurchaseUpgrade,
@@ -77,6 +84,10 @@ type GameState = {
   removePlanet: (systemId: string, planetId: string) => void;
   /** Откат развития планеты от удара астероида (снижает прогресс/жизнь/выход MP). */
   damagePlanet: (systemId: string, planetId: string) => void;
+  /** Терраформинг: подвинуть параметры планеты к золотой середине (за MP). */
+  terraformPlanet: (systemId: string, planetId: string) => void;
+  /** Щит планеты от ударов на время (за MP). */
+  shieldPlanet: (systemId: string, planetId: string) => void;
   setTab: (tab: TabId) => void;
   setViewTier: (tier: ViewTierId) => void;
   setSimTimeScale: (scale: SimTimeScale) => void;
@@ -256,7 +267,8 @@ export const useGameStore = create<GameState>((set, get) => {
         return {
           ...sys,
           planets: sys.planets.map((p: Planet) => {
-            if (p.id !== planetId) return p;
+            // Щит поглощает удар без отката.
+            if (p.id !== planetId || p.shieldUntilSec > s.gameTimeSec) return p;
             return {
               ...p,
               stageProgressSec: Math.max(0, p.stageProgressSec - 8),
@@ -267,6 +279,58 @@ export const useGameStore = create<GameState>((set, get) => {
         };
       }),
     })),
+  terraformPlanet: (systemId, planetId) =>
+    set((s) => {
+      if (s.massMp < PLANET_TERRAFORM_COST_MP) return s;
+      const nudge = (v: number) => {
+        if (v < PLANET_GOLDEN_MID)
+          return Math.min(PLANET_GOLDEN_MID, v + PLANET_TERRAFORM_STEP);
+        return Math.max(PLANET_GOLDEN_MID, v - PLANET_TERRAFORM_STEP);
+      };
+      let touched = false;
+      const systems = s.systems.map((sys) => {
+        if (sys.id !== systemId) return sys;
+        return {
+          ...sys,
+          planets: sys.planets.map((p: Planet) => {
+            if (p.id !== planetId) return p;
+            touched = true;
+            return {
+              ...p,
+              orbitalDistance: nudge(p.orbitalDistance),
+              gravityProxy: nudge(p.gravityProxy),
+              surfaceTemperature: nudge(p.surfaceTemperature),
+              atmosphere: nudge(p.atmosphere),
+              hydrosphere: nudge(p.hydrosphere),
+              geologicalActivity: nudge(p.geologicalActivity),
+            };
+          }),
+        };
+      });
+      if (!touched) return s;
+      return { systems, massMp: s.massMp - PLANET_TERRAFORM_COST_MP };
+    }),
+  shieldPlanet: (systemId, planetId) =>
+    set((s) => {
+      if (s.massMp < PLANET_SHIELD_COST_MP) return s;
+      let touched = false;
+      const systems = s.systems.map((sys) => {
+        if (sys.id !== systemId) return sys;
+        return {
+          ...sys,
+          planets: sys.planets.map((p: Planet) => {
+            if (p.id !== planetId) return p;
+            touched = true;
+            return {
+              ...p,
+              shieldUntilSec: s.gameTimeSec + PLANET_SHIELD_DURATION_SEC,
+            };
+          }),
+        };
+      });
+      if (!touched) return s;
+      return { systems, massMp: s.massMp - PLANET_SHIELD_COST_MP };
+    }),
   buyUpgrade: (branch, count = 1) =>
     set((s) => {
       let mass = s.massMp;

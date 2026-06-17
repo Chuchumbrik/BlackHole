@@ -742,3 +742,9 @@ body,
 
 /* Цивилизация планеты */
 .planet-civ-level { font-size: 13px; color: #a5b4fc; font-weight: 600; margin: 6px 0 2px; }
+
+/* Действия с планетой (терраформинг/щит) */
+.planet-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.planet-action-btn { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.planet-action-btn:hover:not(:disabled) { background: #334155; }
+.planet-action-btn:disabled { opacity: 0.5; cursor: not-allowed; }

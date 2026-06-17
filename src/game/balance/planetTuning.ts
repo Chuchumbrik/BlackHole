@@ -32,3 +32,10 @@ export const PLANET_CIV_STAGE_SEC = 150;
 export const PLANET_CIV_MAX_LEVEL = 4;
 /** Базовый интервал запуска кораблей-«дани» при тире 1 (делится на тир — чаще на высоких). */
 export const PLANET_TRIBUTE_INTERVAL_SEC = 7;
+
+/** Терраформинг: на сколько единиц двигать каждый параметр к золотой середине за клик; цена MP. */
+export const PLANET_TERRAFORM_STEP = 6;
+export const PLANET_TERRAFORM_COST_MP = 120;
+/** Щит планеты: длительность (игр.сек) и цена MP. */
+export const PLANET_SHIELD_DURATION_SEC = 120;
+export const PLANET_SHIELD_COST_MP = 200;

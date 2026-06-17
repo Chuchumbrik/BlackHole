@@ -5,6 +5,8 @@ import {
   PLANET_ECOSYSTEM_LOW,
   PLANET_LIFE_EMERGENCE_TOTAL_SEC,
   PLANET_STAGE_DURATIONS_SEC,
+  PLANET_TERRAFORM_COST_MP,
+  PLANET_SHIELD_COST_MP,
 } from "../game/balance";
 import {
   accelerationCostMp,
@@ -36,6 +38,9 @@ export function PlanetPanel() {
   const activePlanetId = useGameStore((s) => s.activePlanetId);
   const setActivePlanet = useGameStore((s) => s.setActivePlanet);
   const acceleratePlanet = useGameStore((s) => s.acceleratePlanet);
+  const terraformPlanet = useGameStore((s) => s.terraformPlanet);
+  const shieldPlanet = useGameStore((s) => s.shieldPlanet);
+  const gameTimeSec = useGameStore((s) => s.gameTimeSec);
   const massMp = useGameStore((s) => s.massMp);
 
   const activeSystem =
@@ -211,6 +216,29 @@ export function PlanetPanel() {
             cost: cost.toLocaleString(locale),
           })}
         </button>
+
+        <div className="planet-actions">
+          <button
+            type="button"
+            className="planet-action-btn"
+            disabled={massMp < PLANET_TERRAFORM_COST_MP}
+            onClick={() => terraformPlanet(activeSystem.id, planet.id)}
+            title="Сдвигает параметры к золотой середине — путь к экосистеме и жизни"
+          >
+            Терраформинг · {PLANET_TERRAFORM_COST_MP.toLocaleString(locale)} MP
+          </button>
+          <button
+            type="button"
+            className="planet-action-btn"
+            disabled={massMp < PLANET_SHIELD_COST_MP}
+            onClick={() => shieldPlanet(activeSystem.id, planet.id)}
+            title="Защита от ударов астероидов на время"
+          >
+            {planet.shieldUntilSec > gameTimeSec
+              ? "Щит активен"
+              : `Щит · ${PLANET_SHIELD_COST_MP.toLocaleString(locale)} MP`}
+          </button>
+        </div>
       </article>
     </section>
   );
