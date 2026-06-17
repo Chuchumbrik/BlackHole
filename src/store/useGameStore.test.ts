@@ -168,8 +168,9 @@ describe("store: развитие планеты", () => {
     expect(planet0().stageProgressSec).toBe(50); // щит поглотил удар
     expect(before.shieldUntilSec).toBeGreaterThan(0);
   });
-  it("ускорение планеты двигает жизнь/цивилизацию (стабильная экосистема)", () => {
-    setup(1_000_000, mkPlanet()); // все параметры 50 → экосистема стабильна
+  it("ускорение зрелой планеты двигает жизнь (стабильная экосистема, стадия ≥ 3)", () => {
+    // все параметры 50 → экосистема стабильна; стадия 3 → планета зрелая для жизни
+    setup(1_000_000, mkPlanet({ stage: 3 }));
     useGameStore.getState().acceleratePlanet("sys1", "pl1");
     expect(planet0().lifeEmergenceSec).toBeGreaterThan(0);
   });

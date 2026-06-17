@@ -14,11 +14,13 @@ import {
   accelerationCostMp,
   accelerationMultiplier,
   deviationFromGoldenMid,
+  planetStageInfo,
   stageProgressRatio,
 } from "../game/world/planetProgress";
 import {
   ecosystemStable,
   lifeEmergenceRatio,
+  planetMatureForLife,
 } from "../game/world/planetLife";
 import {
   inHabitableZone,
@@ -64,6 +66,8 @@ export function PlanetPanel() {
   const progressRatio = stageProgressRatio(planet);
   const progressPercent = Math.round(progressRatio * 100);
   const stable = ecosystemStable(planet);
+  const mature = planetMatureForLife(planet);
+  const stageInfo = planetStageInfo(planet.stage);
   const lifePct = Math.round(lifeEmergenceRatio(planet) * 100);
   const cost = accelerationCostMp(planet);
   const enoughMass = massMp >= cost;
@@ -135,7 +139,10 @@ export function PlanetPanel() {
             stage: planet.stage,
             max: PLANET_STAGE_DURATIONS_SEC.length,
           })}
+          {" · "}
+          <b>{stageInfo.name}</b>
         </p>
+        <p className="planet-stage-desc">{stageInfo.desc}</p>
         <div className="planet-progress-track" aria-hidden="true">
           <div
             className="planet-progress-fill"
@@ -177,8 +184,14 @@ export function PlanetPanel() {
               })
             : t("planet.ecoPending")}
         </p>
+        {stable && !mature && !planet.lifeBorn && (
+          <p className="planet-eco-hint">
+            Экосистема готова, но планета ещё не зрелая. Жизнь зарождается только
+            на стадии «Зрелая планета» (3) — дай развиться или ускорь.
+          </p>
+        )}
 
-        {stable && !planet.lifeBorn && (
+        {stable && mature && !planet.lifeBorn && (
           <div className="planet-life-block">
             <h4 className="planet-subtitle">{t("planet.lifeTitle")}</h4>
             <div className="planet-progress-track" aria-hidden="true">
@@ -218,7 +231,7 @@ export function PlanetPanel() {
             deviation: Math.round(deviationFromGoldenMid(planet)),
           })}
         </p>
-        {stable && !planet.lifeBorn && (
+        {stable && mature && !planet.lifeBorn && (
           <p className="planet-life-auto-note">{t("planet.lifeAutoNote")}</p>
         )}
         <button

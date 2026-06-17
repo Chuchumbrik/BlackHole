@@ -10,6 +10,33 @@ function stageDurationSec(stage: PlanetStage): number {
   return PLANET_STAGE_DURATIONS_SEC[stage - 1] ?? PLANET_STAGE_DURATIONS_SEC[3];
 }
 
+/** Названия и суть геологических стадий планеты (для наглядности развития). */
+export const PLANET_STAGE_INFO: { name: string; desc: string }[] = [
+  {
+    name: "Протопланета",
+    desc: "Аккреция вещества, раскалённая кора, активный вулканизм.",
+  },
+  {
+    name: "Молодая планета",
+    desc: "Кора остывает, формируются первичная атмосфера и океаны.",
+  },
+  {
+    name: "Зрелая планета",
+    desc: "Стабильный климат — при подходящих условиях возможна жизнь.",
+  },
+  {
+    name: "Древний мир",
+    desc: "Геология затихает, недра остывают, ресурсы на исходе.",
+  },
+];
+
+export function planetStageInfo(stage: PlanetStage): {
+  name: string;
+  desc: string;
+} {
+  return PLANET_STAGE_INFO[stage - 1] ?? PLANET_STAGE_INFO[3];
+}
+
 export function deviationFromGoldenMid(planet: Planet): number {
   const params = [
     planet.orbitalDistance,

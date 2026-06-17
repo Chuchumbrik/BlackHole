@@ -24,6 +24,13 @@ export const PLANETS_FIRST_SYSTEM_MAX = 10;
 export const PLANET_ECOSYSTEM_LOW = 38;
 export const PLANET_ECOSYSTEM_HIGH = 62;
 
+/**
+ * Жизнь может зарождаться только на ЗРЕЛОЙ планете (стадия ≥ 3). Так геологические
+ * стадии становятся осмысленным гейтом: сперва планета должна дозреть, и лишь потом
+ * — при стабильной экосистеме — копится зарождение жизни.
+ */
+export const PLANET_LIFE_MIN_STAGE = 3;
+
 /** Секунд игрового времени на полоску «зарождение жизни» при стабильной экосистеме. */
 export const PLANET_LIFE_EMERGENCE_TOTAL_SEC = 480;
 

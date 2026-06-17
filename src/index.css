@@ -274,9 +274,15 @@ body,
 }
 
 .planet-stage {
-  margin: 0 0 0.55rem;
+  margin: 0 0 0.2rem;
   font-size: 0.82rem;
   color: #d1c9e5;
+}
+.planet-stage-desc {
+  margin: 0 0 0.55rem;
+  font-size: 0.76rem;
+  color: #94a3b8;
+  line-height: 1.35;
 }
 
 .planet-progress-track {

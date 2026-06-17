@@ -2,6 +2,7 @@ import {
   PLANET_ECOSYSTEM_HIGH,
   PLANET_ECOSYSTEM_LOW,
   PLANET_LIFE_EMERGENCE_TOTAL_SEC,
+  PLANET_LIFE_MIN_STAGE,
   PLANET_CIV_STAGE_SEC,
   PLANET_CIV_MAX_LEVEL,
 } from "../balance/planetTuning";
@@ -22,13 +23,23 @@ export function planetParam(planet: Planet, key: PlanetParamKey): number {
   return planet[key];
 }
 
-/** Все шесть показателей в коридоре — можно копить зарождение жизни. */
+/** Все шесть показателей в коридоре — экосистема стабильна. */
 export function ecosystemStable(planet: Planet): boolean {
   for (const key of PARAM_KEYS) {
     const v = planet[key];
     if (v < PLANET_ECOSYSTEM_LOW || v > PLANET_ECOSYSTEM_HIGH) return false;
   }
   return true;
+}
+
+/** Планета достаточно зрелая для жизни (геологическая стадия ≥ порога). */
+export function planetMatureForLife(planet: Planet): boolean {
+  return planet.stage >= PLANET_LIFE_MIN_STAGE;
+}
+
+/** Можно копить зарождение жизни: экосистема стабильна И планета зрелая. */
+export function canHostLife(planet: Planet): boolean {
+  return ecosystemStable(planet) && planetMatureForLife(planet);
 }
 
 /** Список параметров, которые нужно подтянуть к коридору [low, high]. */
@@ -43,7 +54,8 @@ export function ecosystemDeficits(planet: Planet): PlanetParamKey[] {
 }
 
 export function lifeEmergenceRatio(planet: Planet): number {
-  if (!ecosystemStable(planet) || planet.lifeBorn) return planet.lifeBorn ? 1 : 0;
+  if (planet.lifeBorn) return 1;
+  if (!canHostLife(planet)) return 0;
   return Math.max(
     0,
     Math.min(1, planet.lifeEmergenceSec / PLANET_LIFE_EMERGENCE_TOTAL_SEC),
@@ -77,7 +89,7 @@ export function tickPlanetLife(planet: Planet, dtSec: number): Planet {
   let lifeBorn = planet.lifeBorn;
   let mpYieldMult = planet.mpYieldMult;
 
-  if (!lifeBorn && ecosystemStable(planet)) {
+  if (!lifeBorn && canHostLife(planet)) {
     lifeEmergenceSec += dtSec;
     if (lifeEmergenceSec >= PLANET_LIFE_EMERGENCE_TOTAL_SEC) {
       lifeBorn = true;

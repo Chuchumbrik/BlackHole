@@ -44,12 +44,20 @@ describe("planetLife: экосистема", () => {
 });
 
 describe("planetLife: зарождение жизни и цивилизация", () => {
-  it("стабильная экосистема накапливает жизнь до рождения", () => {
-    const born = tickPlanetLife(mkPlanet(), PLANET_LIFE_EMERGENCE_TOTAL_SEC);
+  it("зрелая (стадия 3) стабильная экосистема накапливает жизнь до рождения", () => {
+    const born = tickPlanetLife(mkPlanet({ stage: 3 }), PLANET_LIFE_EMERGENCE_TOTAL_SEC);
     expect(born.lifeBorn).toBe(true);
   });
+  it("незрелая планета (стадия < 3) НЕ зарождает жизнь даже при стабильной экосистеме", () => {
+    const p = tickPlanetLife(mkPlanet({ stage: 2 }), PLANET_LIFE_EMERGENCE_TOTAL_SEC);
+    expect(p.lifeBorn).toBe(false);
+    expect(p.lifeEmergenceSec).toBe(0);
+  });
   it("нестабильная экосистема не зарождает жизнь", () => {
-    const p = tickPlanetLife(mkPlanet({ atmosphere: 5 }), PLANET_LIFE_EMERGENCE_TOTAL_SEC);
+    const p = tickPlanetLife(
+      mkPlanet({ stage: 3, atmosphere: 5 }),
+      PLANET_LIFE_EMERGENCE_TOTAL_SEC,
+    );
     expect(p.lifeBorn).toBe(false);
     expect(p.lifeEmergenceSec).toBe(0);
   });
