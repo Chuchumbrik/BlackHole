@@ -1503,12 +1503,20 @@ export function GameCanvas() {
           const st = useGameStore.getState();
           st.setIncomeEma(incomeEma);
           // Проверка достижений (раз в ~секунду).
+          const allPlanets = st.systems.flatMap((sys) => sys.planets);
           const fresh = newlyUnlocked(
             {
               massMp: st.massMp,
+              lifetimeMassMp: st.lifetimeMassMp,
+              massSpentTotal: st.massSpentTotal,
               prestigePoints: st.lifetimePp, // достижения — по суммарным PP, не текущим
+              prestigeCount: st.prestigeCount,
               gameTimeSec: st.gameTimeSec,
               upgradeSum: levelSum(st.upgradeLevels),
+              upgradeLevels: st.upgradeLevels,
+              incomeMpPerSec: st.incomeEmaMpPerSec,
+              planetsWithLife: allPlanets.filter((p) => p.lifeBorn).length,
+              maxCivLevel: allPlanets.reduce((m, p) => Math.max(m, p.civLevel), 0),
             },
             st.achievementsUnlocked,
           );

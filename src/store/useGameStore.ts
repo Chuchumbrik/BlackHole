@@ -29,7 +29,14 @@ import { accelerationCostMp, advancePlanetStages } from "../game/world/planetPro
 import { tickPlanetLife } from "../game/world/planetLife";
 import type { Planet, StarSystem } from "../game/world/types";
 
-type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats" | "settings";
+type TabId =
+  | "game"
+  | "upgrades"
+  | "planet"
+  | "prestige"
+  | "stats"
+  | "achievements"
+  | "settings";
 
 export type ViewTierId = 0 | 1 | 2;
 
@@ -44,6 +51,15 @@ type GameState = {
   massMp: number;
   /** Масса, потраченная за текущий ран (основа PP при сжатии). Сброс при prestige. */
   massSpentRun: number;
+  // --- Накопительная статистика (переживает сжатие, сброс только resetProgress) ---
+  /** Всего MP получено за всё время. */
+  lifetimeMassMp: number;
+  /** Пиковая масса на руках. */
+  peakMassMp: number;
+  /** Всего MP потрачено за всё время. */
+  massSpentTotal: number;
+  /** Сколько раз совершено сжатие (prestige). */
+  prestigeCount: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   /** Масштаб вида: у дыры / звёздная система / карта галактики (узлы). */
@@ -126,6 +142,10 @@ function buildSaveData(s: GameState): SaveData {
     schemaVersion: SAVE_SCHEMA_VERSION,
     massMp: s.massMp,
     massSpentRun: s.massSpentRun,
+    lifetimeMassMp: s.lifetimeMassMp,
+    peakMassMp: s.peakMassMp,
+    massSpentTotal: s.massSpentTotal,
+    prestigeCount: s.prestigeCount,
     gameTimeSec: s.gameTimeSec,
     upgradeLevels: s.upgradeLevels,
     systems: s.systems,
@@ -184,6 +204,10 @@ export const useGameStore = create<GameState>((set, get) => {
     activePlanetId: saved?.activePlanetId ?? null,
     massMp: (saved?.massMp ?? 0) + pendingOfflineMp,
     massSpentRun: saved?.massSpentRun ?? 0,
+    lifetimeMassMp: saved?.lifetimeMassMp ?? 0,
+    peakMassMp: saved?.peakMassMp ?? saved?.massMp ?? 0,
+    massSpentTotal: saved?.massSpentTotal ?? 0,
+    prestigeCount: saved?.prestigeCount ?? 0,
     pendingOfflineMp,
     gameTimeSec: saved?.gameTimeSec ?? 0,
     upgradeLevels,
@@ -207,8 +231,11 @@ export const useGameStore = create<GameState>((set, get) => {
       const add = Math.max(0, Math.floor(amount));
       if (add <= 0) return s;
       const id = ++mpGainFloaterIdSeq;
+      const massMp = s.massMp + add;
       return {
-        massMp: s.massMp + add,
+        massMp,
+        lifetimeMassMp: s.lifetimeMassMp + add,
+        peakMassMp: Math.max(s.peakMassMp, massMp),
         mpGainFloaters: [...s.mpGainFloaters, { id, amount: add }],
       };
     }),
@@ -253,6 +280,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         massMp: s.massMp - cost,
         massSpentRun: s.massSpentRun + cost,
+        massSpentTotal: s.massSpentTotal + cost,
         systems: s.systems.map((sys) => {
           if (sys.id !== systemId) return sys;
           return {
@@ -336,6 +364,7 @@ export const useGameStore = create<GameState>((set, get) => {
         systems,
         massMp: s.massMp - PLANET_TERRAFORM_COST_MP,
         massSpentRun: s.massSpentRun + PLANET_TERRAFORM_COST_MP,
+        massSpentTotal: s.massSpentTotal + PLANET_TERRAFORM_COST_MP,
       };
     }),
   shieldPlanet: (systemId, planetId) =>
@@ -361,6 +390,7 @@ export const useGameStore = create<GameState>((set, get) => {
         systems,
         massMp: s.massMp - PLANET_SHIELD_COST_MP,
         massSpentRun: s.massSpentRun + PLANET_SHIELD_COST_MP,
+        massSpentTotal: s.massSpentTotal + PLANET_SHIELD_COST_MP,
       };
     }),
   buyUpgrade: (branch, count = 1) =>
@@ -376,6 +406,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         massMp: s.massMp - plan.totalCost,
         massSpentRun: s.massSpentRun + plan.totalCost,
+        massSpentTotal: s.massSpentTotal + plan.totalCost,
         upgradeLevels,
         viewTier,
       };
@@ -410,6 +441,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         prestigePoints: s.prestigePoints + gain,
         lifetimePp: s.lifetimePp + gain,
+        prestigeCount: s.prestigeCount + 1,
         prestigeFlash: s.prestigeFlash + 1,
         massMp: rs.startMassMp,
         massSpentRun: 0,
@@ -456,6 +488,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         massMp: s.massMp - plan.totalCost,
         massSpentRun: s.massSpentRun + plan.totalCost,
+        massSpentTotal: s.massSpentTotal + plan.totalCost,
         mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl0 + plan.count },
       };
     }),
@@ -467,6 +500,10 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         massMp: 0,
         massSpentRun: 0,
+        lifetimeMassMp: 0,
+        peakMassMp: 0,
+        massSpentTotal: 0,
+        prestigeCount: 0,
         gameTimeSec: 0,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,

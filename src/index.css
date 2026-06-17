@@ -766,8 +766,27 @@ body,
 .buy-mult button { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 7px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
 .buy-mult button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; }
 
+/* Статистика */
+.stats-panel { padding: 22px 26px; max-width: 720px; margin: 0 auto; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.stats-group { background: #0e1422; border: 1px solid #1e293b; border-radius: 12px; padding: 14px 16px; }
+.stats-group-title { font-size: 14px; color: #c4b5fd; margin: 0 0 10px; }
+.stats-rows { list-style: none; margin: 0; padding: 0; }
+.stats-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.stats-row:last-child { border-bottom: none; }
+.stats-label { color: #94a3b8; }
+.stats-value { color: #e2e8f0; font-variant-numeric: tabular-nums; text-align: right; }
+
 /* Достижения */
-.ach-panel { padding: 22px 26px; max-width: 480px; }
+.ach-panel { padding: 22px 26px; max-width: 560px; margin: 0 auto; }
+.ach-group { margin-top: 16px; }
+.ach-group-title { font-size: 14px; color: #c4b5fd; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
+.ach-group-count { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; }
 .ach-summary { font-size: 13px; color: #94a3b8; margin: 4px 0 14px; }
 .ach-list { list-style: none; padding: 0; margin: 0; }
 .ach { background: #0e1422; border: 1px solid #1e293b; border-radius: 10px; padding: 11px 14px; margin-bottom: 9px; opacity: 0.6; }

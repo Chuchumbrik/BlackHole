@@ -5,6 +5,7 @@ import { AchievementsPanel } from "./AchievementsPanel";
 import { UpgradesPanel } from "./UpgradesPanel";
 import { PlanetPanel } from "./PlanetPanel";
 import { SettingsPanel } from "./SettingsPanel";
+import { StatsPanel } from "./StatsPanel";
 import { useGameStore } from "../store/useGameStore";
 import { ZERO_UPGRADE_LEVELS, nextUpgradeCostMp } from "../game/upgrades";
 import type { Planet, StarSystem } from "../game/world/types";
@@ -53,7 +54,7 @@ describe("PrestigePanel (UI)", () => {
 
 describe("AchievementsPanel (UI)", () => {
   it("показывает счётчик открытых и статусы", () => {
-    useGameStore.setState({ achievementsUnlocked: ["mp_1k"] });
+    useGameStore.setState({ achievementsUnlocked: ["mass_1"] });
     render(<AchievementsPanel />);
     expect(screen.getByText(/Открыто 1\//)).toBeInTheDocument();
     expect(screen.getAllByText("Открыто ✓").length).toBeGreaterThanOrEqual(1);
@@ -132,6 +133,23 @@ describe("SettingsPanel (UI)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Сбросить весь прогресс/ }));
     fireEvent.click(screen.getByRole("button", { name: /Отмена/ }));
     expect(useGameStore.getState().massMp).toBe(555);
+  });
+});
+
+describe("StatsPanel (UI)", () => {
+  it("показывает накопительные показатели", () => {
+    useGameStore.setState({
+      massMp: 1234,
+      peakMassMp: 5000,
+      lifetimeMassMp: 99999,
+      massSpentTotal: 4321,
+      prestigeCount: 3,
+    });
+    render(<StatsPanel />);
+    expect(screen.getByText("Статистика")).toBeInTheDocument();
+    expect(screen.getByText(/Всего получено/)).toBeInTheDocument();
+    expect(screen.getByText(/Сжатий совершено/)).toBeInTheDocument();
+    expect(screen.getByText(/Пик массы/)).toBeInTheDocument();
   });
 });
 

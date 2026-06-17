@@ -20,6 +20,11 @@ export type SaveData = {
   massMp: number;
   /** Масса, потраченная за текущий ран (основа PP). Опционально — старые сейвы без поля. */
   massSpentRun?: number;
+  /** Накопительная статистика (опционально — старые сейвы без полей). */
+  lifetimeMassMp?: number;
+  peakMassMp?: number;
+  massSpentTotal?: number;
+  prestigeCount?: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   systems: StarSystem[];
