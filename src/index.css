@@ -513,6 +513,13 @@ body,
   line-height: 1.3;
 }
 
+.upgrades-card-risk {
+  margin: 0.25rem 0 0;
+  font-size: 0.76rem;
+  color: #fca5a5;
+  line-height: 1.3;
+}
+
 .upgrades-card-cost {
   margin: 0 0 0.5rem;
   font-size: 0.88rem;

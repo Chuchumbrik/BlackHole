@@ -273,6 +273,64 @@ export function spawnDebrisBurst(
   return out;
 }
 
+/**
+ * Кольцо обломков от приливного разрыва планеты по пределу Роша. В отличие от
+ * `spawnDebrisBurst` (взрыв из точки наружу), осколки распределяются ДУГОЙ-ПОТОКОМ
+ * вокруг дыры на радиусе разрыва с тангенциальной скоростью (приливный «стрим»):
+ * поток закручивается и по спирали аккрецирует. Суммарный MP задаётся явно
+ * (`totalMp`) — масштабируется от планеты; множители дохода применяет вызывающий
+ * код при поглощении, как и для прочих тел.
+ */
+export function spawnRocheRing(
+  bhX: number,
+  bhY: number,
+  fromX: number,
+  fromY: number,
+  count: number,
+  totalMp: number,
+): SimObject[] {
+  const out: SimObject[] = [];
+  const r0 = Math.hypot(fromX - bhX, fromY - bhY) || 1;
+  const baseAng = Math.atan2(fromY - bhY, fromX - bhX);
+  const mpEach = totalMp / Math.max(1, count);
+  for (let i = 0; i < count; i++) {
+    const kind: ObjectKind = Math.random() < 0.5 ? 1 : 2;
+    const baseR = KIND_RADIUS[kind];
+    const sizeU = 0.7 + Math.random() * 1.0;
+    const radiusPx = Math.max(2.2, Math.round(baseR * sizeU * 10) / 10);
+    // Осколки растянуты дугой (~2.4 рад) вокруг дыры около позиции бывшей планеты.
+    const ang = baseAng + (i / count - 0.5) * 2.4 + (Math.random() - 0.5) * 0.15;
+    const rr = r0 * (0.9 + Math.random() * 0.2);
+    const px = bhX + Math.cos(ang) * rr;
+    const py = bhY + Math.sin(ang) * rr;
+    // Тангенциаль (закрутка потока) + лёгкий дрейф внутрь, к дыре.
+    const tx = -Math.sin(ang);
+    const ty = Math.cos(ang);
+    const ix = (bhX - px) / rr;
+    const iy = (bhY - py) / rr;
+    const tang = 30 + Math.random() * 40;
+    const inward = 6 + Math.random() * 16;
+    const id = nextId++;
+    const mass =
+      OBJECT_MASS[kind] * Math.pow(Math.max(0.35, radiusPx / baseR), 2.2);
+    out.push({
+      id,
+      kind,
+      displayName: buildObjectDisplayName(kind, id),
+      x: px,
+      y: py,
+      vx: tx * tang + ix * inward,
+      vy: ty * tang + iy * inward,
+      mass,
+      mpValue: Math.max(1, Math.round(mpEach * (0.7 + Math.random() * 0.6))),
+      radiusPx,
+      shapeSeed: Math.floor(Math.random() * 1_000_000_000),
+      spinRate: (Math.random() < 0.5 ? -1 : 1) * (0.4 + Math.random() * 2.6),
+    });
+  }
+  return out;
+}
+
 function smoothstep(edge0: number, edge1: number, x: number): number {
   if (edge1 <= edge0) return x >= edge1 ? 1 : 0;
   const u = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));

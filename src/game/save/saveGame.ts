@@ -45,6 +45,8 @@ export type SaveData = {
   prestigePerkLevels?: Record<string, number>;
   /** Уровни data-driven MP-апгрейдов по id (опционально; сбрасываются при сжатии). */
   mpUpgradeLevels?: Record<string, number>;
+  /** Уровни узлов ветки B «Окружение» по id (опционально; сбрасываются при сжатии). */
+  environmentLevels?: Record<string, number>;
   /** Открытые достижения (опционально; постоянные, переживают сжатие). */
   achievementsUnlocked?: string[];
 };
@@ -79,6 +81,7 @@ function migrateSalvage(old: Partial<SaveData>): SaveData {
         ? old.prestigePerkLevels
         : {},
     mpUpgradeLevels: {},
+    environmentLevels: {},
     achievementsUnlocked: Array.isArray(old.achievementsUnlocked)
       ? old.achievementsUnlocked
       : [],

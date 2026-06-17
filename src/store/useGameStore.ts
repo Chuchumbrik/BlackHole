@@ -10,6 +10,7 @@ import {
 import {
   ZERO_UPGRADE_LEVELS,
   isViewTierUnlocked,
+  levelSum,
   planUpgradePurchase,
   type UpgradeBranch,
   type UpgradeLevels,
@@ -18,6 +19,10 @@ import { generateStarSystems } from "../game/world/generation";
 import { ppFromSpent } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost, prestigeRunStart } from "../game/prestigePerks";
 import { MP_UPGRADES, planMpUpgradePurchase } from "../game/mpUpgrades";
+import {
+  ENVIRONMENT_UPGRADES,
+  planEnvironmentPurchase,
+} from "../game/environment";
 import {
   loadSave,
   writeSave,
@@ -85,6 +90,8 @@ type GameState = {
   prestigePerkLevels: Record<string, number>;
   /** Уровни data-driven MP-апгрейдов по id (ран-скоуп, сброс при сжатии). */
   mpUpgradeLevels: Record<string, number>;
+  /** Уровни узлов ветки B «Окружение» по id (ран-скоуп, сброс при сжатии). */
+  environmentLevels: Record<string, number>;
   /** Открытые достижения (постоянные, переживают сжатие). */
   achievementsUnlocked: string[];
   /** Имя только что открытого достижения для тоста; null — нет. */
@@ -122,6 +129,8 @@ type GameState = {
   buyPrestigePerk: (id: string, count?: number) => void;
   /** Купить уровень MP-апгрейда за MP. */
   buyMpUpgrade: (id: string, count?: number) => void;
+  /** Купить уровень узла окружения (ветка B) за MP. */
+  buyEnvironmentUpgrade: (id: string, count?: number) => void;
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
   buyMultiplier: number;
   setBuyMultiplier: (m: number) => void;
@@ -160,6 +169,7 @@ function buildSaveData(s: GameState): SaveData {
     lifetimePp: s.lifetimePp,
     prestigePerkLevels: s.prestigePerkLevels,
     mpUpgradeLevels: s.mpUpgradeLevels,
+    environmentLevels: s.environmentLevels,
     achievementsUnlocked: s.achievementsUnlocked,
   };
 }
@@ -221,6 +231,7 @@ export const useGameStore = create<GameState>((set, get) => {
     lifetimePp: saved?.lifetimePp ?? saved?.prestigePoints ?? 0,
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
+    environmentLevels: saved?.environmentLevels ?? {},
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
     activeEventName: null,
@@ -455,6 +466,7 @@ export const useGameStore = create<GameState>((set, get) => {
         incomeEmaMpPerSec: 0,
         pendingOfflineMp: 0,
         mpUpgradeLevels: {},
+        environmentLevels: {},
         mpGainFloaters: [],
       };
     }),
@@ -492,6 +504,29 @@ export const useGameStore = create<GameState>((set, get) => {
         mpUpgradeLevels: { ...s.mpUpgradeLevels, [id]: lvl0 + plan.count },
       };
     }),
+  buyEnvironmentUpgrade: (id, count = 1) =>
+    set((s) => {
+      const def = ENVIRONMENT_UPGRADES.find((u) => u.id === id);
+      if (!def) return s;
+      const lvl0 = s.environmentLevels[id] ?? 0;
+      const plan = planEnvironmentPurchase(
+        def,
+        lvl0,
+        s.massMp,
+        count,
+        levelSum(s.upgradeLevels),
+      );
+      if (plan.count === 0) return s;
+      return {
+        massMp: s.massMp - plan.totalCost,
+        massSpentRun: s.massSpentRun + plan.totalCost,
+        massSpentTotal: s.massSpentTotal + plan.totalCost,
+        environmentLevels: {
+          ...s.environmentLevels,
+          [id]: lvl0 + plan.count,
+        },
+      };
+    }),
   saveNow: () => writeSave(buildSaveData(get())),
   resetProgress: () =>
     set(() => {
@@ -518,6 +553,7 @@ export const useGameStore = create<GameState>((set, get) => {
         lifetimePp: 0,
         prestigePerkLevels: {},
         mpUpgradeLevels: {},
+        environmentLevels: {},
         achievementsUnlocked: [],
         achievementToast: null,
         mpGainFloaters: [],

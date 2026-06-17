@@ -20,6 +20,9 @@ import {
   JET_PROC_ATTEMPT_INTERVAL_SEC,
   JET_PROC_CHANCE_PER_LEVEL,
   PLANET_TRIBUTE_INTERVAL_SEC,
+  ROCHE_TEAR_FACTOR,
+  ROCHE_REWARD_MUL,
+  ROCHE_RING_SHARDS,
   softCapIncomeMul,
   STAR_COLLISION_RADIUS_FRACTION,
   STAR_DISPLAY_RADIUS_FRACTION,
@@ -38,6 +41,7 @@ import {
   objRadius,
   addObjectsCapped,
   spawnDebrisBurst,
+  spawnRocheRing,
   spawnTributeShip,
   stepSimulation,
   trySpawn,
@@ -57,6 +61,7 @@ import {
 import { planetSwallowMpBase } from "../game/world/planetLife";
 import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
+import { environmentModifiers } from "../game/environment";
 import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
   pickEvent,
@@ -1216,6 +1221,9 @@ export function GameCanvas() {
         const mpu = mpUpgradeModifiers(
           useGameStore.getState().mpUpgradeLevels,
         );
+        const envMods = environmentModifiers(
+          useGameStore.getState().environmentLevels,
+        );
         const achMul = achievementMpMul(
           useGameStore.getState().achievementsUnlocked,
         );
@@ -1263,6 +1271,7 @@ export function GameCanvas() {
           mpIncomeMultiplier(levels, jetBuffActive) *
             pmods.mpMul *
             mpu.mpMul *
+            envMods.mpMul *
             achMul *
             eventMpMul,
         );
@@ -1274,6 +1283,7 @@ export function GameCanvas() {
           BASE_SPAWN_PER_SECOND *
             runStart.spawnRateMul *
             mpu.spawnRateMul *
+            envMods.spawnRateMul *
             eventSpawnMul,
         );
         objects = trySpawn(objects, layout, spawnCount, {
@@ -1297,7 +1307,13 @@ export function GameCanvas() {
         const minDLayout = Math.min(layout.width, layout.height);
         const bhGrowth =
           layout.horizonRadius / (minDLayout * BASE_HORIZON_FRACTION);
-        const bhPerturbFrac = Math.min(1, Math.max(0.03, (bhGrowth - 1) * 0.8));
+        // Окружение (ветка B) усиливает возмущение орбит дырой (риск): множитель
+        // применяется ВНУТРИ клампа [0.03, 1], поэтому раннее влияние мало и растёт
+        // вместе с массой дыры — орбиты деградируют быстрее, планеты падают раньше.
+        const bhPerturbFrac = Math.min(
+          1,
+          Math.max(0.03, (bhGrowth - 1) * 0.8) * envMods.orbitPerturbMul,
+        );
         const bhSrc = {
           x: layout.bh.x,
           y: layout.bh.y,
@@ -1439,6 +1455,27 @@ export function GameCanvas() {
                 useGameStore.getState().addMassMp(gain);
               }
               hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "horizon" });
+              useGameStore.getState().removePlanet(activeSystem.id, pl.id);
+              continue;
+            }
+            // Предел Роша: приливный разрыв планеты в кольцо обломков ДО горизонта.
+            if (dBh < layout.horizonRadius * ROCHE_TEAR_FACTOR) {
+              const totalMp = Math.max(
+                1,
+                Math.floor(planetSwallowMpBase(pl) * ROCHE_REWARD_MUL),
+              );
+              objects = addObjectsCapped(
+                objects,
+                spawnRocheRing(
+                  layout.bh.x,
+                  layout.bh.y,
+                  s.x,
+                  s.y,
+                  ROCHE_RING_SHARDS,
+                  totalMp,
+                ),
+              );
+              hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "body" });
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);
               continue;
             }
