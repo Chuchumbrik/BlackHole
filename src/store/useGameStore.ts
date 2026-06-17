@@ -71,6 +71,10 @@ export type SimTimeScale = 0 | 1 | 2 | 3 | 5 | 10;
 export type MpGainFloaterEvent = { id: number; amount: number };
 
 let mpGainFloaterIdSeq = 0;
+/** Время старта текущего «+MP»-флоатера (мс) — для коалесинга частых начислений. */
+let lastFloaterAtMs = 0;
+/** Окно слияния: начисления в пределах этого интервала суммируются в одну подпись. */
+const MP_FLOATER_COALESCE_MS = 320;
 let journalIdSeq = 0;
 
 /** Прибавить запись в журнал (с обрезкой до JOURNAL_MAX), новые — в начале. */
@@ -310,13 +314,31 @@ export const useGameStore = create<GameState>((set, get) => {
     set((s) => {
       const add = Math.max(0, Math.floor(amount));
       if (add <= 0) return s;
-      const id = ++mpGainFloaterIdSeq;
       const massMp = s.massMp + add;
+      const now = Date.now();
+      // Коалесинг: частые начисления (в пределах окна) суммируются в ОДНУ
+      // растущую подпись «+N MP» — вместо десятков всплывашек одновременно.
+      let mpGainFloaters = s.mpGainFloaters;
+      if (
+        mpGainFloaters.length > 0 &&
+        now - lastFloaterAtMs < MP_FLOATER_COALESCE_MS
+      ) {
+        const newestId = mpGainFloaters[mpGainFloaters.length - 1].id;
+        mpGainFloaters = mpGainFloaters.map((f) =>
+          f.id === newestId ? { ...f, amount: f.amount + add } : f,
+        );
+      } else {
+        lastFloaterAtMs = now;
+        mpGainFloaters = [
+          ...mpGainFloaters,
+          { id: ++mpGainFloaterIdSeq, amount: add },
+        ];
+      }
       return {
         massMp,
         lifetimeMassMp: s.lifetimeMassMp + add,
         peakMassMp: Math.max(s.peakMassMp, massMp),
-        mpGainFloaters: [...s.mpGainFloaters, { id, amount: add }],
+        mpGainFloaters,
       };
     }),
   dismissMpGainFloater: (id) =>
