@@ -927,8 +927,9 @@ export function GameCanvas() {
       });
 
       application.stage.on("pointermove", (e) => {
-        const viewTier = useGameStore.getState().viewTier;
-        if (viewTier >= 2) return;
+        // V4: один снимок состояния на событие (было до 6 вызовов getState).
+        const st = useGameStore.getState();
+        if (st.viewTier >= 2) return;
 
         if (ptrDown) {
           const moved = Math.hypot(
@@ -941,10 +942,7 @@ export function GameCanvas() {
             panY += e.global.y - panLastY;
             panLastX = e.global.x;
             panLastY = e.global.y;
-            const lay = layoutFromHost(
-              host,
-              useGameStore.getState().upgradeLevels,
-            );
+            const lay = layoutFromHost(host, st.upgradeLevels);
             const maxP = Math.min(lay.width, lay.height) * 3.5;
             panX = Math.max(-maxP, Math.min(maxP, panX));
             panY = Math.max(-maxP, Math.min(maxP, panY));
@@ -954,12 +952,9 @@ export function GameCanvas() {
 
         const local = worldRoot.toLocal(e.global);
         hoverObjectId = pickObjectAtWorld(objects, local.x, local.y);
-        const levelsPm = useGameStore.getState().upgradeLevels;
-        const layoutPm = layoutFromHost(host, levelsPm);
-        const simT = useGameStore.getState().gameTimeSec;
-        const sysId = useGameStore.getState().activeSystemId;
-        const sysList = useGameStore.getState().systems;
-        const sys = sysList.find((s) => s.id === sysId);
+        const layoutPm = layoutFromHost(host, st.upgradeLevels);
+        const simT = st.gameTimeSec;
+        const sys = st.systems.find((s) => s.id === st.activeSystemId);
         const pCtx = planetContextFromSimLayout(layoutPm);
         hoverPlanet =
           hoverObjectId === null

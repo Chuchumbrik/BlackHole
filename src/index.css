@@ -684,6 +684,21 @@ body,
   .app-header {
     flex-direction: column;
   }
+  /* V4: на узких экранах легенда не должна заслонять поле — компактнее и со скроллом. */
+  .field-legend {
+    bottom: 4.5rem;
+    width: min(18rem, calc(100vw - 1.5rem));
+    max-height: 42vh;
+    overflow-y: auto;
+  }
+  .field-legend-list li {
+    font-size: 11px;
+  }
+  /* CTA в одну колонку, чтобы кнопка не выходила за край. */
+  .onboarding-cta {
+    flex-wrap: wrap;
+    max-width: calc(100vw - 1.5rem);
+  }
 }
 
 /* Окно оффлайн-дохода «пока вас не было» */
