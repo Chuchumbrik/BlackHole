@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ppFromSpent, PRESTIGE_SPENT_PER_PP } from "./prestige";
+import { ppFromSpent, prestigePpGain, PRESTIGE_SPENT_PER_PP } from "./prestige";
 
 describe("prestige: ppFromSpent (по потраченной массе)", () => {
   it("ниже порога даёт 0 PP", () => {
@@ -24,5 +24,18 @@ describe("prestige: ppFromSpent (по потраченной массе)", () =>
       expect(pp).toBeGreaterThanOrEqual(prev);
       prev = pp;
     }
+  });
+});
+
+describe("prestige: prestigePpGain (потрачено + наличие)", () => {
+  it("учитывает и потраченное, и наличие на руках", () => {
+    // по отдельности ниже порога, вместе — достаточно
+    expect(prestigePpGain(600, 600)).toBe(ppFromSpent(1200));
+    expect(prestigePpGain(PRESTIGE_SPENT_PER_PP * 2, PRESTIGE_SPENT_PER_PP * 2)).toBe(
+      ppFromSpent(PRESTIGE_SPENT_PER_PP * 4),
+    );
+  });
+  it("наличие само по себе даёт PP (не только траты)", () => {
+    expect(prestigePpGain(0, PRESTIGE_SPENT_PER_PP * 9)).toBe(3);
   });
 });

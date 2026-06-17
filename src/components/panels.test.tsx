@@ -40,10 +40,10 @@ const sys = (planets: Planet[]): StarSystem => ({
 
 describe("PrestigePanel (UI)", () => {
   it("ниже порога — нет кнопки сжатия, есть подсказка", () => {
-    useGameStore.setState({ massSpentRun: 0, prestigePoints: 0, prestigePerkLevels: {} });
+    useGameStore.setState({ massSpentRun: 0, massMp: 0, prestigePoints: 0, prestigePerkLevels: {} });
     render(<PrestigePanel />);
     expect(screen.queryByRole("button", { name: /Сжать вселенную/ })).toBeNull();
-    expect(screen.getByText(/потратить/)).toBeInTheDocument();
+    expect(screen.getByText(/набрать/)).toBeInTheDocument();
   });
   it("выше порога (потрачено достаточно) — кнопка сжатия доступна", () => {
     useGameStore.setState({ massSpentRun: 20_000, prestigePoints: 3, prestigePerkLevels: {} });
@@ -53,11 +53,14 @@ describe("PrestigePanel (UI)", () => {
 });
 
 describe("AchievementsPanel (UI)", () => {
-  it("показывает счётчик открытых и статусы", () => {
+  it("показывает счётчик открытых и тирер-карточки тем с бонусом", () => {
     useGameStore.setState({ achievementsUnlocked: ["mass_1"] });
     render(<AchievementsPanel />);
     expect(screen.getByText(/Открыто 1\//)).toBeInTheDocument();
-    expect(screen.getAllByText("Открыто ✓").length).toBeGreaterThanOrEqual(1);
+    // Тема-карточка «Масса на руках» присутствует
+    expect(screen.getByText("Масса на руках")).toBeInTheDocument();
+    // Каждая карточка показывает текущий бонус «Сейчас даёт: +N% MP»
+    expect(screen.getAllByText(/Сейчас даёт: \+\d+% MP/).length).toBeGreaterThanOrEqual(1);
   });
 });
 

@@ -35,8 +35,8 @@ import {
   type UpgradeLevels,
 } from "../game/upgrades";
 import { generateStarSystems } from "../game/world/generation";
-import { ppFromSpent } from "../game/prestige";
-import { PRESTIGE_PERKS, perkCost, prestigeRunStart } from "../game/prestigePerks";
+import { prestigePpGain } from "../game/prestige";
+import { PRESTIGE_PERKS, planPerkPurchase, prestigeRunStart } from "../game/prestigePerks";
 import { MP_UPGRADES, planMpUpgradePurchase } from "../game/mpUpgrades";
 import {
   ENVIRONMENT_UPGRADES,
@@ -552,7 +552,7 @@ export const useGameStore = create<GameState>((set, get) => {
   clearPendingOffline: () => set({ pendingOfflineMp: 0 }),
   doPrestige: () =>
     set((s) => {
-      const gain = ppFromSpent(s.massSpentRun);
+      const gain = prestigePpGain(s.massSpentRun, s.massMp);
       if (gain <= 0) return s;
       const rs = prestigeRunStart(s.prestigePerkLevels);
       const fresh = generateStarSystems(rs.extraPlanets);
@@ -594,20 +594,12 @@ export const useGameStore = create<GameState>((set, get) => {
     set((s) => {
       const def = PRESTIGE_PERKS.find((p) => p.id === id);
       if (!def) return s;
-      let pp = s.prestigePoints;
-      let lvl = s.prestigePerkLevels[id] ?? 0;
-      let bought = 0;
-      for (let i = 0; i < count && lvl < def.maxLevel; i++) {
-        const cost = perkCost(def, lvl);
-        if (pp < cost) break;
-        pp -= cost;
-        lvl++;
-        bought++;
-      }
-      if (bought === 0) return s;
+      const lvl0 = s.prestigePerkLevels[id] ?? 0;
+      const plan = planPerkPurchase(def, lvl0, s.prestigePoints, count);
+      if (plan.count === 0) return s;
       return {
-        prestigePoints: pp,
-        prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl },
+        prestigePoints: s.prestigePoints - plan.totalCost,
+        prestigePerkLevels: { ...s.prestigePerkLevels, [id]: lvl0 + plan.count },
       };
     }),
   buyMpUpgrade: (id, count = 1) =>

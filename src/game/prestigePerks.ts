@@ -26,6 +26,14 @@ export type PrestigePerkDef = {
   perLevel: number;
 };
 
+/**
+ * «Безлимитный» потолок: множительные/аддитивные перки уровней не ограничены —
+ * экспоненциальный рост цены PP (×1.8–2.0/ур.) сам становится мягким пределом.
+ * Исключение — `extraPlanets`: число планет жёстко влияет на генерацию мира и
+ * производительность, поэтому у него остаётся разумный предел.
+ */
+const PERK_NO_CAP = 100000;
+
 export const PRESTIGE_PERKS: PrestigePerkDef[] = [
   // — Тип B (постоянные) —
   {
@@ -34,7 +42,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     desc: "+5 % к добыче MP за уровень",
     baseCost: 1,
     costMult: 1.9,
-    maxLevel: 25,
+    maxLevel: PERK_NO_CAP,
     kind: "mpMul",
     perLevel: 1.05,
   },
@@ -44,7 +52,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     desc: "+8 % к пассиву Хокинга за уровень",
     baseCost: 2,
     costMult: 1.9,
-    maxLevel: 25,
+    maxLevel: PERK_NO_CAP,
     kind: "hawkingMul",
     perLevel: 1.08,
   },
@@ -55,7 +63,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     desc: "+12 % к частоте спавна объектов за уровень",
     baseCost: 2,
     costMult: 2.0,
-    maxLevel: 15,
+    maxLevel: PERK_NO_CAP,
     kind: "spawnRateMul",
     perLevel: 1.12,
   },
@@ -65,7 +73,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     desc: "+1 планета в системе за уровень (нового рана)",
     baseCost: 3,
     costMult: 2.4,
-    maxLevel: 4,
+    maxLevel: 8, // жёсткий предел: планеты влияют на генерацию/производительность
     kind: "extraPlanets",
     perLevel: 1,
   },
@@ -75,7 +83,7 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     desc: "+60 MP стартовой массы нового рана за уровень",
     baseCost: 2,
     costMult: 1.8,
-    maxLevel: 20,
+    maxLevel: PERK_NO_CAP,
     kind: "startMass",
     perLevel: 60,
   },
@@ -84,6 +92,32 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
 /** Цена следующего уровня перка (PP). */
 export function perkCost(def: PrestigePerkDef, level: number): number {
   return Math.ceil(def.baseCost * Math.pow(def.costMult, level));
+}
+
+/**
+ * План оптовой покупки перка: сколько уровней реально купится за `count`
+ * (с учётом запаса PP и `maxLevel`) и их суммарная цена. Единый источник истины
+ * для стора (списание) и панели (отображение цены/количества под множитель).
+ */
+export function planPerkPurchase(
+  def: PrestigePerkDef,
+  level: number,
+  pp: number,
+  count: number,
+): { count: number; totalCost: number } {
+  let lvl = level;
+  let points = pp;
+  let totalCost = 0;
+  let bought = 0;
+  for (let i = 0; i < count && lvl < def.maxLevel; i++) {
+    const c = perkCost(def, lvl);
+    if (points < c) break;
+    points -= c;
+    totalCost += c;
+    lvl++;
+    bought++;
+  }
+  return { count: bought, totalCost };
 }
 
 export type PrestigeModifiers = { mpMul: number; hawkingMul: number };

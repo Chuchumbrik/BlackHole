@@ -18,8 +18,17 @@
  */
 export const PRESTIGE_SPENT_PER_PP = 1000;
 
-/** PP за сжатие по массе, потраченной за ран (0, если ниже порога). */
-export function ppFromSpent(massSpentRun: number): number {
-  if (massSpentRun < PRESTIGE_SPENT_PER_PP) return 0;
-  return Math.floor(Math.sqrt(massSpentRun / PRESTIGE_SPENT_PER_PP));
+/** PP по абсолютной массе-основе (0, если ниже порога). */
+export function ppFromSpent(amount: number): number {
+  if (amount < PRESTIGE_SPENT_PER_PP) return 0;
+  return Math.floor(Math.sqrt(amount / PRESTIGE_SPENT_PER_PP));
+}
+
+/**
+ * База PP сжатия = ПОТРАЧЕНО за ран + НАЛИЧИЕ на руках. Учитываем и то, и другое:
+ * масса, которой ты управляешь сейчас, — тоже твоя (по фидбеку пользователя), а
+ * не только уже вложенная в улучшения.
+ */
+export function prestigePpGain(massSpentRun: number, massMp: number): number {
+  return ppFromSpent(Math.max(0, massSpentRun) + Math.max(0, massMp));
 }
