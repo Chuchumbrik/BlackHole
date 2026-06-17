@@ -979,10 +979,30 @@ export function GameCanvas() {
         if (!ptrMoved) {
           const local = worldRoot.toLocal(e.global);
           const id = pickObjectAtWorld(objects, local.x, local.y);
-          if (id === null) {
-            selectedObjectId = null;
-          } else {
+          if (id !== null) {
             selectedObjectId = selectedObjectId === id ? null : id;
+            return;
+          }
+          selectedObjectId = null;
+          // Клик по планете → открыть панель её развития.
+          const levelsPk = useGameStore.getState().upgradeLevels;
+          const layoutPk = layoutFromHost(host, levelsPk);
+          const simTPk = useGameStore.getState().gameTimeSec;
+          const sysIdPk = useGameStore.getState().activeSystemId;
+          const sysPk = useGameStore
+            .getState()
+            .systems.find((s) => s.id === sysIdPk);
+          const planet = pickPlanetAtWorld(
+            local.x,
+            local.y,
+            sysPk?.planets ?? [],
+            planetContextFromSimLayout(layoutPk),
+            simTPk,
+            planetPosById,
+          );
+          if (planet) {
+            useGameStore.getState().setActivePlanet(planet.id);
+            useGameStore.getState().setTab("planet");
           }
         }
       };

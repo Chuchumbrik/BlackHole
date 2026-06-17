@@ -6,7 +6,9 @@ import {
   PLANET_LIFE_EMERGENCE_TOTAL_SEC,
   PLANET_STAGE_DURATIONS_SEC,
   PLANET_TERRAFORM_COST_MP,
+  PLANET_TERRAFORM_STEP,
   PLANET_SHIELD_COST_MP,
+  PLANET_CIV_MAX_LEVEL,
 } from "../game/balance";
 import {
   accelerationCostMp,
@@ -69,6 +71,19 @@ export function PlanetPanel() {
     PLANET_ACCELERATION_SECONDS,
     stageDuration - planet.stageProgressSec,
   );
+
+  // Чёткие состояния кнопок — чтобы активная кнопка не вводила в заблуждение.
+  const maxStage = PLANET_STAGE_DURATIONS_SEC.length;
+  const fullyDeveloped =
+    planet.stage >= maxStage &&
+    planet.lifeBorn &&
+    planet.civLevel >= PLANET_CIV_MAX_LEVEL;
+  const paramsPerfect = deviationFromGoldenMid(planet) <= PLANET_TERRAFORM_STEP / 2;
+  const shieldActive = planet.shieldUntilSec > gameTimeSec;
+  const shieldLeftSec = Math.ceil(planet.shieldUntilSec - gameTimeSec);
+  const canTerraform = !paramsPerfect && massMp >= PLANET_TERRAFORM_COST_MP;
+  const canShield = !shieldActive && massMp >= PLANET_SHIELD_COST_MP;
+  const canAccelerate = enoughMass && !fullyDeveloped;
 
   return (
     <section className="planet-panel">
@@ -209,34 +224,36 @@ export function PlanetPanel() {
         <button
           type="button"
           className="planet-accelerate"
-          disabled={!enoughMass}
+          disabled={!canAccelerate}
           title="Ускоряет развитие планеты за MP: стадии, зарождение жизни и рост цивилизации"
           onClick={() => acceleratePlanet(activeSystem.id, planet.id)}
         >
-          {t("planet.accelerate", {
-            cost: cost.toLocaleString(locale),
-          })}
+          {fullyDeveloped
+            ? "Развитие завершено"
+            : t("planet.accelerate", { cost: cost.toLocaleString(locale) })}
         </button>
 
         <div className="planet-actions">
           <button
             type="button"
             className="planet-action-btn"
-            disabled={massMp < PLANET_TERRAFORM_COST_MP}
+            disabled={!canTerraform}
             onClick={() => terraformPlanet(activeSystem.id, planet.id)}
             title="Сдвигает параметры к золотой середине — путь к экосистеме и жизни"
           >
-            Терраформинг · {PLANET_TERRAFORM_COST_MP.toLocaleString(locale)} MP
+            {paramsPerfect
+              ? "Параметры идеальны"
+              : `Терраформинг · ${PLANET_TERRAFORM_COST_MP.toLocaleString(locale)} MP`}
           </button>
           <button
             type="button"
             className="planet-action-btn"
-            disabled={massMp < PLANET_SHIELD_COST_MP}
+            disabled={!canShield}
             onClick={() => shieldPlanet(activeSystem.id, planet.id)}
             title="Защита от ударов астероидов на время"
           >
-            {planet.shieldUntilSec > gameTimeSec
-              ? "Щит активен"
+            {shieldActive
+              ? `Щит активен · ${shieldLeftSec} с`
               : `Щит · ${PLANET_SHIELD_COST_MP.toLocaleString(locale)} MP`}
           </button>
         </div>

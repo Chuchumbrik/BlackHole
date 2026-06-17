@@ -141,8 +141,8 @@ describe("PlanetPanel (UI)", () => {
     render(<PlanetPanel />);
     expect(screen.getByText(/Системы пока не сгенерированы/)).toBeInTheDocument();
   });
-  it("с активной планетой — есть действия терраформинга и щита", () => {
-    const p = mkPlanet();
+  it("с активной планетой (неидеальные параметры) — есть терраформинг и щит", () => {
+    const p = { ...mkPlanet(), atmosphere: 15, surfaceTemperature: 85 };
     useGameStore.setState({
       systems: [sys([p])],
       activeSystemId: "sys1",
@@ -152,5 +152,48 @@ describe("PlanetPanel (UI)", () => {
     render(<PlanetPanel />);
     expect(screen.getByRole("button", { name: /Терраформинг/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Щит/ })).toBeInTheDocument();
+  });
+  it("идеальные параметры → терраформинг отключён с понятной подписью", () => {
+    const p = mkPlanet(); // все параметры 50 = золотая середина
+    useGameStore.setState({
+      systems: [sys([p])],
+      activeSystemId: "sys1",
+      activePlanetId: "pl1",
+      massMp: 100000,
+    });
+    render(<PlanetPanel />);
+    const btn = screen.getByRole("button", { name: /Параметры идеальны/ });
+    expect(btn).toBeDisabled();
+  });
+  it("активный щит → кнопка отключена и показывает остаток времени", () => {
+    const p = { ...mkPlanet(), shieldUntilSec: 100 };
+    useGameStore.setState({
+      systems: [sys([p])],
+      activeSystemId: "sys1",
+      activePlanetId: "pl1",
+      massMp: 100000,
+      gameTimeSec: 40,
+    });
+    render(<PlanetPanel />);
+    const btn = screen.getByRole("button", { name: /Щит активен/ });
+    expect(btn).toBeDisabled();
+  });
+  it("полностью развитая планета → ускорение отключено («Развитие завершено»)", () => {
+    const p = {
+      ...mkPlanet(),
+      stage: 4,
+      lifeBorn: true,
+      civLevel: 4,
+      atmosphere: 15,
+    };
+    useGameStore.setState({
+      systems: [sys([p])],
+      activeSystemId: "sys1",
+      activePlanetId: "pl1",
+      massMp: 1_000_000,
+    });
+    render(<PlanetPanel />);
+    const btn = screen.getByRole("button", { name: /Развитие завершено/ });
+    expect(btn).toBeDisabled();
   });
 });
