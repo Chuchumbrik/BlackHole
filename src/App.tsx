@@ -45,6 +45,17 @@ type TabUnlockCtx = {
   achievementsCount: number;
 };
 
+/** Класс-модификатор оверлея по вкладке (для специфичных стилей панели). */
+const PANEL_OVERLAY_CLASS: Record<string, string> = {
+  upgrades: "app-panel-upgrades",
+  planet: "app-panel-planet",
+  prestige: "app-panel-prestige",
+  stats: "app-panel-stats",
+  achievements: "app-panel-stats",
+  journal: "app-panel-stats",
+  settings: "app-panel-settings",
+};
+
 function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
@@ -165,40 +176,38 @@ function App() {
         >
           <GameCanvas />
         </div>
-        {activeTab === "upgrades" && (
-          <div className="app-panel-overlay app-panel-upgrades">
-            <UpgradesPanel />
-          </div>
-        )}
-        {activeTab === "planet" && (
-          <div className="app-panel-overlay app-panel-planet">
-            <PlanetPanel />
-          </div>
-        )}
-        {activeTab === "prestige" && (
-          <div className="app-panel-overlay app-panel-prestige">
-            <PrestigePanel />
-          </div>
-        )}
-        {activeTab === "stats" && (
-          <div className="app-panel-overlay app-panel-stats">
-            <StatsPanel />
-          </div>
-        )}
-        {activeTab === "achievements" && (
-          <div className="app-panel-overlay app-panel-stats">
-            <AchievementsPanel />
-          </div>
-        )}
-        {activeTab === "journal" && (
-          <div className="app-panel-overlay app-panel-stats">
-            <JournalPanel />
-          </div>
-        )}
-        {activeTab === "settings" && (
-          <div className="app-panel-overlay app-panel-settings">
-            <SettingsPanel />
-          </div>
+        {activeTab !== "game" && (
+          <>
+            {/* Полупрозрачный бэкдроп: космос виден позади, клик по нему закрывает
+                панель (модальное поведение, а не блокировка всего экрана). */}
+            <div
+              className="app-panel-backdrop"
+              onClick={() => setTab("game")}
+              aria-hidden="true"
+            />
+            <div
+              className={`app-panel-overlay ${PANEL_OVERLAY_CLASS[activeTab] ?? ""}`}
+              role="dialog"
+              aria-modal="false"
+            >
+              <button
+                type="button"
+                className="app-panel-close"
+                onClick={() => setTab("game")}
+                aria-label="Закрыть"
+                title="Закрыть (или клик по космосу)"
+              >
+                ✕
+              </button>
+              {activeTab === "upgrades" && <UpgradesPanel />}
+              {activeTab === "planet" && <PlanetPanel />}
+              {activeTab === "prestige" && <PrestigePanel />}
+              {activeTab === "stats" && <StatsPanel />}
+              {activeTab === "achievements" && <AchievementsPanel />}
+              {activeTab === "journal" && <JournalPanel />}
+              {activeTab === "settings" && <SettingsPanel />}
+            </div>
+          </>
         )}
       </div>
 

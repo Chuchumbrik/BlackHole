@@ -112,7 +112,7 @@ export function PrestigePanel() {
               ) : (
                 <button
                   type="button"
-                  className="prestige-btn prestige-perk-buy"
+                  className="upgrades-buy prestige-perk-buy"
                   disabled={!affordable}
                   onClick={() => buyPrestigePerk(perk.id, buyMultiplier)}
                 >

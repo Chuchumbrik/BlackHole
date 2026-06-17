@@ -182,17 +182,32 @@ body,
   font-size: 0.9rem;
 }
 
-.app-panel-overlay {
-  position: fixed;
+/* Полупрозрачный бэкдроп: космос виден позади, клик закрывает панель. */
+.app-panel-backdrop {
+  position: absolute;
   inset: 0;
-  z-index: 0;
+  z-index: 1;
+  background: rgba(3, 5, 10, 0.4);
+  backdrop-filter: blur(1.5px);
+  pointer-events: auto;
+}
+
+/* Мобайл: панель — нижний лист (не на весь экран), сверху виден космос. */
+.app-panel-overlay {
+  position: absolute;
+  inset: auto 0 0 0;
+  z-index: 2;
+  max-height: 86vh;
   overflow: auto;
-  padding: 5.25rem 1rem 1.5rem;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(18, 10, 30, 0.96) 0%,
-    rgba(5, 5, 8, 0.94) 72%
+  padding: 1.6rem 1rem 1.5rem;
+  background: linear-gradient(
+    180deg,
+    rgba(16, 11, 26, 0.98) 0%,
+    rgba(10, 7, 16, 0.98) 100%
   );
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -24px 64px rgba(0, 0, 0, 0.6);
   pointer-events: auto;
 }
 
@@ -200,16 +215,43 @@ body,
 @media (min-width: 980px) {
   .app-panel-overlay {
     inset: 0 0 0 auto;
+    max-height: none;
     width: min(480px, 42vw);
     padding: 5.25rem 1.5rem 1.5rem;
-    background: linear-gradient(
-      to left,
-      rgba(10, 7, 18, 0.98) 0%,
-      rgba(10, 7, 18, 0.94) 88%,
-      rgba(10, 7, 18, 0.82) 100%
-    );
+    border-top: none;
+    border-radius: 0;
     border-left: 1px solid var(--border);
     box-shadow: -24px 0 64px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Кнопка закрытия панели (✕) — всегда доступна, не нужно жать вкладку. */
+.app-panel-close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.7rem;
+  z-index: 3;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.app-panel-close:hover {
+  background: rgba(155, 126, 217, 0.25);
+  border-color: rgba(155, 126, 217, 0.5);
+}
+@media (min-width: 980px) {
+  .app-panel-close {
+    top: 5.35rem;
+    right: 1rem;
   }
 }
 
@@ -460,13 +502,15 @@ body,
 }
 
 .upgrades-card-action {
-  flex: 0 0 auto;
+  /* Фиксированная ширина колонки: кнопка покупки НЕ меняет размер при смене
+     множителя (×1 / ×5 / «(макс.)») — интерфейс не «прыгает». */
+  flex: 0 0 10.5rem;
+  width: 10.5rem;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 0.35rem;
   text-align: right;
-  min-width: 8.5rem;
 }
 
 .upgrades-card-action .upgrades-card-cost {
@@ -475,6 +519,10 @@ body,
 
 .upgrades-card-action .upgrades-buy {
   width: 100%;
+  white-space: nowrap;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .upgrades-card-head {
@@ -897,7 +945,7 @@ body,
 .prestige-perk-lvl { font-size: 12px; color: #94a3b8; }
 .prestige-perk-desc { font-size: 12px; color: #94a3b8; margin: 6px 0 10px; }
 .prestige-perk-buy { margin-top: 0; padding: 7px 14px; font-size: 13px; }
-.prestige-perk-buy:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+/* Стиль «нельзя купить» унифицирован с улучшениями (.upgrades-buy:disabled). */
 .prestige-perk-max { font-size: 13px; color: #6ee7b7; }
 
 /* Секция особых MP-апгрейдов */
