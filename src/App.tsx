@@ -87,7 +87,7 @@ function App() {
           className={
             activeTab === "game"
               ? "game-canvas-wrap is-visible"
-              : "game-canvas-wrap"
+              : "game-canvas-wrap is-backdrop"
           }
           aria-hidden={activeTab !== "game"}
         >

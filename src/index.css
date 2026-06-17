@@ -5,6 +5,16 @@
   --text: #e8e4f2;
   --muted: #8a8299;
   --accent: #9b7ed9;
+  /* Дизайн-токены (единая система отступов/радиусов/свечений) */
+  --accent-strong: #b9a3ee;
+  --accent-soft: rgba(155, 126, 217, 0.18);
+  --surface: #0e1422;
+  --surface-2: rgba(8, 6, 14, 0.86);
+  --border: rgba(155, 126, 217, 0.25);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 14px 44px rgba(0, 0, 0, 0.55);
+  --gold: #fbbf24;
   font-family:
     "Segoe UI",
     system-ui,
@@ -50,6 +60,12 @@ body,
 .game-canvas-wrap.is-visible {
   visibility: visible;
   pointer-events: auto;
+}
+
+/* Фон-космос за боковыми модалками (виден, но не кликается вне игровой вкладки). */
+.game-canvas-wrap.is-backdrop {
+  visibility: visible;
+  pointer-events: none;
 }
 
 .game-canvas-host {
@@ -178,6 +194,23 @@ body,
     rgba(5, 5, 8, 0.94) 72%
   );
   pointer-events: auto;
+}
+
+/* Большие экраны: панель — правый дровер, космос остаётся виден слева. */
+@media (min-width: 980px) {
+  .app-panel-overlay {
+    inset: 0 0 0 auto;
+    width: min(480px, 42vw);
+    padding: 5.25rem 1.5rem 1.5rem;
+    background: linear-gradient(
+      to left,
+      rgba(10, 7, 18, 0.98) 0%,
+      rgba(10, 7, 18, 0.94) 88%,
+      rgba(10, 7, 18, 0.82) 100%
+    );
+    border-left: 1px solid var(--border);
+    box-shadow: -24px 0 64px rgba(0, 0, 0, 0.55);
+  }
 }
 
 .app-panel-upgrades {
