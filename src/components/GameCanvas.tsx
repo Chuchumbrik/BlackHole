@@ -641,6 +641,9 @@ export function GameCanvas() {
     // при смене системы и реконсилируются при удалении/добавлении планет.
     let planetBodies: PlanetBody[] = [];
     let planetBodiesSystemId: string | null = null;
+    // Гравитационные источники планетной динамики (для предпросмотра траектории дрейфа).
+    let planetGravStar: { x: number; y: number; mass: number } | null = null;
+    let planetGravBh: { x: number; y: number; mass: number } | null = null;
     /** Свежая карта позиций тел по id — для рендера/пика вне тика. */
     let planetPosById = new Map<string, { x: number; y: number }>();
     /** Планеты с дестабилизированной орбитой (предупреждение игроку). */
@@ -1181,6 +1184,30 @@ export function GameCanvas() {
             hoverObjectId === obj.id || selectedObjectId === obj.id;
           if (active) showTrail(obj);
         }
+
+        // Траектория дрейфа планеты: для выбранной и нестабильных (предсказание
+        // вперёд ~24 с при текущих источниках звезда+дыра). Показывает, КУДА
+        // деградирует орбита под влиянием дыры.
+        if (planetGravStar && planetGravBh && planetBodies.length > 0) {
+          const activePid = useGameStore.getState().activePlanetId;
+          let shown = 0;
+          for (const b of planetBodies) {
+            const isActive = b.id === activePid;
+            if (!isActive && !planetUnstableIds.has(b.id)) continue;
+            if (shown >= 3) break;
+            shown++;
+            const clone: PlanetBody[] = [{ ...b }];
+            const pts: { x: number; y: number }[] = [{ x: b.x, y: b.y }];
+            for (let i = 0; i < 48; i++) {
+              integratePlanetBodies(clone, planetGravStar, planetGravBh, 0.5, 3);
+              pts.push({ x: clone[0].x, y: clone[0].y });
+            }
+            const unstable = planetUnstableIds.has(b.id);
+            const color = unstable ? 0xfca5a5 : isActive ? 0x9bd2ff : 0x7dd3fc;
+            const alpha = isActive ? 0.6 : 0.42;
+            strokeDashedPolyline(trails, pts, color, alpha, dashWorld, gapWorld);
+          }
+        }
       };
 
       const tick = (nowMs: number) => {
@@ -1387,6 +1414,8 @@ export function GameCanvas() {
           y: layout.bh.y,
           mass: layout.bhMass * bhPerturbFrac,
         };
+        planetGravStar = starSrc;
+        planetGravBh = bhSrc;
         if ((activeSystemId ?? null) !== planetBodiesSystemId) {
           planetBodies = seedPlanetBodies(pList0, planetCtx, starSrc, bhSrc);
           planetBodiesSystemId = activeSystemId ?? null;
