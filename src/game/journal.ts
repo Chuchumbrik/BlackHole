@@ -100,6 +100,19 @@ export function loreOnAchievement(name: string): LoreLine {
   return { category: "milestone", text: `Достижение: «${name}».` };
 }
 
+export function loreOnAnomaly(
+  systemName: string,
+  anomalyName: string,
+  legendary: boolean,
+): LoreLine {
+  return {
+    category: legendary ? "milestone" : "discovery",
+    text: legendary
+      ? `ЛЕГЕНДА: обнаружена система ${systemName} — ${anomalyName}. Такое встречается раз на сотни циклов.`
+      : `Аномалия в системе ${systemName}: ${anomalyName}. Необычный источник массы.`,
+  };
+}
+
 export function loreOnUniverseDestroyed(ngPlus: number, up: number): LoreLine {
   return {
     category: "milestone",

@@ -26,9 +26,11 @@ import {
   loreOnAchievement,
   loreOnStarSwallow,
   loreOnUniverseDestroyed,
+  loreOnAnomaly,
   type JournalCategory,
   type JournalEntry,
 } from "../game/journal";
+import { ANOMALY_DEFS } from "../game/world/anomalies";
 import {
   ZERO_UPGRADE_LEVELS,
   isViewTierUnlocked,
@@ -653,17 +655,19 @@ export const useGameStore = create<GameState>((set, get) => {
       const fresh = generateStarSystems(rs.extraPlanets);
       const nextCount = s.prestigeCount + 1;
       const line = loreOnPrestige(nextCount);
+      let journal = prependJournal(s.journalEntries, 0, line.category, line.text);
+      const anomSys = fresh.find((sys) => sys.anomaly);
+      if (anomSys?.anomaly) {
+        const a = ANOMALY_DEFS[anomSys.anomaly];
+        const al = loreOnAnomaly(anomSys.name, a.name, !!a.legendary);
+        journal = prependJournal(journal, 0, al.category, al.text);
+      }
       return {
         prestigePoints: s.prestigePoints + gain,
         lifetimePp: s.lifetimePp + gain,
         prestigeCount: nextCount,
         universeEntropy: s.universeEntropy + ENTROPY_PER_PRESTIGE,
-        journalEntries: prependJournal(
-          s.journalEntries,
-          0,
-          line.category,
-          line.text,
-        ),
+        journalEntries: journal,
         prestigeFlash: s.prestigeFlash + 1,
         massMp: rs.startMassMp,
         massSpentRun: 0,

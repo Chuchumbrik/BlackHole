@@ -41,4 +41,6 @@ export type StarSystem = {
   starMassMp?: number;
   /** Звезда поглощена дырой (горизонт дорос до неё): система коллапсирует. */
   starConsumed?: boolean;
+  /** Аномальный тип системы (редкий) — даёт бонус дохода и лор. */
+  anomaly?: import("./anomalies").AnomalyKind;
 };

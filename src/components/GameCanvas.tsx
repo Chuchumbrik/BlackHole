@@ -75,6 +75,7 @@ import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import { environmentModifiers } from "../game/environment";
 import { loreOnRocheTear } from "../game/journal";
 import { ultimateMpMul } from "../game/endgame";
+import { anomalyMpMul } from "../game/world/anomalies";
 import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
   pickEvent,
@@ -1385,6 +1386,7 @@ export function GameCanvas() {
         const ultimateMul = ultimateMpMul(
           useGameStore.getState().ultimatePoints,
         );
+        const anomalyMul = anomalyMpMul(activeSystem?.anomaly);
         const mpMult =
           softCapIncomeMul(
             mpIncomeMultiplier(levels, jetBuffActive) *
@@ -1394,7 +1396,9 @@ export function GameCanvas() {
               achMul *
               eventMpMul *
               supernovaMpMul,
-          ) * ultimateMul;
+          ) *
+          ultimateMul *
+          anomalyMul;
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(

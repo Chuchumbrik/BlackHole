@@ -7,6 +7,7 @@ import {
   PLANETS_PER_SYSTEM_MIN,
 } from "../balance/planetTuning";
 import type { Planet, StarSystem } from "./types";
+import { rollAnomaly } from "./anomalies";
 
 const STAR_CLASSES = ["G", "K", "F", "M"] as const;
 const SYSTEM_NAMES = ["Aster", "Helios", "Nyx", "Tau", "Eos", "Orion"] as const;
@@ -78,6 +79,7 @@ export function generateStarSystems(extraPlanets = 0): StarSystem[] {
       planets: Array.from({ length: planetsCount }, (_, planetIdx) =>
         genPlanet(systemIdx, planetIdx),
       ),
+      anomaly: rollAnomaly(),
     };
   });
 }
