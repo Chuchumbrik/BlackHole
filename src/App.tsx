@@ -11,6 +11,7 @@ import { AchievementsPanel } from "./components/AchievementsPanel";
 import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
+import { FieldLegend } from "./components/FieldLegend";
 import { useGameStore } from "./store/useGameStore";
 
 const APP_VERSION = __APP_VERSION__;
@@ -128,6 +129,7 @@ function App() {
         <>
           <ViewScaleControls />
           <TimeScaleControls />
+          <FieldLegend />
         </>
       )}
 
