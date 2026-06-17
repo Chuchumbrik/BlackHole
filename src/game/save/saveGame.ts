@@ -28,6 +28,10 @@ export type SaveData = {
   prestigeCount?: number;
   /** Сколько звёзд поглощено дырой (опционально; для достижений). */
   starsSwallowed?: number;
+  /** Эндшпиль: энтропия / Ultimate Points / число New Game+ (опционально). */
+  universeEntropy?: number;
+  ultimatePoints?: number;
+  newGamePlusCount?: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   systems: StarSystem[];

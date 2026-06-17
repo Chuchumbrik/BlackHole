@@ -10,6 +10,7 @@ import {
   MAX_TAPS_PER_MIN,
   SUPERNOVA_ENERGY_COST,
 } from "../game/balance";
+import { ENTROPY_THRESHOLD } from "../game/endgame";
 import type { Planet, StarSystem } from "../game/world/types";
 
 /** Потратить ровно 4×порог → 2 PP (floor(sqrt(4))), независимо от калибровки. */
@@ -228,6 +229,32 @@ describe("store: сверхновая (узел №11)", () => {
     expect(burst).toBeGreaterThan(0);
     expect(useGameStore.getState().pendingSupernovaBurst).toBe(0);
     expect(useGameStore.getState().consumeSupernovaBurst()).toBe(0);
+  });
+});
+
+describe("store: Уничтожение Вселенной (эндшпиль)", () => {
+  it("ниже порога энтропии — не срабатывает", () => {
+    setup(1000);
+    useGameStore.setState({ universeEntropy: 1, ultimatePoints: 0, newGamePlusCount: 0 });
+    useGameStore.getState().destroyUniverse();
+    expect(useGameStore.getState().newGamePlusCount).toBe(0);
+  });
+  it("на пороге — даёт UP, NG+, сбрасывает PP/энтропию", () => {
+    setup(1000);
+    useGameStore.setState({
+      universeEntropy: ENTROPY_THRESHOLD,
+      ultimatePoints: 0,
+      newGamePlusCount: 0,
+      prestigePoints: 50,
+      lifetimePp: 400,
+    });
+    useGameStore.getState().destroyUniverse();
+    const s = useGameStore.getState();
+    expect(s.ultimatePoints).toBeGreaterThanOrEqual(1);
+    expect(s.newGamePlusCount).toBe(1);
+    expect(s.universeEntropy).toBe(0);
+    expect(s.prestigePoints).toBe(0);
+    expect(s.massMp).toBe(0);
   });
 });
 

@@ -100,6 +100,17 @@ export function loreOnAchievement(name: string): LoreLine {
   return { category: "milestone", text: `Достижение: «${name}».` };
 }
 
+export function loreOnUniverseDestroyed(ngPlus: number, up: number): LoreLine {
+  return {
+    category: "milestone",
+    text: pick([
+      `Энтропия достигла предела. Вселенная схлопнулась в вас — и родилась новая (NG+${ngPlus}). +${up} Ultimate Points.`,
+      `Тепловая смерть свершилась вашими руками. New Game+${ngPlus}: древняя, почти пустая вселенная ждёт. +${up} UP.`,
+      `Всё сущее ушло за горизонт. Цикл циклов сомкнулся — NG+${ngPlus}, +${up} Ultimate Points.`,
+    ]),
+  };
+}
+
 export function loreOnStarSwallow(starName: string): LoreLine {
   return {
     category: "milestone",

@@ -74,6 +74,7 @@ import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import { environmentModifiers } from "../game/environment";
 import { loreOnRocheTear } from "../game/journal";
+import { ultimateMpMul } from "../game/endgame";
 import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
   pickEvent,
@@ -1381,15 +1382,19 @@ export function GameCanvas() {
         const eventSpawnMul = ev?.spawnMul ?? 1;
         const eventMpMul = ev?.mpMul ?? 1;
 
-        const mpMult = softCapIncomeMul(
-          mpIncomeMultiplier(levels, jetBuffActive) *
-            pmods.mpMul *
-            mpu.mpMul *
-            envMods.mpMul *
-            achMul *
-            eventMpMul *
-            supernovaMpMul,
+        const ultimateMul = ultimateMpMul(
+          useGameStore.getState().ultimatePoints,
         );
+        const mpMult =
+          softCapIncomeMul(
+            mpIncomeMultiplier(levels, jetBuffActive) *
+              pmods.mpMul *
+              mpu.mpMul *
+              envMods.mpMul *
+              achMul *
+              eventMpMul *
+              supernovaMpMul,
+          ) * ultimateMul;
         const shipsUnlocked = areShipsUnlocked(levels);
 
         const spawnCount = advanceSpawnAccumulator(

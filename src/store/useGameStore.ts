@@ -25,6 +25,7 @@ import {
   loreOnSupernova,
   loreOnAchievement,
   loreOnStarSwallow,
+  loreOnUniverseDestroyed,
   type JournalCategory,
   type JournalEntry,
 } from "../game/journal";
@@ -45,6 +46,11 @@ import {
   planEnvironmentPurchase,
 } from "../game/environment";
 import { starSwallowReward } from "../game/balance";
+import {
+  ENTROPY_PER_PRESTIGE,
+  canDestroyUniverse,
+  upFromDestruction,
+} from "../game/endgame";
 import {
   loadSave,
   writeSave,
@@ -106,6 +112,12 @@ type GameState = {
   prestigeCount: number;
   /** Сколько звёзд поглощено дырой за всё время (для достижений; переживает сжатие). */
   starsSwallowed: number;
+  /** Энтропия вселенной (копится с каждым сжатием; порог → Уничтожение). */
+  universeEntropy: number;
+  /** Ultimate Points — вечная мета-валюта (переживает Уничтожение/NG+). */
+  ultimatePoints: number;
+  /** Сколько раз пройден New Game+ (Уничтожение Вселенной). */
+  newGamePlusCount: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   /** Масштаб вида: у дыры / звёздная система / карта галактики (узлы). */
@@ -187,6 +199,8 @@ type GameState = {
   clearPendingOffline: () => void;
   /** Сжатие: начислить PP по текущей массе и начать новый ран. */
   doPrestige: () => void;
+  /** Уничтожение Вселенной: мета-сброс ради UP и New Game+. */
+  destroyUniverse: () => void;
   /** Купить уровень перка престижа за PP. */
   buyPrestigePerk: (id: string, count?: number) => void;
   /** Купить уровень MP-апгрейда за MP. */
@@ -228,6 +242,9 @@ function buildSaveData(s: GameState): SaveData {
     massSpentTotal: s.massSpentTotal,
     prestigeCount: s.prestigeCount,
     starsSwallowed: s.starsSwallowed,
+    universeEntropy: s.universeEntropy,
+    ultimatePoints: s.ultimatePoints,
+    newGamePlusCount: s.newGamePlusCount,
     gameTimeSec: s.gameTimeSec,
     upgradeLevels: s.upgradeLevels,
     systems: s.systems,
@@ -295,6 +312,9 @@ export const useGameStore = create<GameState>((set, get) => {
     massSpentTotal: saved?.massSpentTotal ?? 0,
     prestigeCount: saved?.prestigeCount ?? 0,
     starsSwallowed: saved?.starsSwallowed ?? 0,
+    universeEntropy: saved?.universeEntropy ?? 0,
+    ultimatePoints: saved?.ultimatePoints ?? 0,
+    newGamePlusCount: saved?.newGamePlusCount ?? 0,
     pendingOfflineMp,
     gameTimeSec: saved?.gameTimeSec ?? 0,
     upgradeLevels,
@@ -637,6 +657,7 @@ export const useGameStore = create<GameState>((set, get) => {
         prestigePoints: s.prestigePoints + gain,
         lifetimePp: s.lifetimePp + gain,
         prestigeCount: nextCount,
+        universeEntropy: s.universeEntropy + ENTROPY_PER_PRESTIGE,
         journalEntries: prependJournal(
           s.journalEntries,
           0,
@@ -663,6 +684,45 @@ export const useGameStore = create<GameState>((set, get) => {
         supernovaReadyAtMs: 0,
         pendingSupernovaBurst: 0,
         mpGainFloaters: [],
+      };
+    }),
+  destroyUniverse: () =>
+    set((s) => {
+      if (!canDestroyUniverse(s.universeEntropy)) return s;
+      const up = upFromDestruction(s.lifetimePp, s.universeEntropy);
+      const ng = s.newGamePlusCount + 1;
+      const line = loreOnUniverseDestroyed(ng, up);
+      const fresh = generateStarSystems();
+      return {
+        // Вечная мета сохраняется:
+        ultimatePoints: s.ultimatePoints + up,
+        newGamePlusCount: ng,
+        universeEntropy: 0,
+        prestigeFlash: s.prestigeFlash + 1,
+        // Полный сброс рана И престижа (PP/перки тоже):
+        prestigePoints: 0,
+        prestigePerkLevels: {},
+        prestigeCount: 0,
+        massMp: 0,
+        massSpentRun: 0,
+        upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
+        mpUpgradeLevels: {},
+        environmentLevels: {},
+        energy: ENERGY_MAX,
+        tapTimestamps: [],
+        supernovaBuffEndsAtSimSec: 0,
+        supernovaReadyAtMs: 0,
+        pendingSupernovaBurst: 0,
+        systems: fresh,
+        activeSystemId: fresh[0]?.id ?? "",
+        activePlanetId: null,
+        viewTier: 0,
+        gameTimeSec: 0,
+        jetBuffEndsAtSimSec: 0,
+        incomeEmaMpPerSec: 0,
+        pendingOfflineMp: 0,
+        mpGainFloaters: [],
+        journalEntries: prependJournal(s.journalEntries, 0, line.category, line.text),
       };
     }),
   buyPrestigePerk: (id, count = 1) =>
@@ -771,6 +831,9 @@ export const useGameStore = create<GameState>((set, get) => {
         massSpentTotal: 0,
         prestigeCount: 0,
         starsSwallowed: 0,
+        universeEntropy: 0,
+        ultimatePoints: 0,
+        newGamePlusCount: 0,
         gameTimeSec: 0,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,

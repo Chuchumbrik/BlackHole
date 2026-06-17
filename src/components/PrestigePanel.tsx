@@ -2,6 +2,13 @@ import { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
 import { prestigePpGain, PRESTIGE_SPENT_PER_PP } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost, planPerkPurchase } from "../game/prestigePerks";
+import {
+  ENTROPY_THRESHOLD,
+  canDestroyUniverse,
+  ultimateMpMul,
+  upFromDestruction,
+  ultimateReached,
+} from "../game/endgame";
 
 /** Вкладка «Престиж»: коллапс рана ради очков престижа (PP). */
 export function PrestigePanel() {
@@ -13,7 +20,13 @@ export function PrestigePanel() {
   const buyPrestigePerk = useGameStore((s) => s.buyPrestigePerk);
   const buyMultiplier = useGameStore((s) => s.buyMultiplier);
   const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
+  const lifetimePp = useGameStore((s) => s.lifetimePp);
+  const universeEntropy = useGameStore((s) => s.universeEntropy);
+  const ultimatePoints = useGameStore((s) => s.ultimatePoints);
+  const newGamePlusCount = useGameStore((s) => s.newGamePlusCount);
+  const destroyUniverse = useGameStore((s) => s.destroyUniverse);
   const [confirming, setConfirming] = useState(false);
+  const [confirmingDestroy, setConfirmingDestroy] = useState(false);
 
   // База PP = потрачено за ран + текущее наличие массы.
   const basis = massSpentRun + massMp;
@@ -80,6 +93,77 @@ export function PrestigePanel() {
               Отмена
             </button>
           </div>
+        </div>
+      )}
+
+      {(universeEntropy > 0 || ultimatePoints > 0 || newGamePlusCount > 0) && (
+        <div className="prestige-endgame">
+          <h3 className="prestige-perks-title">Эндшпиль</h3>
+          {ultimatePoints > 0 && (
+            <p className="prestige-row">
+              Ultimate Points: <b>{ultimatePoints.toLocaleString("ru-RU")}</b> ·
+              вечный доход ×{ultimateMpMul(ultimatePoints).toFixed(2)}
+              {newGamePlusCount > 0 && <> · New Game+{newGamePlusCount}</>}
+            </p>
+          )}
+          <p className="prestige-row">
+            Энтропия вселенной: {Math.floor(universeEntropy)}/{ENTROPY_THRESHOLD}
+          </p>
+          <div className="ach-bar" style={{ marginBottom: 8 }}>
+            <div
+              className="ach-bar-fill"
+              style={{
+                width: `${Math.min(100, (universeEntropy / ENTROPY_THRESHOLD) * 100)}%`,
+              }}
+            />
+          </div>
+          {canDestroyUniverse(universeEntropy) ? (
+            !confirmingDestroy ? (
+              <button
+                type="button"
+                className="prestige-btn"
+                onClick={() => setConfirmingDestroy(true)}
+              >
+                Уничтожить Вселенную (+{upFromDestruction(lifetimePp, universeEntropy)} UP)
+              </button>
+            ) : (
+              <div className="prestige-confirm">
+                <p className="app-panel-hint">
+                  ВСЁ сбросится (масса, апгрейды, PP, перки, системы). Останутся
+                  только Ultimate Points, достижения и журнал. Начнётся New Game+.
+                </p>
+                <div className="prestige-confirm-actions">
+                  <button
+                    type="button"
+                    className="prestige-btn"
+                    onClick={() => {
+                      destroyUniverse();
+                      setConfirmingDestroy(false);
+                    }}
+                  >
+                    Схлопнуть всё
+                  </button>
+                  <button
+                    type="button"
+                    className="prestige-btn prestige-btn-ghost"
+                    onClick={() => setConfirmingDestroy(false)}
+                  >
+                    Отмена
+                  </button>
+                </div>
+              </div>
+            )
+          ) : (
+            <p className="app-panel-hint">
+              Энтропия копится с каждым сжатием. При {ENTROPY_THRESHOLD} —
+              Уничтожение Вселенной ради Ultimate Points и New Game+.
+            </p>
+          )}
+          {ultimateReached(newGamePlusCount) && (
+            <p className="prestige-row" style={{ color: "#fbbf24" }}>
+              ✦ Ultimate Prestige достигнут — вы прошли цикл циклов.
+            </p>
+          )}
         </div>
       )}
 
