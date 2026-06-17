@@ -44,69 +44,129 @@ function accelToward(
 }
 
 /**
+ * Доля учёта взаимного притяжения планет в орбитальной динамике. Масса планеты
+ * задана крупной ради её SOI-поглощения материи; в орбитальной задаче такая масса
+ * делала бы соседей сильнее звезды и разносила орбиты в хаос. Поэтому орбиты
+ * определяются звездой и (растущей) дырой; взаимное притяжение — почти отключено.
+ */
+const PLANET_MUTUAL_FACTOR = 0;
+
+/** Сумма ускорений на тело в точке (x,y): звезда + дыра (+ слабое взаимное). */
+function netAccel(
+  x: number,
+  y: number,
+  selfId: string | null,
+  star: GravitySource,
+  bh: GravitySource | null,
+  bodies: ReadonlyArray<{ id: string; x: number; y: number; mass: number }>,
+  out: { ax: number; ay: number },
+): void {
+  out.ax = 0;
+  out.ay = 0;
+  accelToward(x, y, star, out);
+  if (bh) accelToward(x, y, bh, out);
+  if (PLANET_MUTUAL_FACTOR > 0) {
+    const tmp = { ax: 0, ay: 0 };
+    for (const o of bodies) {
+      if (o.id === selfId) continue;
+      tmp.ax = 0;
+      tmp.ay = 0;
+      accelToward(x, y, o, tmp);
+      out.ax += tmp.ax * PLANET_MUTUAL_FACTOR;
+      out.ay += tmp.ay * PLANET_MUTUAL_FACTOR;
+    }
+  }
+}
+
+/**
  * Засеять тела планет: позиция — из существующей геометрии (`buildPlanetPhysicsSnapshot`
- * при t=0), скорость — круговая орбита вокруг звезды (с учётом смягчения поля).
+ * при t=0), скорость — такая, что РАДИАЛЬНАЯ (к звезде) компонента чистого ускорения
+ * (звезда + дыра + соседи) точно уравновешивается центростремительным членом v²/r.
+ * Это даёт нулевой радиальный дрейф на старте независимо от дыры; её тангенциальная
+ * компонента далее медленно прецессирует/возмущает орбиту — как и задумано.
  */
 export function seedPlanetBodies(
   planets: Planet[],
   ctx: PlanetLayoutContext,
   star: GravitySource,
+  bh: GravitySource | null = null,
 ): PlanetBody[] {
   const n = planets.length;
-  return planets.map((pl, i) => {
+  // 1) позиции и массы всех тел (нужны до расчёта скоростей — для взаимной гравитации).
+  const seeds = planets.map((pl, i) => {
     const s = buildPlanetPhysicsSnapshot(pl, ctx, 0, i, n);
-    const dx = s.x - star.x;
-    const dy = s.y - star.y;
+    return { id: pl.id, x: s.x, y: s.y, mass: s.mass, surfaceRadius: s.surfaceRadius };
+  });
+  // 2) скорость из радиальной компоненты чистого ускорения.
+  const acc = { ax: 0, ay: 0 };
+  return seeds.map((b) => {
+    const dx = b.x - star.x;
+    const dy = b.y - star.y;
     const r = Math.hypot(dx, dy) || 1e-6;
-    // v² / r = a_центр = GM·r/(r²+soft) → v для круговой орбиты под смягчённым полем.
-    const vCirc = Math.sqrt(
-      (GRAVITY_CONST * star.mass * r) / (r * r + GRAVITY_SOFTENING),
-    );
+    const rxu = dx / r;
+    const ryu = dy / r;
+    netAccel(b.x, b.y, b.id, star, bh, seeds, acc);
+    // компонента ускорения, направленная К звезде (положительная = внутрь).
+    const aInward = -(acc.ax * rxu + acc.ay * ryu);
+    const vCirc = Math.sqrt(Math.max(0, aInward) * r);
     // Тангенциальное направление (против часовой) — перпендикуляр к радиусу.
     const tx = -dy / r;
     const ty = dx / r;
     return {
-      id: pl.id,
-      x: s.x,
-      y: s.y,
+      id: b.id,
+      x: b.x,
+      y: b.y,
       vx: tx * vCirc,
       vy: ty * vCirc,
-      mass: s.mass,
-      surfaceRadius: s.surfaceRadius,
+      mass: b.mass,
+      surfaceRadius: b.surfaceRadius,
     };
   });
 }
 
 /**
- * Полу-неявный Эйлер с суб-шагами. Источники: звезда + дыра + взаимная гравитация
- * планет. Суб-шаги нужны для стабильности при ускорении времени (×10).
+ * Симплектическая интеграция (leapfrog, kick-drift-kick) с адаптивными суб-шагами.
+ * Источники: звезда + дыра + взаимная гравитация планет. В отличие от явного Эйлера,
+ * leapfrog сохраняет энергию орбиты — планеты не «скручиваются» на звезду и не
+ * улетают со временем даже при ускорении ×10. Число суб-шагов растёт с dt.
  */
 export function integratePlanetBodies(
   bodies: PlanetBody[],
   star: GravitySource,
   bh: GravitySource,
   dt: number,
-  substeps = 4,
+  substeps?: number,
 ): void {
   if (dt <= 0 || bodies.length === 0) return;
-  const h = dt / Math.max(1, substeps);
+  const steps =
+    substeps ?? Math.min(64, Math.max(4, Math.ceil(dt / 0.02)));
+  const h = dt / steps;
+  const n = bodies.length;
+  const ax = new Array<number>(n);
+  const ay = new Array<number>(n);
   const acc = { ax: 0, ay: 0 };
-  for (let step = 0; step < substeps; step++) {
-    for (const b of bodies) {
-      acc.ax = 0;
-      acc.ay = 0;
-      accelToward(b.x, b.y, star, acc);
-      accelToward(b.x, b.y, bh, acc);
-      for (const other of bodies) {
-        if (other === b) continue;
-        accelToward(b.x, b.y, other, acc);
-      }
-      b.vx += acc.ax * h;
-      b.vy += acc.ay * h;
+  const computeAcc = () => {
+    for (let i = 0; i < n; i++) {
+      const b = bodies[i];
+      netAccel(b.x, b.y, b.id, star, bh, bodies, acc);
+      ax[i] = acc.ax;
+      ay[i] = acc.ay;
     }
-    for (const b of bodies) {
-      b.x += b.vx * h;
-      b.y += b.vy * h;
+  };
+  for (let s = 0; s < steps; s++) {
+    computeAcc();
+    for (let i = 0; i < n; i++) {
+      bodies[i].vx += 0.5 * h * ax[i];
+      bodies[i].vy += 0.5 * h * ay[i];
+    }
+    for (let i = 0; i < n; i++) {
+      bodies[i].x += h * bodies[i].vx;
+      bodies[i].y += h * bodies[i].vy;
+    }
+    computeAcc();
+    for (let i = 0; i < n; i++) {
+      bodies[i].vx += 0.5 * h * ax[i];
+      bodies[i].vy += 0.5 * h * ay[i];
     }
   }
 }

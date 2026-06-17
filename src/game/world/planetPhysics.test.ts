@@ -70,6 +70,25 @@ describe("planetPhysics: integratePlanetBodies", () => {
     const r1 = Math.hypot(bodies[0].x - star.x, bodies[0].y - star.y);
     expect(Math.abs(r1 - r0) / r0).toBeLessThan(0.25); // не разлетается и не схлопывается
   });
+  it("реалистичный старт: 4 планеты + дыра-возмущение не падают на звезду и не разлетаются (3000 шагов ×0.1)", () => {
+    // дыра как в игре: далеко (~2000px) и со СЛАБОЙ стартовой возмущающей массой (~3%).
+    const bh: GravitySource = {
+      x: ctx.starX + 2000,
+      y: ctx.starY,
+      mass: BASE_BH_MASS * 0.03,
+    };
+    const planets = [mkPlanet(0), mkPlanet(1), mkPlanet(2), mkPlanet(3)];
+    const bodies = seedPlanetBodies(planets, ctx, star, bh);
+    const r0 = bodies.map((b) => Math.hypot(b.x - star.x, b.y - star.y));
+    for (let i = 0; i < 3000; i++) integratePlanetBodies(bodies, star, bh, 0.1);
+    bodies.forEach((b, i) => {
+      expect(finite(b)).toBe(true);
+      const r = Math.hypot(b.x - star.x, b.y - star.y);
+      // радиус держится в коридоре ±30 % — нет спирали на звезду и нет ухода.
+      expect(r).toBeGreaterThan(r0[i] * 0.7);
+      expect(r).toBeLessThan(r0[i] * 1.3);
+    });
+  });
   it("dt<=0 — без изменений", () => {
     const bodies = seedPlanetBodies([mkPlanet(0)], ctx, star);
     const snap = { ...bodies[0] };

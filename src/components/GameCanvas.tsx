@@ -1242,9 +1242,20 @@ export function GameCanvas() {
           y: layout.star.y,
           mass: layout.star.mass,
         };
-        const bhSrc = { x: layout.bh.x, y: layout.bh.y, mass: layout.bhMass };
+        // Возмущающая масса дыры для орбит планет растёт с её горизонтом: на старте
+        // ≈3 % (планеты спокойно вращаются вокруг звезды и НЕ падают сразу в дыру),
+        // по мере роста дыры — усиливается и в пределе разрушает орбиты (как задумано).
+        const minDLayout = Math.min(layout.width, layout.height);
+        const bhGrowth =
+          layout.horizonRadius / (minDLayout * BASE_HORIZON_FRACTION);
+        const bhPerturbFrac = Math.min(1, Math.max(0.03, (bhGrowth - 1) * 0.8));
+        const bhSrc = {
+          x: layout.bh.x,
+          y: layout.bh.y,
+          mass: layout.bhMass * bhPerturbFrac,
+        };
         if ((activeSystemId ?? null) !== planetBodiesSystemId) {
-          planetBodies = seedPlanetBodies(pList0, planetCtx, starSrc);
+          planetBodies = seedPlanetBodies(pList0, planetCtx, starSrc, bhSrc);
           planetBodiesSystemId = activeSystemId ?? null;
         } else {
           // Реконсиляция по id в ОБЕ стороны: удалить тела исчезнувших планет и
@@ -1259,7 +1270,7 @@ export function GameCanvas() {
             const keptIds = new Set(kept.map((b) => b.id));
             if (kept.length < nPl0) {
               // досев недостающих по корректным слотам (из полного засева)
-              const seeded = seedPlanetBodies(pList0, planetCtx, starSrc);
+              const seeded = seedPlanetBodies(pList0, planetCtx, starSrc, bhSrc);
               for (const sb of seeded) {
                 if (!keptIds.has(sb.id)) kept.push(sb);
               }
