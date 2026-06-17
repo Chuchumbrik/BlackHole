@@ -74,6 +74,8 @@ type GameState = {
   achievementToast: string | null;
   /** Имя активного периодического события (баннер); null — нет. */
   activeEventName: string | null;
+  /** Счётчик-сигнал коллапса prestige (для полноэкранной вспышки). */
+  prestigeFlash: number;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
   buyUpgrade: (branch: UpgradeBranch, count?: number) => void;
@@ -195,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => {
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
     activeEventName: null,
+    prestigeFlash: 0,
     buyMultiplier: 1,
     addMassMp: (amount) =>
     set((s) => {
@@ -394,6 +397,7 @@ export const useGameStore = create<GameState>((set, get) => {
       return {
         prestigePoints: s.prestigePoints + gain,
         lifetimePp: s.lifetimePp + gain,
+        prestigeFlash: s.prestigeFlash + 1,
         massMp: rs.startMassMp,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,

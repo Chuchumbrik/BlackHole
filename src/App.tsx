@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { GameCanvas } from "./components/GameCanvas";
 import { TimeScaleControls } from "./components/TimeScaleControls";
@@ -31,6 +31,26 @@ function App() {
   const achievementToast = useGameStore((s) => s.achievementToast);
   const clearAchievementToast = useGameStore((s) => s.clearAchievementToast);
   const activeEventName = useGameStore((s) => s.activeEventName);
+  const prestigeFlash = useGameStore((s) => s.prestigeFlash);
+  const [collapsing, setCollapsing] = useState(false);
+
+  // V8: вспышка коллапса при сжатии.
+  useEffect(() => {
+    if (prestigeFlash === 0) return;
+    setCollapsing(true);
+    const id = window.setTimeout(() => setCollapsing(false), 1300);
+    return () => window.clearTimeout(id);
+  }, [prestigeFlash]);
+
+  // V7: цвет тинта по активному событию.
+  const eventTint =
+    activeEventName === "Дождь астероидов"
+      ? "rgba(251,146,60,0.16)"
+      : activeEventName === "Богатая жила"
+        ? "rgba(251,191,36,0.16)"
+        : activeEventName === "Парад планет"
+          ? "rgba(167,139,250,0.16)"
+          : null;
 
   // Автосейв: каждые 10 с и при сворачивании/закрытии вкладки.
   useEffect(() => {
@@ -139,6 +159,21 @@ function App() {
               Забрать
             </button>
           </div>
+        </div>
+      )}
+
+      {eventTint && (
+        <div
+          className="event-tint"
+          aria-hidden="true"
+          style={{
+            background: `radial-gradient(circle at 50% 50%, transparent 55%, ${eventTint} 100%)`,
+          }}
+        />
+      )}
+      {collapsing && (
+        <div className="collapse-flash" aria-hidden="true">
+          <span>Новая вселенная</span>
         </div>
       )}
 
