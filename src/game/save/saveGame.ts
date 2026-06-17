@@ -7,6 +7,7 @@
  * сессиями не важны). Схема версионируется для будущих миграций.
  */
 import { ZERO_UPGRADE_LEVELS, type UpgradeLevels } from "../upgrades";
+import type { JournalEntry } from "../journal";
 import type { StarSystem } from "../world/types";
 import type { ViewTierId, SimTimeScale } from "../../store/useGameStore";
 
@@ -51,6 +52,8 @@ export type SaveData = {
   energy?: number;
   /** Игровое время окончания баффа сверхновой (опционально). */
   supernovaBuffEndsAtSimSec?: number;
+  /** Космический Журнал — записи летописи (опционально; переживает сжатие). */
+  journalEntries?: JournalEntry[];
   /** Открытые достижения (опционально; постоянные, переживают сжатие). */
   achievementsUnlocked?: string[];
 };

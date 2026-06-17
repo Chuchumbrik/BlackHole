@@ -18,6 +18,15 @@ import {
 } from "../game/balance";
 import { isEnvironmentBranchUnlocked } from "../game/environment";
 import {
+  JOURNAL_MAX,
+  loreIntro,
+  loreOnPrestige,
+  loreOnSupernova,
+  loreOnAchievement,
+  type JournalCategory,
+  type JournalEntry,
+} from "../game/journal";
+import {
   ZERO_UPGRADE_LEVELS,
   isViewTierUnlocked,
   levelSum,
@@ -51,6 +60,7 @@ type TabId =
   | "prestige"
   | "stats"
   | "achievements"
+  | "journal"
   | "settings";
 
 export type ViewTierId = 0 | 1 | 2;
@@ -61,6 +71,18 @@ export type SimTimeScale = 0 | 1 | 2 | 3 | 5 | 10;
 export type MpGainFloaterEvent = { id: number; amount: number };
 
 let mpGainFloaterIdSeq = 0;
+let journalIdSeq = 0;
+
+/** Прибавить запись в журнал (с обрезкой до JOURNAL_MAX), новые — в начале. */
+function prependJournal(
+  entries: JournalEntry[],
+  timeSec: number,
+  category: JournalCategory,
+  text: string,
+): JournalEntry[] {
+  const entry: JournalEntry = { id: ++journalIdSeq, timeSec, category, text };
+  return [entry, ...entries].slice(0, JOURNAL_MAX);
+}
 
 type GameState = {
   massMp: number;
@@ -112,6 +134,8 @@ type GameState = {
   supernovaReadyAtMs: number;
   /** Отложенный всплеск спавна от сверхновой — читает и обнуляет игровой цикл. Не сохраняется. */
   pendingSupernovaBurst: number;
+  /** Космический Журнал — летопись (новые записи в начале, переживает сжатие). */
+  journalEntries: JournalEntry[];
   /** Открытые достижения (постоянные, переживают сжатие). */
   achievementsUnlocked: string[];
   /** Имя только что открытого достижения для тоста; null — нет. */
@@ -162,6 +186,8 @@ type GameState = {
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
   buyMultiplier: number;
   setBuyMultiplier: (m: number) => void;
+  /** Добавить запись в Космический Журнал. */
+  addJournalEntry: (category: JournalCategory, text: string) => void;
   /** Открыть достижение (если ещё не открыто) и показать тост. */
   unlockAchievement: (id: string, name: string) => void;
   clearAchievementToast: () => void;
@@ -200,6 +226,7 @@ function buildSaveData(s: GameState): SaveData {
     environmentLevels: s.environmentLevels,
     energy: s.energy,
     supernovaBuffEndsAtSimSec: s.supernovaBuffEndsAtSimSec,
+    journalEntries: s.journalEntries,
     achievementsUnlocked: s.achievementsUnlocked,
   };
 }
@@ -267,6 +294,13 @@ export const useGameStore = create<GameState>((set, get) => {
     supernovaBuffEndsAtSimSec: saved?.supernovaBuffEndsAtSimSec ?? 0,
     supernovaReadyAtMs: 0,
     pendingSupernovaBurst: 0,
+    journalEntries:
+      saved?.journalEntries && saved.journalEntries.length > 0
+        ? saved.journalEntries
+        : (() => {
+            const intro = loreIntro();
+            return prependJournal([], 0, intro.category, intro.text);
+          })(),
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
     activeEventName: null,
@@ -466,12 +500,28 @@ export const useGameStore = create<GameState>((set, get) => {
     }),
   setSimTimeScale: (simTimeScale) => set({ simTimeScale }),
   setBuyMultiplier: (buyMultiplier) => set({ buyMultiplier }),
+  addJournalEntry: (category, text) =>
+    set((s) => ({
+      journalEntries: prependJournal(
+        s.journalEntries,
+        s.gameTimeSec,
+        category,
+        text,
+      ),
+    })),
   unlockAchievement: (id, name) =>
     set((s) => {
       if (s.achievementsUnlocked.includes(id)) return s;
+      const line = loreOnAchievement(name);
       return {
         achievementsUnlocked: [...s.achievementsUnlocked, id],
         achievementToast: name,
+        journalEntries: prependJournal(
+          s.journalEntries,
+          s.gameTimeSec,
+          line.category,
+          line.text,
+        ),
       };
     }),
   clearAchievementToast: () => set({ achievementToast: null }),
@@ -484,10 +534,18 @@ export const useGameStore = create<GameState>((set, get) => {
       if (gain <= 0) return s;
       const rs = prestigeRunStart(s.prestigePerkLevels);
       const fresh = generateStarSystems(rs.extraPlanets);
+      const nextCount = s.prestigeCount + 1;
+      const line = loreOnPrestige(nextCount);
       return {
         prestigePoints: s.prestigePoints + gain,
         lifetimePp: s.lifetimePp + gain,
-        prestigeCount: s.prestigeCount + 1,
+        prestigeCount: nextCount,
+        journalEntries: prependJournal(
+          s.journalEntries,
+          0,
+          line.category,
+          line.text,
+        ),
         prestigeFlash: s.prestigeFlash + 1,
         massMp: rs.startMassMp,
         massSpentRun: 0,
@@ -591,11 +649,18 @@ export const useGameStore = create<GameState>((set, get) => {
     const now = Date.now();
     if (now < s.supernovaReadyAtMs) return false;
     if (s.energy < SUPERNOVA_ENERGY_COST) return false;
+    const line = loreOnSupernova();
     set({
       energy: s.energy - SUPERNOVA_ENERGY_COST,
       supernovaReadyAtMs: now + SUPERNOVA_COOLDOWN_SEC * 1000,
       supernovaBuffEndsAtSimSec: s.gameTimeSec + SUPERNOVA_BUFF_SEC,
       pendingSupernovaBurst: s.pendingSupernovaBurst + SUPERNOVA_BURST,
+      journalEntries: prependJournal(
+        s.journalEntries,
+        s.gameTimeSec,
+        line.category,
+        line.text,
+      ),
     });
     return true;
   },
@@ -636,6 +701,10 @@ export const useGameStore = create<GameState>((set, get) => {
         supernovaBuffEndsAtSimSec: 0,
         supernovaReadyAtMs: 0,
         pendingSupernovaBurst: 0,
+        journalEntries: (() => {
+          const intro = loreIntro();
+          return prependJournal([], 0, intro.category, intro.text);
+        })(),
         achievementsUnlocked: [],
         achievementToast: null,
         mpGainFloaters: [],

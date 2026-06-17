@@ -64,6 +64,7 @@ import { planetSwallowMpBase } from "../game/world/planetLife";
 import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import { environmentModifiers } from "../game/environment";
+import { loreOnRocheTear } from "../game/journal";
 import { achievementMpMul, newlyUnlocked } from "../game/achievements";
 import {
   pickEvent,
@@ -1505,6 +1506,8 @@ export function GameCanvas() {
                 ),
               );
               hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "body" });
+              const lore = loreOnRocheTear(pl.name);
+              useGameStore.getState().addJournalEntry(lore.category, lore.text);
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);
               continue;
             }

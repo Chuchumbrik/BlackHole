@@ -140,6 +140,15 @@ describe("store: prestige (по потраченной массе)", () => {
     useGameStore.getState().buyUpgrade("size", 5);
     expect(useGameStore.getState().massSpentRun).toBeGreaterThan(before);
   });
+  it("сжатие добавляет запись в журнал (летопись переживает ран)", () => {
+    setup(100);
+    const before = useGameStore.getState().journalEntries.length;
+    useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });
+    useGameStore.getState().doPrestige();
+    const entries = useGameStore.getState().journalEntries;
+    expect(entries.length).toBe(before + 1);
+    expect(entries[0].category).toBe("milestone");
+  });
   it("lifetimePp накапливается и НЕ сбрасывается тратой PP (для достижений)", () => {
     setup(100);
     useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });

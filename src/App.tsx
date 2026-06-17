@@ -8,6 +8,7 @@ import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
+import { JournalPanel } from "./components/JournalPanel";
 import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
@@ -34,6 +35,7 @@ const TABS = [
   { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)", unlocked: (c: TabUnlockCtx) => c.levelSum >= 5 || c.prestigeCount > 0 },
   { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Все показатели игры", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "achievements" as const, labelKey: "app.tabs.achievements", hint: "Достижения и их постоянные бонусы", unlocked: (c: TabUnlockCtx) => c.achievementsCount >= 1 },
+  { id: "journal" as const, labelKey: "app.tabs.journal", hint: "Космический журнал: летопись открытий, рисков и вех", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "settings" as const, labelKey: "app.tabs.settings", hint: "Сохранение и сброс прогресса", unlocked: () => true },
 ];
 
@@ -186,6 +188,11 @@ function App() {
         {activeTab === "achievements" && (
           <div className="app-panel-overlay app-panel-stats">
             <AchievementsPanel />
+          </div>
+        )}
+        {activeTab === "journal" && (
+          <div className="app-panel-overlay app-panel-stats">
+            <JournalPanel />
           </div>
         )}
         {activeTab === "settings" && (
