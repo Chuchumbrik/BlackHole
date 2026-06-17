@@ -73,6 +73,7 @@ import { planetSwallowMpBase } from "../game/world/planetLife";
 import { prestigeModifiers, prestigeRunStart } from "../game/prestigePerks";
 import { mpUpgradeModifiers } from "../game/mpUpgrades";
 import { environmentModifiers } from "../game/environment";
+import { advancedModifiers } from "../game/advancedUpgrades";
 import { loreOnRocheTear } from "../game/journal";
 import { ultimateMpMul } from "../game/endgame";
 import { anomalyMpMul } from "../game/world/anomalies";
@@ -1337,6 +1338,9 @@ export function GameCanvas() {
         const envMods = environmentModifiers(
           useGameStore.getState().environmentLevels,
         );
+        const advMods = advancedModifiers(
+          useGameStore.getState().advancedLevels,
+        );
         const achMul = achievementMpMul(
           useGameStore.getState().achievementsUnlocked,
         );
@@ -1393,6 +1397,7 @@ export function GameCanvas() {
               pmods.mpMul *
               mpu.mpMul *
               envMods.mpMul *
+              advMods.mpMul *
               achMul *
               eventMpMul *
               supernovaMpMul,
@@ -1408,6 +1413,7 @@ export function GameCanvas() {
             runStart.spawnRateMul *
             mpu.spawnRateMul *
             envMods.spawnRateMul *
+            advMods.spawnRateMul *
             eventSpawnMul,
         );
         objects = trySpawn(objects, layout, spawnCount, {

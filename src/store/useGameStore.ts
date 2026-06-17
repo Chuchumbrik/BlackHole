@@ -32,6 +32,11 @@ import {
   type JournalEntry,
 } from "../game/journal";
 import { rollCritEvent } from "../game/world/critEvents";
+import {
+  ADV_UPGRADES,
+  advancedModifiers,
+  planAdvancedPurchase,
+} from "../game/advancedUpgrades";
 import { ANOMALY_DEFS } from "../game/world/anomalies";
 import {
   ZERO_UPGRADE_LEVELS,
@@ -149,6 +154,8 @@ type GameState = {
   mpUpgradeLevels: Record<string, number>;
   /** Уровни узлов ветки B «Окружение» по id (ран-скоуп, сброс при сжатии). */
   environmentLevels: Record<string, number>;
+  /** Уровни продвинутых веток C/D/E по id (ран-скоуп, сброс при сжатии). */
+  advancedLevels: Record<string, number>;
   /** Энергия (Гравитационный импульс): текущий запас. */
   energy: number;
   /** Метки времени тапов (мс эпохи) за последнюю минуту — лимит/мин. Не сохраняется. */
@@ -211,6 +218,8 @@ type GameState = {
   buyMpUpgrade: (id: string, count?: number) => void;
   /** Купить уровень узла окружения (ветка B) за MP. */
   buyEnvironmentUpgrade: (id: string, count?: number) => void;
+  /** Купить уровень продвинутой ветки C/D/E за MP. */
+  buyAdvancedUpgrade: (id: string, count?: number) => void;
   /** Восстановить Energy за прошедшее реальное время (тик из игрового цикла). */
   regenEnergy: (realDtSec: number) => void;
   /** Попытаться пустить волну притяжения: списать Energy с учётом лимита/мин. */
@@ -264,6 +273,7 @@ function buildSaveData(s: GameState): SaveData {
     prestigePerkLevels: s.prestigePerkLevels,
     mpUpgradeLevels: s.mpUpgradeLevels,
     environmentLevels: s.environmentLevels,
+    advancedLevels: s.advancedLevels,
     energy: s.energy,
     supernovaBuffEndsAtSimSec: s.supernovaBuffEndsAtSimSec,
     journalEntries: s.journalEntries,
@@ -333,6 +343,7 @@ export const useGameStore = create<GameState>((set, get) => {
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     environmentLevels: saved?.environmentLevels ?? {},
+    advancedLevels: saved?.advancedLevels ?? {},
     energy: Math.max(0, Math.min(ENERGY_MAX, saved?.energy ?? ENERGY_MAX)),
     tapTimestamps: [],
     supernovaBuffEndsAtSimSec: saved?.supernovaBuffEndsAtSimSec ?? 0,
@@ -397,6 +408,8 @@ export const useGameStore = create<GameState>((set, get) => {
       // Развиваем жизнь/стадии только в АКТИВНОЙ системе: фоновые не растут и не
       // истощаются «вслепую» (иначе цивилизации фоновых систем выжимались без дани).
       let critLore: { category: JournalCategory; text: string } | null = null;
+      // Ветка D «Жизнь» ускоряет развитие/жизнь планет (не игровое время в целом).
+      const lifeDt = simDt * advancedModifiers(s.advancedLevels).lifeSpeedMul;
       const systems = s.systems.map((system) =>
         system.id !== s.activeSystemId
           ? system
@@ -404,10 +417,10 @@ export const useGameStore = create<GameState>((set, get) => {
               ...system,
               planets: system.planets.map((planet: Planet) => {
                 const ticked = tickPlanetLife(
-                  advancePlanetStages(planet, simDt),
-                  simDt,
+                  advancePlanetStages(planet, lifeDt),
+                  lifeDt,
                 );
-                const r = rollCritEvent(ticked, simDt);
+                const r = rollCritEvent(ticked, lifeDt);
                 if (r.event && !critLore) {
                   critLore = loreOnCritEvent(planet.name, r.event.name);
                 }
@@ -704,6 +717,7 @@ export const useGameStore = create<GameState>((set, get) => {
         pendingOfflineMp: 0,
         mpUpgradeLevels: {},
         environmentLevels: {},
+        advancedLevels: {},
         energy: ENERGY_MAX,
         tapTimestamps: [],
         supernovaBuffEndsAtSimSec: 0,
@@ -734,6 +748,7 @@ export const useGameStore = create<GameState>((set, get) => {
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         mpUpgradeLevels: {},
         environmentLevels: {},
+        advancedLevels: {},
         energy: ENERGY_MAX,
         tapTimestamps: [],
         supernovaBuffEndsAtSimSec: 0,
@@ -798,6 +813,26 @@ export const useGameStore = create<GameState>((set, get) => {
           ...s.environmentLevels,
           [id]: lvl0 + plan.count,
         },
+      };
+    }),
+  buyAdvancedUpgrade: (id, count = 1) =>
+    set((s) => {
+      const def = ADV_UPGRADES.find((u) => u.id === id);
+      if (!def) return s;
+      const lvl0 = s.advancedLevels[id] ?? 0;
+      const plan = planAdvancedPurchase(
+        def,
+        lvl0,
+        s.massMp,
+        count,
+        s.prestigeCount,
+      );
+      if (plan.count === 0) return s;
+      return {
+        massMp: s.massMp - plan.totalCost,
+        massSpentRun: s.massSpentRun + plan.totalCost,
+        massSpentTotal: s.massSpentTotal + plan.totalCost,
+        advancedLevels: { ...s.advancedLevels, [id]: lvl0 + plan.count },
       };
     }),
   regenEnergy: (realDtSec) =>
@@ -875,6 +910,7 @@ export const useGameStore = create<GameState>((set, get) => {
         prestigePerkLevels: {},
         mpUpgradeLevels: {},
         environmentLevels: {},
+        advancedLevels: {},
         energy: ENERGY_MAX,
         tapTimestamps: [],
         supernovaBuffEndsAtSimSec: 0,

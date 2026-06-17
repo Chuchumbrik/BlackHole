@@ -54,6 +54,8 @@ export type SaveData = {
   mpUpgradeLevels?: Record<string, number>;
   /** Уровни узлов ветки B «Окружение» по id (опционально; сбрасываются при сжатии). */
   environmentLevels?: Record<string, number>;
+  /** Уровни продвинутых веток C/D/E по id (опционально; сбрасываются при сжатии). */
+  advancedLevels?: Record<string, number>;
   /** Запас Energy (опционально; на загрузке клампится к [0, ENERGY_MAX]). */
   energy?: number;
   /** Игровое время окончания баффа сверхновой (опционально). */

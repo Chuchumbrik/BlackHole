@@ -30,6 +30,14 @@ import {
   SUPERNOVA_UNLOCK_PRESTIGE,
 } from "../game/balance";
 import { effectiveHawkingPerSec } from "../game/economyView";
+import {
+  ADV_UPGRADES,
+  ADV_BRANCH_LABEL,
+  advancedUpgradeCost,
+  isAdvBranchUnlocked,
+  planAdvancedPurchase,
+  type AdvBranch,
+} from "../game/advancedUpgrades";
 
 function formatMultiplier(x: number): string {
   return x.toLocaleString(undefined, {
@@ -78,6 +86,8 @@ export function UpgradesPanel() {
   const buyEnvironmentUpgrade = useGameStore((s) => s.buyEnvironmentUpgrade);
   const prestigePerkLevels = useGameStore((s) => s.prestigePerkLevels);
   const achievementsUnlocked = useGameStore((s) => s.achievementsUnlocked);
+  const advancedLevels = useGameStore((s) => s.advancedLevels);
+  const buyAdvancedUpgrade = useGameStore((s) => s.buyAdvancedUpgrade);
   const energy = useGameStore((s) => s.energy);
   const supernovaReadyAtMs = useGameStore((s) => s.supernovaReadyAtMs);
   const prestigeCount = useGameStore((s) => s.prestigeCount);
@@ -407,6 +417,77 @@ export function UpgradesPanel() {
             })()}
         </>
       )}
+
+      {(["time", "life", "exotic"] as AdvBranch[])
+        .filter((b) => isAdvBranchUnlocked(b, prestigeCount))
+        .map((branch) => (
+          <div key={branch}>
+            <h3 className="upgrades-extra-title">{ADV_BRANCH_LABEL[branch]}</h3>
+            <ul className="upgrades-card-list">
+              {ADV_UPGRADES.filter((up) => up.branch === branch).map((up) => {
+                const lvl = advancedLevels[up.id] ?? 0;
+                const maxed = lvl >= up.maxLevel;
+                const plan = planAdvancedPurchase(
+                  up,
+                  lvl,
+                  massMp,
+                  buyMultiplier,
+                  prestigeCount,
+                );
+                const affordable = plan.count > 0;
+                const capped = affordable && plan.count < buyMultiplier;
+                return (
+                  <li key={up.id} className="upgrades-card">
+                    <div className="upgrades-card-main">
+                      <div className="upgrades-card-head">
+                        <h3 className="upgrades-card-name">{up.name}</h3>
+                        <span className="upgrades-card-level">
+                          Ур. {lvl}/{up.maxLevel}
+                        </span>
+                      </div>
+                      <p className="upgrades-card-effect">{up.desc}</p>
+                    </div>
+                    <div className="upgrades-card-action">
+                      {maxed ? (
+                        <p className="upgrades-card-cost">Максимум</p>
+                      ) : (
+                        <>
+                          <p className="upgrades-card-cost">
+                            {buyMultiplier === 1 || !affordable
+                              ? `Следующий уровень: ${advancedUpgradeCost(
+                                  up,
+                                  lvl,
+                                ).toLocaleString("ru-RU")} MP`
+                              : capped
+                                ? `Хватает на ×${plan.count} (макс.): ${plan.totalCost.toLocaleString(
+                                    "ru-RU",
+                                  )} MP`
+                                : `${plan.count} ур.: ${plan.totalCost.toLocaleString(
+                                    "ru-RU",
+                                  )} MP`}
+                          </p>
+                          <button
+                            type="button"
+                            className="upgrades-buy"
+                            disabled={!affordable}
+                            onClick={() => {
+                              buyAdvancedUpgrade(up.id, buyMultiplier);
+                              playPurchase();
+                            }}
+                          >
+                            {buyMultiplier === 1
+                              ? "Купить"
+                              : `Купить ×${plan.count}${capped ? " (макс.)" : ""}`}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
     </div>
   );
 }
