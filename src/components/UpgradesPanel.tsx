@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { playPurchase } from "../game/audio/sound";
 import {
   UPGRADE_BRANCHES,
   computeRadiiPx,
@@ -170,7 +171,10 @@ export function UpgradesPanel() {
                   type="button"
                   className="upgrades-buy"
                   disabled={!canBuy}
-                  onClick={() => buyUpgrade(branch, buyMultiplier)}
+                  onClick={() => {
+                    buyUpgrade(branch, buyMultiplier);
+                    playPurchase();
+                  }}
                 >
                   {buyMultiplier === 1
                     ? t("upgrades.buy")
@@ -235,7 +239,10 @@ export function UpgradesPanel() {
                       type="button"
                       className="upgrades-buy"
                       disabled={!affordable}
-                      onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
+                      onClick={() => {
+                        buyMpUpgrade(up.id, buyMultiplier);
+                        playPurchase();
+                      }}
                     >
                       {buyMultiplier === 1
                         ? "Купить"

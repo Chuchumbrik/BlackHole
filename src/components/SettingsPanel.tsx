@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
+import { isMuted, setMuted, resumeAudio, playPurchase } from "../game/audio/sound";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -13,6 +14,17 @@ export function SettingsPanel() {
   const setTab = useGameStore((s) => s.setTab);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [muted, setMutedState] = useState(isMuted());
+
+  const onToggleSound = () => {
+    const next = !muted;
+    setMuted(next);
+    setMutedState(next);
+    if (!next) {
+      resumeAudio();
+      playPurchase(); // короткий сэмпл — слышно, что звук включился
+    }
+  };
 
   const onSave = () => {
     saveNow();
@@ -38,6 +50,17 @@ export function SettingsPanel() {
         </p>
         <button type="button" className="settings-btn" onClick={onSave}>
           {savedFlash ? "Сохранено ✓" : "Сохранить сейчас"}
+        </button>
+      </section>
+
+      <section className="settings-section">
+        <h3 className="settings-section-title">Звук</h3>
+        <p className="settings-hint">
+          Тонкие процедурные эффекты: поглощение материи, покупки, события,
+          сжатие. Громкость намеренно низкая.
+        </p>
+        <button type="button" className="settings-btn" onClick={onToggleSound}>
+          {muted ? "Звук: выкл 🔇" : "Звук: вкл 🔊"}
         </button>
       </section>
 

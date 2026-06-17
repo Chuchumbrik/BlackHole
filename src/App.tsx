@@ -16,6 +16,7 @@ import { OnboardingCta } from "./components/OnboardingCta";
 import { useGameStore } from "./store/useGameStore";
 import { levelSum } from "./game/upgrades";
 import { UPGRADE_FIRST_LEVEL_COST_MP } from "./game/balance";
+import { resumeAudio, playEvent, playPrestige } from "./game/audio/sound";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -94,9 +95,26 @@ function App() {
   useEffect(() => {
     if (prestigeFlash === 0) return;
     setCollapsing(true);
+    playPrestige();
     const id = window.setTimeout(() => setCollapsing(false), 1300);
     return () => window.clearTimeout(id);
   }, [prestigeFlash]);
+
+  // V6: разблокировать аудио по первому жесту (политика autoplay браузеров).
+  useEffect(() => {
+    const unlock = () => resumeAudio();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  // V6: звук старта события.
+  useEffect(() => {
+    if (activeEventName) playEvent();
+  }, [activeEventName]);
 
   // V7: цвет тинта по активному событию.
   const eventTint =

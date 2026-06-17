@@ -89,6 +89,7 @@ import {
 import type { Rgb } from "../game/world/planetPalette";
 import { buildStarHoverText } from "../game/world/starHoverText";
 import type { Planet } from "../game/world/types";
+import { playAbsorb } from "../game/audio/sound";
 import { useGameStore } from "../store/useGameStore";
 
 function smoothPlanetFillColors(
@@ -1458,10 +1459,11 @@ export function GameCanvas() {
 
         if (consumed.length > 0) {
           let gain = 0;
+          let maxMp = 0;
           for (const c of consumed) {
-            gain += Math.floor(
-              c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER,
-            );
+            const g = Math.floor(c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER);
+            gain += g;
+            if (g > maxMp) maxMp = g;
             // Удар обломка в планету → откат её развития.
             if (c.via === "planet" && c.planetId && activeSystem) {
               useGameStore
@@ -1480,6 +1482,7 @@ export function GameCanvas() {
           if (gain > 0) {
             consumePulse = 1;
             useGameStore.getState().addMassMp(gain);
+            playAbsorb(maxMp); // throttle внутри — без какофонии
           }
         }
 
