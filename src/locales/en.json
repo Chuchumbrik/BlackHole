@@ -10,7 +10,8 @@
       "upgrades": "Upgrades",
       "planet": "Planet",
       "prestige": "Prestige",
-      "stats": "Stats"
+      "stats": "Stats",
+      "settings": "Settings"
     }
   },
   "viewTier": {

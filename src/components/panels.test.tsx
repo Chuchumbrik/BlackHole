@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { PrestigePanel } from "./PrestigePanel";
 import { AchievementsPanel } from "./AchievementsPanel";
 import { UpgradesPanel } from "./UpgradesPanel";
 import { PlanetPanel } from "./PlanetPanel";
+import { SettingsPanel } from "./SettingsPanel";
 import { useGameStore } from "../store/useGameStore";
 import { ZERO_UPGRADE_LEVELS, nextUpgradeCostMp } from "../game/upgrades";
 import type { Planet, StarSystem } from "../game/world/types";
@@ -102,6 +103,35 @@ describe("UpgradesPanel (UI)", () => {
     expect(btn).not.toBeDisabled();
     // строка цены отражает максимум ×3
     expect(screen.getAllByText(/Хватает на ×3 \(макс\.\):/).length).toBeGreaterThan(0);
+  });
+});
+
+describe("SettingsPanel (UI)", () => {
+  it("сброс прогресса — за подтверждением, обнуляет массу и уровни", () => {
+    useGameStore.setState({
+      massMp: 99999,
+      upgradeLevels: { ...ZERO_UPGRADE_LEVELS, size: 7 },
+      prestigePoints: 12,
+    });
+    render(<SettingsPanel />);
+    // первый клик — только подтверждение, прогресс ещё на месте
+    fireEvent.click(screen.getByRole("button", { name: /Сбросить весь прогресс/ }));
+    expect(useGameStore.getState().massMp).toBe(99999);
+    expect(screen.getByText(/Точно сбросить весь прогресс/)).toBeInTheDocument();
+    // подтверждаем
+    fireEvent.click(screen.getByRole("button", { name: /Да, сбросить всё/ }));
+    const s = useGameStore.getState();
+    expect(s.massMp).toBe(0);
+    expect(s.upgradeLevels.size).toBe(0);
+    expect(s.prestigePoints).toBe(0);
+    expect(s.activeTab).toBe("game");
+  });
+  it("отмена подтверждения не сбрасывает", () => {
+    useGameStore.setState({ massMp: 555 });
+    render(<SettingsPanel />);
+    fireEvent.click(screen.getByRole("button", { name: /Сбросить весь прогресс/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Отмена/ }));
+    expect(useGameStore.getState().massMp).toBe(555);
   });
 });
 

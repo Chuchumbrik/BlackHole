@@ -8,6 +8,7 @@ import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
+import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
 import { useGameStore } from "./store/useGameStore";
 
@@ -19,6 +20,7 @@ const TABS = [
   { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань" },
   { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)" },
   { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Достижения и их постоянные бонусы" },
+  { id: "settings" as const, labelKey: "app.tabs.settings", hint: "Сохранение и сброс прогресса" },
 ];
 
 function App() {
@@ -106,6 +108,11 @@ function App() {
         {activeTab === "stats" && (
           <div className="app-panel-overlay app-panel-stats">
             <AchievementsPanel />
+          </div>
+        )}
+        {activeTab === "settings" && (
+          <div className="app-panel-overlay app-panel-settings">
+            <SettingsPanel />
           </div>
         )}
       </div>

@@ -29,7 +29,7 @@ import { accelerationCostMp, advancePlanetStages } from "../game/world/planetPro
 import { tickPlanetLife } from "../game/world/planetLife";
 import type { Planet, StarSystem } from "../game/world/types";
 
-type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats";
+type TabId = "game" | "upgrades" | "planet" | "prestige" | "stats" | "settings";
 
 export type ViewTierId = 0 | 1 | 2;
 

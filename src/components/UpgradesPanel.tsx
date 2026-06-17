@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  SUM_FOR_EFFICIENCY_UNLOCK,
-  SUM_FOR_HAWKING_UNLOCK,
-  SUM_FOR_JETS_UNLOCK,
-  SUM_FOR_LENSING_UNLOCK,
-} from "../game/balance";
-import {
   UPGRADE_BRANCHES,
   computeRadiiPx,
   isDiskUnlocked,
@@ -58,25 +52,6 @@ function branchLocked(
   return false;
 }
 
-function lockMessage(
-  branch: (typeof UPGRADE_BRANCHES)[number],
-  sum: number,
-  t: (key: string, opts?: Record<string, unknown>) => string,
-): string {
-  if (branch === "disk") return t("upgrades.lock.disk");
-  if (branch === "efficiency")
-    return t("upgrades.lock.efficiency", {
-      need: SUM_FOR_EFFICIENCY_UNLOCK,
-      sum,
-    });
-  if (branch === "jets")
-    return t("upgrades.lock.jets", { need: SUM_FOR_JETS_UNLOCK, sum });
-  if (branch === "lensing")
-    return t("upgrades.lock.lensing", { need: SUM_FOR_LENSING_UNLOCK, sum });
-  if (branch === "hawking")
-    return t("upgrades.lock.hawking", { need: SUM_FOR_HAWKING_UNLOCK, sum });
-  return "";
-}
 
 export function UpgradesPanel() {
   const { t, i18n } = useTranslation();
@@ -100,7 +75,7 @@ export function UpgradesPanel() {
       </p>
       <div className="buy-mult">
         <span className="buy-mult-label">Покупать:</span>
-        {[1, 2, 5, 10].map((m) => (
+        {[1, 2, 5, 10, 50, 100].map((m) => (
           <button
             key={m}
             type="button"
@@ -112,7 +87,9 @@ export function UpgradesPanel() {
         ))}
       </div>
       <ul className="upgrades-card-list">
-        {UPGRADE_BRANCHES.map((branch) => {
+        {UPGRADE_BRANCHES.filter(
+          (branch) => !branchLocked(branch, upgradeLevels),
+        ).map((branch) => {
           const level = upgradeLevels[branch];
           const plan = planUpgradePurchase(
             upgradeLevels,
@@ -120,7 +97,6 @@ export function UpgradesPanel() {
             massMp,
             buyMultiplier,
           );
-          const locked = branchLocked(branch, upgradeLevels);
           const canBuy = plan.count > 0;
           // массы хватает не на весь множитель — покупаем максимум возможного
           const capped = canBuy && plan.count < buyMultiplier;
@@ -157,8 +133,6 @@ export function UpgradesPanel() {
                             mps: formatMultiplier(snap.hawkingMpPerSecApprox),
                           });
 
-          const lockText = locked ? lockMessage(branch, sum, t) : "";
-
           return (
             <li key={branch} className="upgrades-card">
               <div className="upgrades-card-head">
@@ -173,49 +147,41 @@ export function UpgradesPanel() {
                 {t(`upgrades.branches.${branch}.effect`)}
               </p>
               <p className="upgrades-card-current">{currentLine}</p>
-              {locked ? (
-                <p className="upgrades-card-lock">{lockText}</p>
-              ) : (
-                <>
-                  <p className="upgrades-card-cost">
-                    {buyMultiplier === 1 || !canBuy
-                      ? t("upgrades.nextCost", {
-                          value: nextUpgradeCostMp(
-                            upgradeLevels,
-                            branch,
-                          ).toLocaleString("ru-RU"),
-                        })
-                      : t(
-                          capped
-                            ? "upgrades.bulkCostCapped"
-                            : "upgrades.bulkCost",
-                          {
-                            count: plan.count,
-                            value: plan.totalCost.toLocaleString("ru-RU"),
-                          },
-                        )}
-                  </p>
-                  <button
-                    type="button"
-                    className="upgrades-buy"
-                    disabled={!canBuy}
-                    onClick={() => buyUpgrade(branch, buyMultiplier)}
-                  >
-                    {buyMultiplier === 1
-                      ? t("upgrades.buy")
-                      : t(capped ? "upgrades.buyNMax" : "upgrades.buyN", {
-                          count: plan.count,
-                        })}
-                  </button>
-                </>
-              )}
+              <p className="upgrades-card-cost">
+                {buyMultiplier === 1 || !canBuy
+                  ? t("upgrades.nextCost", {
+                      value: nextUpgradeCostMp(
+                        upgradeLevels,
+                        branch,
+                      ).toLocaleString("ru-RU"),
+                    })
+                  : t(
+                      capped ? "upgrades.bulkCostCapped" : "upgrades.bulkCost",
+                      {
+                        count: plan.count,
+                        value: plan.totalCost.toLocaleString("ru-RU"),
+                      },
+                    )}
+              </p>
+              <button
+                type="button"
+                className="upgrades-buy"
+                disabled={!canBuy}
+                onClick={() => buyUpgrade(branch, buyMultiplier)}
+              >
+                {buyMultiplier === 1
+                  ? t("upgrades.buy")
+                  : t(capped ? "upgrades.buyNMax" : "upgrades.buyN", {
+                      count: plan.count,
+                    })}
+              </button>
             </li>
           );
         })}
       </ul>
 
       <h3 className="upgrades-extra-title">Особые улучшения</h3>
-      <ul className="upgrades-list">
+      <ul className="upgrades-card-list">
         {MP_UPGRADES.map((up) => {
           const lvl = mpUpgradeLevels[up.id] ?? 0;
           const maxed = lvl >= up.maxLevel;
@@ -223,19 +189,19 @@ export function UpgradesPanel() {
           const affordable = plan.count > 0;
           const capped = affordable && plan.count < buyMultiplier;
           return (
-            <li key={up.id}>
-              <div className="upgrade-head">
-                <h3>{up.name}</h3>
-                <span className="upgrade-lvl">
+            <li key={up.id} className="upgrades-card">
+              <div className="upgrades-card-head">
+                <h3 className="upgrades-card-name">{up.name}</h3>
+                <span className="upgrades-card-level">
                   Ур. {lvl}/{up.maxLevel}
                 </span>
               </div>
-              <p className="upgrade-desc">{up.desc}</p>
+              <p className="upgrades-card-effect">{up.desc}</p>
               {maxed ? (
-                <p className="upgrade-cost">Максимум</p>
+                <p className="upgrades-card-cost">Максимум</p>
               ) : (
                 <>
-                  <p className="upgrade-cost">
+                  <p className="upgrades-card-cost">
                     {buyMultiplier === 1 || !affordable
                       ? `Следующий уровень: ${mpUpgradeCost(
                           up,
@@ -251,6 +217,7 @@ export function UpgradesPanel() {
                   </p>
                   <button
                     type="button"
+                    className="upgrades-buy"
                     disabled={!affordable}
                     onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
                   >
