@@ -757,6 +757,33 @@ export function GameCanvas() {
       let ptrMoved = false;
       const DRAG_THRESH = 7;
 
+      // Фокус камеры: «У дыры» — на дыре; «Система» — середина дыра↔звезда (чтобы
+      // в кадр попадали и дыра, и звезда с планетами).
+      const cameraFocus = (layout: SimLayout, viewTier: 0 | 1 | 2) =>
+        viewTier === 1
+          ? {
+              x: (layout.bh.x + layout.star.x) / 2,
+              y: (layout.bh.y + layout.star.y) / 2,
+            }
+          : { x: layout.bh.x, y: layout.bh.y };
+
+      // Базовый масштаб (до userZoom): в «Системе» подгоняем под охват дыра↔звезда.
+      const cameraBaseScale = (
+        levels: UpgradeLevels,
+        layout: SimLayout,
+        viewTier: 0 | 1 | 2,
+      ) => {
+        if (viewTier === 1) {
+          const span = Math.hypot(
+            layout.bh.x - layout.star.x,
+            layout.bh.y - layout.star.y,
+          );
+          const halfExtent = Math.max(span * 0.62, layout.horizonRadius * 6);
+          return (Math.min(layout.width, layout.height) * 0.46) / halfExtent;
+        }
+        return combinedWorldScale(levels, viewTier);
+      };
+
       const applyCamera = (
         levels: UpgradeLevels,
         layout: SimLayout,
@@ -769,8 +796,9 @@ export function GameCanvas() {
         }
         worldRoot.visible = true;
         galaxyRoot.visible = false;
-        const s = combinedWorldScale(levels, viewTier) * userZoom;
-        worldRoot.pivot.set(layout.bh.x, layout.bh.y);
+        const focus = cameraFocus(layout, viewTier);
+        const s = cameraBaseScale(levels, layout, viewTier) * userZoom;
+        worldRoot.pivot.set(focus.x, focus.y);
         worldRoot.position.set(
           layout.width / 2 + panX,
           layout.height / 2 + panY,
@@ -952,12 +980,12 @@ export function GameCanvas() {
         const viewTierW = useGameStore.getState().viewTier;
         const layoutW = layoutFromHost(host, levelsW);
         const simPt = worldRoot.toLocal(e.global);
-        const pivot = layoutW.bh;
+        const pivot = cameraFocus(layoutW, viewTierW);
         userZoom = Math.max(
           USER_ZOOM_MIN,
           Math.min(USER_ZOOM_MAX, userZoom * factor),
         );
-        const sNew = combinedWorldScale(levelsW, viewTierW) * userZoom;
+        const sNew = cameraBaseScale(levelsW, layoutW, viewTierW) * userZoom;
         panX =
           e.global.x - (simPt.x - pivot.x) * sNew - layoutW.width / 2;
         panY =
