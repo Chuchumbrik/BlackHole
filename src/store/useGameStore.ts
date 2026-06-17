@@ -6,6 +6,7 @@ import {
   PLANET_TERRAFORM_COST_MP,
   PLANET_SHIELD_DURATION_SEC,
   PLANET_SHIELD_COST_MP,
+  PLANET_CLIMATE_EASE,
   ENERGY_MAX,
   ENERGY_REGEN_PER_SEC,
   ENERGY_TAP_COST,
@@ -162,6 +163,11 @@ type GameState = {
   damagePlanet: (systemId: string, planetId: string) => void;
   /** Звезда наращивает массу за счёт поглощённых телом масс. */
   absorbStarMass: (systemId: string, amount: number) => void;
+  /** Синхронизировать климат планет с физикой: температура/орбита → к целям (eased). */
+  syncPlanetClimate: (
+    systemId: string,
+    updates: { id: string; orbital01: number; temp01: number }[],
+  ) => void;
   /** Терраформинг: подвинуть параметры планеты к золотой середине (за MP). */
   terraformPlanet: (systemId: string, planetId: string) => void;
   /** Щит планеты от ударов на время (за MP). */
@@ -412,6 +418,31 @@ export const useGameStore = create<GameState>((set, get) => {
         ),
       };
     }),
+  syncPlanetClimate: (systemId, updates) =>
+    set((s) => {
+      if (updates.length === 0) return s;
+      const byId = new Map(updates.map((u) => [u.id, u]));
+      return {
+        systems: s.systems.map((sys) => {
+          if (sys.id !== systemId) return sys;
+          return {
+            ...sys,
+            planets: sys.planets.map((p: Planet) => {
+              const u = byId.get(p.id);
+              if (!u) return p;
+              const k = PLANET_CLIMATE_EASE;
+              return {
+                ...p,
+                orbitalDistance:
+                  p.orbitalDistance + (u.orbital01 - p.orbitalDistance) * k,
+                surfaceTemperature:
+                  p.surfaceTemperature + (u.temp01 - p.surfaceTemperature) * k,
+              };
+            }),
+          };
+        }),
+      };
+    }),
   setActivePlanet: (activePlanetId) => set({ activePlanetId }),
   removePlanet: (systemId, planetId) =>
     set((s) => {
@@ -462,11 +493,11 @@ export const useGameStore = create<GameState>((set, get) => {
           planets: sys.planets.map((p: Planet) => {
             if (p.id !== planetId) return p;
             touched = true;
+            // Орбита и температура теперь физико-зависимы (см. syncPlanetClimate)
+            // и терраформингом не двигаются — инженерим лишь атмосферу/воду/недра/массу.
             return {
               ...p,
-              orbitalDistance: nudge(p.orbitalDistance),
               gravityProxy: nudge(p.gravityProxy),
-              surfaceTemperature: nudge(p.surfaceTemperature),
               atmosphere: nudge(p.atmosphere),
               hydrosphere: nudge(p.hydrosphere),
               geologicalActivity: nudge(p.geologicalActivity),

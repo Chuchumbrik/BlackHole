@@ -13,6 +13,8 @@ import {
   STAR_ABSORB_FRACTION,
   starGravityMul,
   starDisplayMul,
+  starLuminosity01,
+  targetTemperature01,
   BASE_SPAWN_PER_SECOND,
   BH_ORBIT_RADIUS_FRACTION,
   BH_SCREEN_ANGLE_RAD,
@@ -1642,6 +1644,37 @@ export function GameCanvas() {
             st.achievementsUnlocked,
           );
           for (const a of fresh) st.unlockAchievement(a.id, a.name);
+
+          // Динамика климата: температура/орбита планет следуют за физическим
+          // положением тела относительно (растущей) звезды. Раз в ~секунду.
+          if (activeSystem && simScale > 0) {
+            const orbitMin = layout.horizonRadius * 4.5;
+            const orbitMax = Math.max(
+              orbitMin + 12,
+              layout.systemRadius * 0.85,
+            );
+            const lum01 = starLuminosity01(activeSystem.starClass, starAbsorbed);
+            const climate: { id: string; orbital01: number; temp01: number }[] =
+              [];
+            for (const pl of activeSystem.planets) {
+              const pos = planetPosById.get(pl.id);
+              if (!pos) continue;
+              const dStar = Math.hypot(
+                pos.x - layout.star.x,
+                pos.y - layout.star.y,
+              );
+              const orbital01 = Math.max(
+                0,
+                Math.min(100, (100 * (dStar - orbitMin)) / (orbitMax - orbitMin)),
+              );
+              climate.push({
+                id: pl.id,
+                orbital01,
+                temp01: targetTemperature01(orbital01, lum01),
+              });
+            }
+            st.syncPlanetClimate(activeSystem.id, climate);
+          }
         }
 
         consumePulse = Math.max(0, consumePulse - simDt * 3.5);

@@ -232,13 +232,16 @@ describe("store: сверхновая (узел №11)", () => {
 });
 
 describe("store: развитие планеты", () => {
-  it("терраформинг двигает параметры к 50 и списывает MP", () => {
-    setup(100_000, mkPlanet({ atmosphere: 20, surfaceTemperature: 90 }));
+  it("терраформинг двигает инженерные параметры к 50 и списывает MP", () => {
+    // атмосфера двигается терраформингом; температура теперь физико-зависима
+    // (orbital), терраформингом НЕ меняется.
+    setup(100_000, mkPlanet({ atmosphere: 20, hydrosphere: 80, surfaceTemperature: 90 }));
     const massBefore = useGameStore.getState().massMp;
     useGameStore.getState().terraformPlanet("sys1", "pl1");
     const p = planet0();
     expect(p.atmosphere).toBeGreaterThan(20);
-    expect(p.surfaceTemperature).toBeLessThan(90);
+    expect(p.hydrosphere).toBeLessThan(80);
+    expect(p.surfaceTemperature).toBe(90); // температура не двигается терраформингом
     expect(useGameStore.getState().massMp).toBeLessThan(massBefore);
   });
   it("щит защищает от отката при ударе", () => {

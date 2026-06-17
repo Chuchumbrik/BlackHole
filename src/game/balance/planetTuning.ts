@@ -59,3 +59,38 @@ export const ROCHE_TEAR_FACTOR = 2.6;
 export const ROCHE_REWARD_MUL = 1.3;
 /** Число осколков в кольце разрыва (часть может ускользнуть из системы — риск). */
 export const ROCHE_RING_SHARDS = 26;
+
+/**
+ * Климат планеты (динамика): температура и орбитальный параметр следуют за
+ * физическим положением тела относительно звезды. Звезда «вырабатывает тепло» —
+ * ближе к ней горячее, дальше холоднее; масса/класс звезды задают светимость.
+ */
+
+/** Относительная светимость по классу звезды (0..1), с мягкой добавкой от набранной массы. */
+const STAR_CLASS_LUMINOSITY: Record<string, number> = {
+  O: 1.0,
+  B: 0.95,
+  A: 0.85,
+  F: 0.72,
+  G: 0.6,
+  K: 0.45,
+  M: 0.32,
+};
+export function starLuminosity01(starClass: string, starMassMp = 0): number {
+  const base = STAR_CLASS_LUMINOSITY[starClass] ?? 0.6;
+  const massBoost = 1 + 0.3 * Math.log1p(Math.max(0, starMassMp) / 6000);
+  return Math.min(1.25, base * massBoost);
+}
+
+/**
+ * Целевая температура планеты (0..100) по орбитальной близости и светимости.
+ * orbital01: 0 — у самой звезды (горячо), 100 — на краю системы (холодно).
+ * Калибровка: средняя орбита у G-звезды ≈ «золотая середина» (~50).
+ */
+export function targetTemperature01(orbital01: number, lum01: number): number {
+  const closeness = Math.max(0, Math.min(1, 1 - orbital01 / 100));
+  return Math.max(0, Math.min(100, 100 * lum01 * (0.35 + 0.85 * closeness)));
+}
+
+/** Доля сглаживания климата за один тик синхронизации (вызывается ~раз/сек). */
+export const PLANET_CLIMATE_EASE = 0.18;
