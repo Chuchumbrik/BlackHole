@@ -4,15 +4,18 @@ import {
   PLANET_ECOSYSTEM_HIGH,
   PLANET_ECOSYSTEM_LOW,
   PLANET_LIFE_EMERGENCE_TOTAL_SEC,
+  PLANET_CIV_MAX_LEVEL,
 } from "../balance/planetTuning";
 import { mpIncomeMultiplier, type UpgradeLevels } from "../upgrades";
 import {
   ecosystemDeficits,
   ecosystemStable,
   lifeEmergenceRatio,
+  planetMatureForLife,
   planetSwallowMpBase,
   type PlanetParamKey,
 } from "./planetLife";
+import { planetStageInfo } from "./planetProgress";
 import {
   inHabitableZone,
   likelyTidalLocked,
@@ -41,6 +44,7 @@ export function buildPlanetHoverText(
   const lines: string[] = [
     i18n.t("planet.hover.title", { name: planet.name }),
     i18n.t("planet.hover.stage", {
+      stageName: planetStageInfo(planet.stage).name,
       stage: planet.stage,
       yield: (planet.mpYieldMult * 100).toFixed(0),
     }),
@@ -62,6 +66,8 @@ export function buildPlanetHoverText(
         high: PLANET_ECOSYSTEM_HIGH,
       }),
     );
+  } else if (!planet.lifeBorn && !planetMatureForLife(planet)) {
+    lines.push(i18n.t("planet.hover.lifeGate"));
   } else if (!planet.lifeBorn) {
     lines.push(
       i18n.t("planet.hover.lifeEmergence", {
@@ -71,7 +77,12 @@ export function buildPlanetHoverText(
     );
   } else {
     lines.push(i18n.t("planet.hover.lifeBorn"));
-    lines.push(i18n.t("planet.hover.civPlaceholder"));
+    lines.push(
+      i18n.t("planet.hover.civTier", {
+        tier: planet.civLevel,
+        max: PLANET_CIV_MAX_LEVEL,
+      }),
+    );
   }
 
   if (inHabitableZone(starClass, planet.orbitalDistance)) {

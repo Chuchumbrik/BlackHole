@@ -124,13 +124,14 @@
     "civTeaser": "Next: space age, colonies, elemental beats — later milestones.",
     "hover": {
       "title": "{{name}}",
-      "stage": "Tech stage {{stage}} · biosphere yield {{yield}}%",
+      "stage": "{{stageName}} · stage {{stage}}/4 · biosphere yield {{yield}}%",
       "ecoHint": "Out of comfort band: tune {{list}}",
       "ecoUnstable": "Ecosystem unstable — align all six parameters.",
       "ecoBand": "Comfort band: {{low}}–{{high}} on each stat.",
+      "lifeGate": "Ecosystem ready, but the planet is immature — life begins from the «Mature planet» stage (3).",
       "lifeEmergence": "Life emergence: {{pct}}% (about {{totalMin}} min at ×1 time)",
       "lifeBorn": "Life present — swallow MP drops while the biosphere depletes.",
-      "civPlaceholder": "Civilization / space layer — placeholder.",
+      "civTier": "Civilization: tier {{tier}}/{{max}} — tribute ships bring passive MP.",
       "swallow": "Rough MP if the hole swallows it now: +{{mp}} MP",
       "deficit": {
         "orbitalDistance": "orbital distance",
@@ -144,7 +145,7 @@
   },
   "star": {
     "hover": {
-      "body": "{{name}}\nSpectral class {{starClass}}\nPlanets in system: {{planets}}"
+      "body": "{{name}}\nSpectral class {{starClass}}\nPlanets in system: {{planets}}\nThe star holds planets in orbit; the nearby black hole perturbs them more as it grows."
     }
   }
 }
