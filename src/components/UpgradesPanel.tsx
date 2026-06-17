@@ -197,6 +197,15 @@ export function UpgradesPanel() {
                 </span>
               </div>
               <p className="upgrades-card-effect">{up.desc}</p>
+              <p className="upgrades-card-current">
+                {`Сейчас: ×${formatMultiplier(up.perLevel ** lvl)} к ${
+                  up.kind === "mpMul"
+                    ? "добыче MP"
+                    : up.kind === "spawnRateMul"
+                      ? "частоте спавна материи"
+                      : "пассиву Хокинга"
+                } (ур. ${lvl})`}
+              </p>
               {maxed ? (
                 <p className="upgrades-card-cost">Максимум</p>
               ) : (

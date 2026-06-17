@@ -63,6 +63,8 @@ import {
   eventById,
   EVENT_FIRST_DELAY_SEC,
   EVENT_COOLDOWN_SEC,
+  PARADE_ALIGN_THRESHOLD,
+  PARADE_COOLDOWN_SEC,
 } from "../game/events";
 import {
   buildPlanetPhysicsSnapshot,
@@ -72,6 +74,7 @@ import {
 import {
   seedPlanetBodies,
   integratePlanetBodies,
+  planetAlignment,
   detectPlanetCollisions,
   orbitInstability,
   ORBIT_INSTABILITY_WARN,
@@ -634,6 +637,8 @@ export function GameCanvas() {
     /** Часы событий в РЕАЛЬНОМ времени (растут при simScale>0) — чтобы события
      *  не мелькали на ×10 и замирали на паузе. */
     let eventClock = 0;
+    /** Не раньше этого времени снова проверять естественный парад планет. */
+    let paradeReadyAtSec = EVENT_FIRST_DELAY_SEC;
     const spawnControl: SpawnControl = { accum: 0 };
     let consumePulse = 0;
     const graphicsPool: Graphics[] = [];
@@ -1214,16 +1219,32 @@ export function GameCanvas() {
           eventNextAtSec = eventClock + EVENT_COOLDOWN_SEC;
           useGameStore.getState().setActiveEvent(null);
         }
-        if (!eventActiveId && simScale > 0 && eventClock >= eventNextAtSec) {
-          const def = pickEvent(Math.random());
-          eventActiveId = def.id;
-          eventEndsAtSec = eventClock + def.durationSec;
-          useGameStore.getState().setActiveEvent(def.name);
-          if (def.spawnBurst > 0) {
-            objects = trySpawn(objects, layout, def.spawnBurst, {
-              shipsUnlocked: areShipsUnlocked(levels),
-              upgradeLevels: levels,
-            });
+        if (!eventActiveId && simScale > 0) {
+          const startEvent = (def: ReturnType<typeof eventById>) => {
+            if (!def) return;
+            eventActiveId = def.id;
+            eventEndsAtSec = eventClock + def.durationSec;
+            useGameStore.getState().setActiveEvent(def.name);
+            if (def.spawnBurst > 0) {
+              objects = trySpawn(objects, layout, def.spawnBurst, {
+                shipsUnlocked: areShipsUnlocked(levels),
+                upgradeLevels: levels,
+              });
+            }
+          };
+          // «Парад планет» срабатывает, когда планеты сами выстроились в ряд
+          // (не двигаем их силой), с собственной паузой между парадами.
+          const naturallyAligned =
+            eventClock >= paradeReadyAtSec &&
+            planetBodies.length >= 3 &&
+            planetAlignment(planetBodies, layout.star) >= PARADE_ALIGN_THRESHOLD;
+          if (naturallyAligned) {
+            startEvent(eventById("planet_parade"));
+            paradeReadyAtSec = eventClock + PARADE_COOLDOWN_SEC;
+            eventNextAtSec = eventClock + EVENT_COOLDOWN_SEC;
+          } else if (eventClock >= eventNextAtSec) {
+            // Прочие события — по таймеру (парад исключён, он только по выравниванию).
+            startEvent(pickEvent(Math.random(), ["planet_parade"]));
           }
         }
         const ev = eventById(eventActiveId);

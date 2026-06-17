@@ -31,4 +31,10 @@ describe("events: каталог и выбор", () => {
     expect(eventById(null)).toBeNull();
     expect(eventById("__nope__")).toBeNull();
   });
+  it("pickEvent с excludeIds никогда не возвращает исключённое", () => {
+    for (let i = 0; i < 200; i++) {
+      const e = pickEvent((i + 0.5) / 200, ["planet_parade"]);
+      expect(e.id).not.toBe("planet_parade");
+    }
+  });
 });

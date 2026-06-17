@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   seedPlanetBodies,
   integratePlanetBodies,
+  planetAlignment,
   detectPlanetCollisions,
   orbitInstability,
   type PlanetBody,
@@ -105,6 +106,20 @@ describe("planetPhysics: столкновения и нестабильност�
     const hits = detectPlanetCollisions([a, b, far]);
     expect(hits).toHaveLength(1);
     expect(hits[0].sort()).toEqual(["a", "b"]);
+  });
+  it("planetAlignment: ~1 когда планеты в ряд, ~0 когда по кругу", () => {
+    const st = { x: 0, y: 0 };
+    const mk = (x: number, y: number): PlanetBody => ({
+      id: `${x},${y}`, x, y, vx: 0, vy: 0, mass: 1, surfaceRadius: 1,
+    });
+    // все по одну сторону (в ряд по +X) → ~1
+    const aligned = [mk(100, 0), mk(200, 0), mk(300, 1)];
+    expect(planetAlignment(aligned, st)).toBeGreaterThan(0.99);
+    // равномерно по кругу (4 стороны) → ~0
+    const spread = [mk(100, 0), mk(-100, 0), mk(0, 100), mk(0, -100)];
+    expect(planetAlignment(spread, st)).toBeLessThan(0.05);
+    // пусто → 0
+    expect(planetAlignment([], st)).toBe(0);
   });
   it("orbitInstability в [0,1] и растёт с массой дыры вблизи", () => {
     const [body] = seedPlanetBodies([mkPlanet(0)], ctx, star);

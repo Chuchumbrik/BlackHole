@@ -171,6 +171,27 @@ export function integratePlanetBodies(
   }
 }
 
+/**
+ * Степень выстроенности планет «в ряд» по одну сторону звезды: длина суммарного
+ * единичного вектора их угловых положений / N ∈ [0,1]. 1 — все в одном направлении
+ * (естественный парад), ~0 — равномерно по кругу. Используется, чтобы запускать
+ * событие «Парад планет» ТОГДА, когда планеты сошлись сами, а не двигать их силой.
+ */
+export function planetAlignment(
+  bodies: PlanetBody[],
+  star: { x: number; y: number },
+): number {
+  if (bodies.length === 0) return 0;
+  let sx = 0;
+  let sy = 0;
+  for (const b of bodies) {
+    const a = Math.atan2(b.y - star.y, b.x - star.x);
+    sx += Math.cos(a);
+    sy += Math.sin(a);
+  }
+  return Math.hypot(sx, sy) / bodies.length;
+}
+
 /** Пары планет, пересёкшихся поверхностями → кандидаты на разрушение. */
 export function detectPlanetCollisions(bodies: PlanetBody[]): Array<[string, string]> {
   const hits: Array<[string, string]> = [];

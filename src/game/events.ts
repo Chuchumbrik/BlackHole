@@ -50,15 +50,28 @@ export const GAME_EVENTS: GameEventDef[] = [
 export const EVENT_FIRST_DELAY_SEC = 70;
 export const EVENT_COOLDOWN_SEC = 90;
 
-/** Выбрать случайное событие по весам (rng — функция 0..1, для детерминизма извне). */
-export function pickEvent(rand: number): GameEventDef {
-  const total = GAME_EVENTS.reduce((s, e) => s + e.weight, 0);
+/**
+ * «Парад планет» НЕ выбирается по таймеру — он срабатывает, когда планеты сами
+ * естественно выстраиваются в ряд (см. `planetAlignment`). Порог выстроенности
+ * и собственная пауза между парадами:
+ */
+export const PARADE_ALIGN_THRESHOLD = 0.9;
+export const PARADE_COOLDOWN_SEC = 60;
+
+/**
+ * Выбрать случайное событие по весам (rand 0..1, для детерминизма извне).
+ * `excludeIds` исключает события (например, парад — он триггерится выравниванием).
+ */
+export function pickEvent(rand: number, excludeIds: string[] = []): GameEventDef {
+  const pool = GAME_EVENTS.filter((e) => !excludeIds.includes(e.id));
+  const list = pool.length > 0 ? pool : GAME_EVENTS;
+  const total = list.reduce((s, e) => s + e.weight, 0);
   let r = rand * total;
-  for (const e of GAME_EVENTS) {
+  for (const e of list) {
     r -= e.weight;
     if (r <= 0) return e;
   }
-  return GAME_EVENTS[GAME_EVENTS.length - 1];
+  return list[list.length - 1];
 }
 
 export function eventById(id: string | null): GameEventDef | null {
