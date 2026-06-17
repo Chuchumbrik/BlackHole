@@ -18,6 +18,8 @@ export const SAVE_SCHEMA_VERSION = 1;
 export type SaveData = {
   schemaVersion: number;
   massMp: number;
+  /** Масса, потраченная за текущий ран (основа PP). Опционально — старые сейвы без поля. */
+  massSpentRun?: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   systems: StarSystem[];

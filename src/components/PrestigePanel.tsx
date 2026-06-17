@@ -1,11 +1,11 @@
 import { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
-import { ppFromMass, PRESTIGE_THRESHOLD_MP } from "../game/prestige";
+import { ppFromSpent, PRESTIGE_SPENT_PER_PP } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 
 /** Вкладка «Престиж»: коллапс рана ради очков престижа (PP). */
 export function PrestigePanel() {
-  const massMp = useGameStore((s) => s.massMp);
+  const massSpentRun = useGameStore((s) => s.massSpentRun);
   const prestigePoints = useGameStore((s) => s.prestigePoints);
   const prestigePerkLevels = useGameStore((s) => s.prestigePerkLevels);
   const doPrestige = useGameStore((s) => s.doPrestige);
@@ -14,8 +14,10 @@ export function PrestigePanel() {
   const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
   const [confirming, setConfirming] = useState(false);
 
-  const gain = ppFromMass(massMp);
+  const gain = ppFromSpent(massSpentRun);
   const canPrestige = gain > 0;
+  // Сколько ещё потратить до следующего PP (для подсказки прогресса).
+  const nextPpAt = (gain + 1) * (gain + 1) * PRESTIGE_SPENT_PER_PP;
 
   return (
     <div className="prestige-panel">
@@ -24,15 +26,17 @@ export function PrestigePanel() {
         Очки престижа: <b>{prestigePoints.toLocaleString("ru-RU")} PP</b>
       </p>
       <p className="prestige-row">
-        Текущая масса: {massMp.toLocaleString("ru-RU")} MP
+        Потрачено массы за ран: {massSpentRun.toLocaleString("ru-RU")} MP
       </p>
       <p className="prestige-row">
         Сжатие даст: <b>{gain.toLocaleString("ru-RU")} PP</b>
+        {" · "}следующее PP при {nextPpAt.toLocaleString("ru-RU")} MP
       </p>
 
       {!canPrestige && (
         <p className="app-panel-hint">
-          Нужно накопить ≥ {PRESTIGE_THRESHOLD_MP.toLocaleString("ru-RU")} MP,
+          PP начисляется за <b>потраченную</b> массу (улучшения, планеты). Нужно
+          потратить ≥ {PRESTIGE_SPENT_PER_PP.toLocaleString("ru-RU")} MP за ран,
           чтобы сжать вселенную.
         </p>
       )}

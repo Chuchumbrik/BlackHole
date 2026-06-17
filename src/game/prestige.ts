@@ -1,12 +1,18 @@
 /**
  * Prestige («Сжатие»): коллапс рана ради постоянной валюты PP, ускоряющей
- * следующие заходы. Формула из obsidian/03; порог снижен под реальный темп
- * MVP (Q-R1) — калибруется на балансовом проходе (фаза G).
+ * следующие заходы.
+ *
+ * PP считается по МАССЕ, ПОТРАЧЕННОЙ за ран (`massSpentRun`), а не по той, что
+ * лежит на руках: награда за реальное развитие (улучшения, планеты), а не за
+ * накопительство. Формула — корневая (убывающая отдача), порог = делитель.
+ * Числа — стартовая калибровка, уточняются плейтестом (фаза G).
  */
-export const PRESTIGE_THRESHOLD_MP = 1000;
 
-/** Сколько PP даст сжатие при текущей массе (0, если ниже порога). */
-export function ppFromMass(massMp: number): number {
-  if (massMp < PRESTIGE_THRESHOLD_MP) return 0;
-  return Math.floor(Math.sqrt(massMp / 1000));
+/** Сколько потраченной массы соответствует «одному шагу» PP (порог первого PP). */
+export const PRESTIGE_SPENT_PER_PP = 5000;
+
+/** PP за сжатие по массе, потраченной за ран (0, если ниже порога). */
+export function ppFromSpent(massSpentRun: number): number {
+  if (massSpentRun < PRESTIGE_SPENT_PER_PP) return 0;
+  return Math.floor(Math.sqrt(massSpentRun / PRESTIGE_SPENT_PER_PP));
 }

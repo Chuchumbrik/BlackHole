@@ -39,6 +39,7 @@ const setup = (massMp: number, planet?: Planet) => {
   const p = planet ?? mkPlanet();
   useGameStore.setState({
     massMp,
+    massSpentRun: 0,
     upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
     systems: [sysWith(p)],
     activeSystemId: "sys1",
@@ -113,19 +114,27 @@ describe("store: оптовая покупка апгрейдов", () => {
   });
 });
 
-describe("store: prestige", () => {
-  it("сжатие начисляет PP и сбрасывает ран", () => {
-    setup(4000);
+describe("store: prestige (по потраченной массе)", () => {
+  it("сжатие начисляет PP по massSpentRun и сбрасывает счётчик трат", () => {
+    setup(100);
+    useGameStore.setState({ massSpentRun: 20_000 }); // 4×PER_PP → 2 PP
     useGameStore.getState().doPrestige();
     const s = useGameStore.getState();
     expect(s.prestigePoints).toBe(2);
     expect(s.upgradeLevels).toEqual(ZERO_UPGRADE_LEVELS);
-    expect(s.massMp).toBeLessThan(4000);
+    expect(s.massSpentRun).toBe(0);
+  });
+  it("оптовая покупка апгрейдов копит massSpentRun (база PP)", () => {
+    setup(1_000_000);
+    const before = useGameStore.getState().massSpentRun;
+    useGameStore.getState().buyUpgrade("size", 5);
+    expect(useGameStore.getState().massSpentRun).toBeGreaterThan(before);
   });
   it("lifetimePp накапливается и НЕ сбрасывается тратой PP (для достижений)", () => {
-    setup(4000);
+    setup(100);
+    useGameStore.setState({ massSpentRun: 20_000 });
     useGameStore.getState().doPrestige(); // +2 PP, lifetime 2
-    useGameStore.setState({ massMp: 4000 });
+    useGameStore.setState({ massSpentRun: 20_000 });
     useGameStore.getState().doPrestige(); // ещё +2, lifetime 4
     const s = useGameStore.getState();
     expect(s.lifetimePp).toBe(4);

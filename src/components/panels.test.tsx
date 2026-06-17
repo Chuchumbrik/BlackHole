@@ -39,13 +39,13 @@ const sys = (planets: Planet[]): StarSystem => ({
 
 describe("PrestigePanel (UI)", () => {
   it("ниже порога — нет кнопки сжатия, есть подсказка", () => {
-    useGameStore.setState({ massMp: 0, prestigePoints: 0, prestigePerkLevels: {} });
+    useGameStore.setState({ massSpentRun: 0, prestigePoints: 0, prestigePerkLevels: {} });
     render(<PrestigePanel />);
     expect(screen.queryByRole("button", { name: /Сжать вселенную/ })).toBeNull();
-    expect(screen.getByText(/Нужно накопить/)).toBeInTheDocument();
+    expect(screen.getByText(/потратить/)).toBeInTheDocument();
   });
-  it("выше порога — кнопка сжатия доступна", () => {
-    useGameStore.setState({ massMp: 5000, prestigePoints: 3, prestigePerkLevels: {} });
+  it("выше порога (потрачено достаточно) — кнопка сжатия доступна", () => {
+    useGameStore.setState({ massSpentRun: 20_000, prestigePoints: 3, prestigePerkLevels: {} });
     render(<PrestigePanel />);
     expect(screen.getByRole("button", { name: /Сжать вселенную/ })).toBeInTheDocument();
   });
