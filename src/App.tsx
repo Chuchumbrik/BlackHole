@@ -15,7 +15,7 @@ import { FieldLegend } from "./components/FieldLegend";
 import { OnboardingCta } from "./components/OnboardingCta";
 import { useGameStore } from "./store/useGameStore";
 import { levelSum } from "./game/upgrades";
-import { UPGRADE_FIRST_LEVEL_COST_MP } from "./game/balance";
+import { UPGRADE_FIRST_LEVEL_COST_MP, ENERGY_MAX } from "./game/balance";
 import { resumeAudio, playEvent, playPrestige } from "./game/audio/sound";
 
 const APP_VERSION = __APP_VERSION__;
@@ -46,6 +46,7 @@ type TabUnlockCtx = {
 function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
+  const energy = useGameStore((s) => s.energy);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
   const upgradeLevelSum = useGameStore((s) => levelSum(s.upgradeLevels));
@@ -226,6 +227,25 @@ function App() {
           >
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
             <span className="app-mass-hint"> {t("app.massHint")}</span>
+          </div>
+          <div
+            className="app-energy"
+            title="Гравитационный импульс. Тапните по пустому космосу — волна притяжения тянет тела к дыре, ускоряя поглощение. Восстанавливается со временем."
+          >
+            <div className="app-energy-row">
+              <span className="app-energy-label">Импульс</span>
+              <span className="app-energy-value">
+                {Math.floor(energy)}/{ENERGY_MAX}
+              </span>
+            </div>
+            <div className="app-energy-track">
+              <div
+                className="app-energy-fill"
+                style={{
+                  width: `${Math.max(0, Math.min(100, (energy / ENERGY_MAX) * 100))}%`,
+                }}
+              />
+            </div>
           </div>
         </header>
 

@@ -596,6 +596,47 @@ body,
   color: var(--muted);
 }
 
+.app-energy {
+  min-width: 120px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  cursor: default;
+}
+
+.app-energy-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  margin-bottom: 0.28rem;
+}
+
+.app-energy-label {
+  color: var(--muted);
+}
+
+.app-energy-value {
+  font-variant-numeric: tabular-nums;
+  color: #7dd3fc;
+}
+
+.app-energy-track {
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(56, 189, 248, 0.15);
+  overflow: hidden;
+}
+
+.app-energy-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #0ea5e9, #38bdf8);
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+  transition: width 0.15s linear;
+}
+
 .app-nav {
   pointer-events: auto;
   display: flex;

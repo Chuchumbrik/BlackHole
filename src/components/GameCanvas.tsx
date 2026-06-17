@@ -30,6 +30,7 @@ import {
   SYSTEM_OUTER_RADIUS_FRACTION,
   USER_ZOOM_MAX,
   USER_ZOOM_MIN,
+  WAVE_PULL_SPEED,
 } from "../game/balance";
 import {
   advanceSpawnAccumulator,
@@ -1021,6 +1022,17 @@ export function GameCanvas() {
           if (planet) {
             useGameStore.getState().setActivePlanet(planet.id);
             useGameStore.getState().setTab("planet");
+            return;
+          }
+          // Тап по пустому космосу → волна притяжения (Energy): импульс всем телам к дыре.
+          if (useGameStore.getState().tryCastPullWave()) {
+            applyJetImpulseToObjects(objects, layoutPk, WAVE_PULL_SPEED);
+            hitFlashes.push({
+              x: layoutPk.bh.x,
+              y: layoutPk.bh.y,
+              t: 0,
+              via: "horizon",
+            });
           }
         }
       };
@@ -1227,6 +1239,9 @@ export function GameCanvas() {
         const achMul = achievementMpMul(
           useGameStore.getState().achievementsUnlocked,
         );
+
+        // Восстановление Energy — в РЕАЛЬНОМ времени (идёт и на паузе).
+        useGameStore.getState().regenEnergy(dt);
 
         // --- Периодические события (в РЕАЛЬНОМ времени, замирают на паузе) ---
         if (simScale > 0) eventClock += dt;

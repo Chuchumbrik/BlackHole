@@ -14,6 +14,14 @@ export type { ObjectKind } from "./objectKinds";
 export { MP_RANGE, OBJECT_MASS } from "./objectKinds";
 
 export {
+  ENERGY_MAX,
+  ENERGY_REGEN_PER_SEC,
+  ENERGY_TAP_COST,
+  MAX_TAPS_PER_MIN,
+  WAVE_PULL_SPEED,
+} from "./energy";
+
+export {
   SHIPS_UNLOCK_MIN_SUM,
   SUM_FOR_DISK_UNLOCK,
   SUM_FOR_EFFICIENCY_UNLOCK,

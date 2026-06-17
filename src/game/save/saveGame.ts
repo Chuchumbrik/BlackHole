@@ -47,6 +47,8 @@ export type SaveData = {
   mpUpgradeLevels?: Record<string, number>;
   /** Уровни узлов ветки B «Окружение» по id (опционально; сбрасываются при сжатии). */
   environmentLevels?: Record<string, number>;
+  /** Запас Energy (опционально; на загрузке клампится к [0, ENERGY_MAX]). */
+  energy?: number;
   /** Открытые достижения (опционально; постоянные, переживают сжатие). */
   achievementsUnlocked?: string[];
 };

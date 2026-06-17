@@ -4,6 +4,7 @@ import { nextUpgradeCostMp, ZERO_UPGRADE_LEVELS } from "../game/upgrades";
 import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
 import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 import { PRESTIGE_SPENT_PER_PP } from "../game/prestige";
+import { ENERGY_MAX, ENERGY_TAP_COST, MAX_TAPS_PER_MIN } from "../game/balance";
 import type { Planet, StarSystem } from "../game/world/types";
 
 /** Потратить ровно 4×порог → 2 PP (floor(sqrt(4))), независимо от калибровки. */
@@ -145,6 +146,32 @@ describe("store: prestige (по потраченной массе)", () => {
     // трата PP не уменьшает lifetime
     useGameStore.getState().buyPrestigePerk("compressed_singularity", 1);
     expect(useGameStore.getState().lifetimePp).toBe(4);
+  });
+});
+
+describe("store: Energy и волна притяжения", () => {
+  it("regenEnergy копит до максимума и не превышает его", () => {
+    useGameStore.setState({ energy: 10, tapTimestamps: [] });
+    useGameStore.getState().regenEnergy(1000); // заведомо больше, чем нужно
+    expect(useGameStore.getState().energy).toBe(ENERGY_MAX);
+  });
+  it("tryCastPullWave списывает Energy при достатке и возвращает true", () => {
+    useGameStore.setState({ energy: ENERGY_MAX, tapTimestamps: [] });
+    const ok = useGameStore.getState().tryCastPullWave();
+    expect(ok).toBe(true);
+    expect(useGameStore.getState().energy).toBe(ENERGY_MAX - ENERGY_TAP_COST);
+  });
+  it("не пускает волну при нехватке Energy", () => {
+    useGameStore.setState({ energy: ENERGY_TAP_COST - 1, tapTimestamps: [] });
+    expect(useGameStore.getState().tryCastPullWave()).toBe(false);
+  });
+  it("жёсткий лимит тапов/мин блокирует сверх MAX_TAPS_PER_MIN", () => {
+    const now = Date.now();
+    const full = Array.from({ length: MAX_TAPS_PER_MIN }, () => now);
+    useGameStore.setState({ energy: ENERGY_MAX, tapTimestamps: full });
+    expect(useGameStore.getState().tryCastPullWave()).toBe(false);
+    // Energy не списана, т.к. упёрлись в лимит/мин:
+    expect(useGameStore.getState().energy).toBe(ENERGY_MAX);
   });
 });
 

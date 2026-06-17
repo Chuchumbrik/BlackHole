@@ -6,6 +6,10 @@ import {
   PLANET_TERRAFORM_COST_MP,
   PLANET_SHIELD_DURATION_SEC,
   PLANET_SHIELD_COST_MP,
+  ENERGY_MAX,
+  ENERGY_REGEN_PER_SEC,
+  ENERGY_TAP_COST,
+  MAX_TAPS_PER_MIN,
 } from "../game/balance";
 import {
   ZERO_UPGRADE_LEVELS,
@@ -92,6 +96,10 @@ type GameState = {
   mpUpgradeLevels: Record<string, number>;
   /** Уровни узлов ветки B «Окружение» по id (ран-скоуп, сброс при сжатии). */
   environmentLevels: Record<string, number>;
+  /** Энергия (Гравитационный импульс): текущий запас. */
+  energy: number;
+  /** Метки времени тапов (мс эпохи) за последнюю минуту — лимит/мин. Не сохраняется. */
+  tapTimestamps: number[];
   /** Открытые достижения (постоянные, переживают сжатие). */
   achievementsUnlocked: string[];
   /** Имя только что открытого достижения для тоста; null — нет. */
@@ -131,6 +139,10 @@ type GameState = {
   buyMpUpgrade: (id: string, count?: number) => void;
   /** Купить уровень узла окружения (ветка B) за MP. */
   buyEnvironmentUpgrade: (id: string, count?: number) => void;
+  /** Восстановить Energy за прошедшее реальное время (тик из игрового цикла). */
+  regenEnergy: (realDtSec: number) => void;
+  /** Попытаться пустить волну притяжения: списать Energy с учётом лимита/мин. */
+  tryCastPullWave: () => boolean;
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
   buyMultiplier: number;
   setBuyMultiplier: (m: number) => void;
@@ -170,6 +182,7 @@ function buildSaveData(s: GameState): SaveData {
     prestigePerkLevels: s.prestigePerkLevels,
     mpUpgradeLevels: s.mpUpgradeLevels,
     environmentLevels: s.environmentLevels,
+    energy: s.energy,
     achievementsUnlocked: s.achievementsUnlocked,
   };
 }
@@ -232,6 +245,8 @@ export const useGameStore = create<GameState>((set, get) => {
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     environmentLevels: saved?.environmentLevels ?? {},
+    energy: Math.max(0, Math.min(ENERGY_MAX, saved?.energy ?? ENERGY_MAX)),
+    tapTimestamps: [],
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
     activeEventName: null,
@@ -467,6 +482,8 @@ export const useGameStore = create<GameState>((set, get) => {
         pendingOfflineMp: 0,
         mpUpgradeLevels: {},
         environmentLevels: {},
+        energy: ENERGY_MAX,
+        tapTimestamps: [],
         mpGainFloaters: [],
       };
     }),
@@ -527,6 +544,22 @@ export const useGameStore = create<GameState>((set, get) => {
         },
       };
     }),
+  regenEnergy: (realDtSec) =>
+    set((s) => {
+      if (realDtSec <= 0 || s.energy >= ENERGY_MAX) return s;
+      return {
+        energy: Math.min(ENERGY_MAX, s.energy + ENERGY_REGEN_PER_SEC * realDtSec),
+      };
+    }),
+  tryCastPullWave: () => {
+    const s = get();
+    const now = Date.now();
+    const recent = s.tapTimestamps.filter((t) => now - t < 60_000);
+    if (recent.length >= MAX_TAPS_PER_MIN) return false;
+    if (s.energy < ENERGY_TAP_COST) return false;
+    set({ energy: s.energy - ENERGY_TAP_COST, tapTimestamps: [...recent, now] });
+    return true;
+  },
   saveNow: () => writeSave(buildSaveData(get())),
   resetProgress: () =>
     set(() => {
@@ -554,6 +587,8 @@ export const useGameStore = create<GameState>((set, get) => {
         prestigePerkLevels: {},
         mpUpgradeLevels: {},
         environmentLevels: {},
+        energy: ENERGY_MAX,
+        tapTimestamps: [],
         achievementsUnlocked: [],
         achievementToast: null,
         mpGainFloaters: [],
