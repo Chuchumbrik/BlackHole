@@ -998,3 +998,123 @@ body,
 /* Кнопка обратной связи — мягкое свечение при наведении */
 .feedback-fab { transition: background-color 0.15s ease, box-shadow 0.18s ease; }
 .feedback-fab:hover { box-shadow: 0 0 16px rgba(148, 163, 184, 0.5); }
+
+/* ===================================================================== */
+/* V10 — «вау»-полировка: глубокий космос + фиолет (стекло, свечения)     */
+/* ===================================================================== */
+
+/* Заголовки экранов — акцент и трекинг */
+.app-panel-title,
+.upgrades-panel-title,
+.planet-title,
+.settings-title,
+.stats-panel .app-panel-title,
+.ach-panel .app-panel-title {
+  letter-spacing: 0.01em;
+  background: linear-gradient(90deg, #fff, var(--accent-strong));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* HUD массы — стеклянная плашка с золотым свечением значения */
+.app-mass {
+  background: linear-gradient(180deg, rgba(20, 14, 32, 0.7), rgba(8, 6, 14, 0.55));
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 6px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+}
+
+/* Навигация — стеклянные пилюли, активная светится */
+.app-nav button {
+  backdrop-filter: blur(6px);
+  transition: background-color 0.15s ease, box-shadow 0.18s ease,
+    transform 0.08s ease, border-color 0.15s ease;
+}
+.app-nav button:hover {
+  border-color: rgba(155, 126, 217, 0.5);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+}
+
+/* Карточки улучшений — стекло, мягкая рамка, подъём при наведении */
+.upgrades-card {
+  background: linear-gradient(
+    180deg,
+    rgba(20, 14, 32, 0.55),
+    rgba(8, 6, 14, 0.4)
+  );
+  border-color: var(--border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: transform 0.1s ease, box-shadow 0.18s ease, border-color 0.15s ease;
+}
+.upgrades-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(155, 126, 217, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(155, 126, 217, 0.12);
+}
+
+/* Кнопки покупки/действий — единый акцентный градиент со свечением */
+.upgrades-buy:not(:disabled),
+.planet-accelerate:not(:disabled),
+.prestige-btn:not(.prestige-btn-ghost),
+.settings-btn:not(.settings-btn-ghost):not(.settings-btn-danger) {
+  background: linear-gradient(180deg, #7c6bd4, #6453b8);
+  border: 1px solid rgba(185, 163, 238, 0.55);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.28);
+}
+.upgrades-buy:not(:disabled):hover,
+.planet-accelerate:not(:disabled):hover,
+.prestige-btn:not(.prestige-btn-ghost):hover,
+.settings-btn:not(.settings-btn-ghost):not(.settings-btn-danger):hover {
+  background: linear-gradient(180deg, #8b78e6, #7160cc);
+  box-shadow: 0 6px 20px rgba(129, 140, 248, 0.45);
+}
+
+/* Прогресс-бары — мягкое внутреннее свечение */
+.planet-progress-fill {
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.5);
+}
+.planet-progress-life {
+  box-shadow: 0 0 10px rgba(167, 139, 250, 0.55);
+}
+
+/* Группы статистики/достижений — стекло + лёгкий подъём */
+.stats-group,
+.ach,
+.prestige-perk,
+.settings-section {
+  backdrop-filter: blur(4px);
+  transition: border-color 0.15s ease, box-shadow 0.18s ease;
+}
+.ach.is-got {
+  box-shadow: 0 0 0 1px rgba(63, 98, 18, 0.4), 0 0 14px rgba(132, 204, 22, 0.12);
+}
+
+/* Аккуратные скроллбары панелей (webkit) */
+.app-panel-overlay::-webkit-scrollbar { width: 10px; }
+.app-panel-overlay::-webkit-scrollbar-thumb {
+  background: rgba(155, 126, 217, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.app-panel-overlay::-webkit-scrollbar-thumb:hover {
+  background: rgba(155, 126, 217, 0.55);
+  background-clip: content-box;
+}
+
+/* Тонкая виньетка по краям дровера на больших экранах (глубина) */
+@media (min-width: 980px) {
+  .app-panel-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      120% 80% at 100% 0%,
+      rgba(155, 126, 217, 0.08),
+      transparent 60%
+    );
+  }
+}
