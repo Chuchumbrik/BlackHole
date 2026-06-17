@@ -29,6 +29,7 @@ import {
   SUPERNOVA_COOLDOWN_SEC,
   SUPERNOVA_UNLOCK_PRESTIGE,
 } from "../game/balance";
+import { effectiveHawkingPerSec } from "../game/economyView";
 
 function formatMultiplier(x: number): string {
   return x.toLocaleString(undefined, {
@@ -75,6 +76,8 @@ export function UpgradesPanel() {
   const buyMpUpgrade = useGameStore((s) => s.buyMpUpgrade);
   const environmentLevels = useGameStore((s) => s.environmentLevels);
   const buyEnvironmentUpgrade = useGameStore((s) => s.buyEnvironmentUpgrade);
+  const prestigePerkLevels = useGameStore((s) => s.prestigePerkLevels);
+  const achievementsUnlocked = useGameStore((s) => s.achievementsUnlocked);
   const energy = useGameStore((s) => s.energy);
   const supernovaReadyAtMs = useGameStore((s) => s.supernovaReadyAtMs);
   const prestigeCount = useGameStore((s) => s.prestigeCount);
@@ -85,6 +88,15 @@ export function UpgradesPanel() {
   const viewportMin = useViewportMinPx();
   const snap = upgradeBranchSnapshot(upgradeLevels, massMp);
   const radii = computeRadiiPx(viewportMin, upgradeLevels, massMp);
+  // Эффективный пассив Хокинга с учётом общего множителя добычи (других веток).
+  const hawkingEff = effectiveHawkingPerSec({
+    upgradeLevels,
+    prestigePerkLevels,
+    mpUpgradeLevels,
+    environmentLevels,
+    achievementsUnlocked,
+    massMp,
+  });
 
   return (
     <div className="upgrades-panel">
@@ -149,7 +161,7 @@ export function UpgradesPanel() {
                             mul: formatMultiplier(snap.lensingRareWeightMul),
                           })
                         : t("upgrades.current.hawking", {
-                            mps: formatMultiplier(snap.hawkingMpPerSecApprox),
+                            mps: formatMultiplier(hawkingEff),
                           });
 
           return (

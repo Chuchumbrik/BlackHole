@@ -1632,8 +1632,13 @@ export function GameCanvas() {
 
         if (simScale > 0 && levels.hawking > 0) {
           const massMp = useGameStore.getState().massMp;
+          // Хокинг масштабируется и общим множителем добычи (mpMult): апгрейды,
+          // повышающие доход MP, повышают и пассив Хокинга (связность экономики).
           const hRate =
-            hawkingMpPerSecond(levels, massMp) * pmods.hawkingMul * mpu.hawkingMul;
+            hawkingMpPerSecond(levels, massMp) *
+            pmods.hawkingMul *
+            mpu.hawkingMul *
+            mpMult;
           hawkingCarry += hRate * simDt;
           const hGain = Math.floor(hawkingCarry);
           hawkingCarry -= hGain;
