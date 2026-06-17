@@ -26,6 +26,11 @@ export function TimeScaleControls() {
           type="button"
           className={simTimeScale === scale ? "is-active" : undefined}
           onClick={() => setSimTimeScale(scale)}
+          title={
+            scale === 0
+              ? "Пауза игрового времени (доход и развитие останавливаются)"
+              : `Ускорение игрового времени ×${scale}`
+          }
         >
           {label(scale)}
         </button>

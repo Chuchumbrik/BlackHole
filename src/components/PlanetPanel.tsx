@@ -210,6 +210,7 @@ export function PlanetPanel() {
           type="button"
           className="planet-accelerate"
           disabled={!enoughMass}
+          title="Ускоряет развитие планеты за MP: стадии, зарождение жизни и рост цивилизации"
           onClick={() => acceleratePlanet(activeSystem.id, planet.id)}
         >
           {t("planet.accelerate", {

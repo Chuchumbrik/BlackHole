@@ -821,3 +821,42 @@ body,
   35% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(-6px); }
 }
+
+/* === V9: UI-полиш (переходы, свечение, появление) === */
+.app-nav button,
+.view-tier-controls button,
+.time-scale-controls button,
+.buy-mult button,
+.prestige-btn,
+.planet-action-btn {
+  transition: background-color 0.15s ease, box-shadow 0.18s ease,
+    color 0.15s ease, transform 0.08s ease;
+}
+.app-nav button:active,
+.view-tier-controls button:active,
+.time-scale-controls button:active,
+.buy-mult button:active { transform: translateY(1px); }
+
+.app-nav button.is-active {
+  box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.6),
+    0 0 14px rgba(99, 102, 241, 0.45);
+}
+.view-tier-controls button.is-active,
+.time-scale-controls button.is-active,
+.buy-mult button.is-active {
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.5);
+}
+
+/* HUD массы — лёгкое золотое свечение значения */
+.app-mass { text-shadow: 0 0 12px rgba(251, 191, 36, 0.25); }
+
+/* Плавное появление панелей-оверлеев */
+.app-panel-overlay { animation: panel-in 0.22s ease-out; }
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Кнопка обратной связи — мягкое свечение при наведении */
+.feedback-fab { transition: background-color 0.15s ease, box-shadow 0.18s ease; }
+.feedback-fab:hover { box-shadow: 0 0 16px rgba(148, 163, 184, 0.5); }

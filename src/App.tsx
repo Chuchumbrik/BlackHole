@@ -14,11 +14,11 @@ import { useGameStore } from "./store/useGameStore";
 const APP_VERSION = __APP_VERSION__;
 
 const TABS = [
-  { id: "game" as const, labelKey: "app.tabs.game" },
-  { id: "upgrades" as const, labelKey: "app.tabs.upgrades" },
-  { id: "planet" as const, labelKey: "app.tabs.planet" },
-  { id: "prestige" as const, labelKey: "app.tabs.prestige" },
-  { id: "stats" as const, labelKey: "app.tabs.stats" },
+  { id: "game" as const, labelKey: "app.tabs.game", hint: "Игровое поле: дыра поглощает материю системы" },
+  { id: "upgrades" as const, labelKey: "app.tabs.upgrades", hint: "Прокачка чёрной дыры за MP" },
+  { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань" },
+  { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)" },
+  { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Достижения и их постоянные бонусы" },
 ];
 
 function App() {
@@ -125,7 +125,10 @@ function App() {
               {t("app.subtitle")} · v{APP_VERSION}
             </p>
           </div>
-          <div className="app-mass">
+          <div
+            className="app-mass"
+            title="MP — масса-энергия, ваша валюта. Набирается, когда материя падает за горизонт чёрной дыры."
+          >
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
             <span className="app-mass-hint"> {t("app.massHint")}</span>
           </div>
@@ -138,6 +141,7 @@ function App() {
               type="button"
               className={tab.id === activeTab ? "is-active" : undefined}
               onClick={() => setTab(tab.id)}
+              title={tab.hint}
             >
               {t(tab.labelKey)}
             </button>

@@ -35,6 +35,7 @@ export function ViewScaleControls() {
         type="button"
         className={viewTier === 0 ? "is-active" : undefined}
         onClick={() => select(0)}
+        title="Крупный план чёрной дыры — видно горизонт, диск и захват материи"
       >
         {t("viewTier.local")}
       </button>
@@ -45,7 +46,7 @@ export function ViewScaleControls() {
         disabled={!tier1Ok}
         title={
           tier1Ok
-            ? undefined
+            ? "Вид всей звёздной системы — звезда, планеты и дыра в одном кадре"
             : t("viewTier.lockSystem", { need: VIEW_TIER_SYSTEM_MIN_SUM, sum })
         }
       >
@@ -58,7 +59,7 @@ export function ViewScaleControls() {
         disabled={!tier2Ok}
         title={
           tier2Ok
-            ? undefined
+            ? "Карта галактики — переключение между звёздными системами"
             : t("viewTier.lockGalaxy", { need: VIEW_TIER_GALAXY_MIN_SUM, sum })
         }
       >
