@@ -172,10 +172,11 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
 }
 
 /** Звёздное поле: 3 слоя глубины с мерцанием и цветовой вариацией. */
+// V3: ярче и плотнее — фон теперь экранный (bgRoot), не уезжает на зуме.
 const STAR_LAYERS = [
-  { count: 96, size: 0.55, baseA: 0.1, tw: 0.6, color: 0xffffff },
-  { count: 54, size: 0.95, baseA: 0.15, tw: 1.0, color: 0xbcd4ff },
-  { count: 28, size: 1.45, baseA: 0.2, tw: 1.5, color: 0xfde6c4 },
+  { count: 120, size: 0.9, baseA: 0.34, tw: 0.6, color: 0xffffff },
+  { count: 66, size: 1.5, baseA: 0.46, tw: 1.0, color: 0xbcd4ff },
+  { count: 34, size: 2.3, baseA: 0.58, tw: 1.5, color: 0xfde6c4 },
 ] as const;
 
 function paintStars(g: Graphics, w: number, h: number, timeSec: number): void {
@@ -186,8 +187,8 @@ function paintStars(g: Graphics, w: number, h: number, timeSec: number): void {
       const x = (((i * 73) % 997) / 997) * w;
       const y = (((i * 51) % 1009) / 1009) * h;
       const tw = 0.5 + 0.5 * Math.sin(timeSec * L.tw + i * 1.7);
-      g.circle(x, y, L.size + tw * 0.4);
-      g.fill({ color: L.color, alpha: L.baseA + tw * 0.16 });
+      g.circle(x, y, L.size + tw * 0.5);
+      g.fill({ color: L.color, alpha: L.baseA + tw * 0.26 });
     }
   }
 }
@@ -217,14 +218,15 @@ function paintNebula(g: Graphics, w: number, h: number): void {
   g.clear();
   const d = Math.max(w, h);
   const blobs = [
-    { x: 0.24, y: 0.3, r: 0.5, c: 0x3a2a72 },
-    { x: 0.72, y: 0.66, r: 0.55, c: 0x123a4c },
-    { x: 0.58, y: 0.18, r: 0.4, c: 0x4a1f44 },
-    { x: 0.4, y: 0.8, r: 0.42, c: 0x1d2f5e },
+    { x: 0.24, y: 0.3, r: 0.5, c: 0x4a368f },
+    { x: 0.72, y: 0.66, r: 0.55, c: 0x16506a },
+    { x: 0.58, y: 0.18, r: 0.4, c: 0x5e2856 },
+    { x: 0.4, y: 0.8, r: 0.42, c: 0x243d78 },
   ];
+  // V3: ярче (alpha 0.18→0.30) + аддитивный блендинг даёт мягкое свечение.
   for (const b of blobs) {
     g.circle(b.x * w, b.y * h, b.r * d * 0.5);
-    g.fill({ color: b.c, alpha: 0.18 });
+    g.fill({ color: b.c, alpha: 0.3 });
   }
 }
 
@@ -670,15 +672,23 @@ export function GameCanvas() {
       const scene = new Container();
       application.stage.addChild(scene);
 
+      // V3: фон (туманность+звёзды) — в экранном слое, НЕ трансформируется
+      // камерой; иначе на крупном плане «У дыры» поле уезжало за кадр.
+      const bgRoot = new Container();
+      bgRoot.eventMode = "none";
       const worldRoot = new Container();
       const galaxyRoot = new Container();
+      scene.addChild(bgRoot);
       scene.addChild(worldRoot);
       scene.addChild(galaxyRoot);
 
       const nebula = new Graphics();
-      nebula.filters = [new BlurFilter({ strength: 42, quality: 3 })];
+      nebula.filters = [new BlurFilter({ strength: 30, quality: 3 })];
+      nebula.blendMode = "add";
       nebula.eventMode = "none";
       const stars = new Graphics();
+      stars.blendMode = "add";
+      stars.eventMode = "none";
       const holeGlow = new Graphics();
       holeGlow.filters = [new BlurFilter({ strength: 10, quality: 4 })];
       holeGlow.blendMode = "add";
@@ -753,8 +763,8 @@ export function GameCanvas() {
       starTooltip.visible = false;
       starTooltip.eventMode = "none";
 
-      worldRoot.addChild(nebula);
-      worldRoot.addChild(stars);
+      bgRoot.addChild(nebula);
+      bgRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(planetSoi);
       worldRoot.addChild(holeGlow);
