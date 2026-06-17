@@ -94,3 +94,14 @@ export function targetTemperature01(orbital01: number, lum01: number): number {
 
 /** Доля сглаживания климата за один тик синхронизации (вызывается ~раз/сек). */
 export const PLANET_CLIMATE_EASE = 0.18;
+
+/**
+ * Орбитальная оборона: развитые цивилизации сбивают приближающиеся к планете
+ * тела (астероиды/кометы/мусор), но НЕ свои корабли-дань. Защищает планету от
+ * ударов (откатов развития) — петля «выжила → больше дани».
+ */
+export const PLANET_GUNS_MIN_CIV = 2;
+export const PLANET_GUNS_INTERVAL_SEC = 1.6;
+/** Радиус обороны = доля min(ширина,высота) поля × (1 + доп. за тир цивилизации). */
+export const PLANET_GUNS_RADIUS_FRAC = 0.05;
+export const PLANET_GUNS_RANGE_PER_CIV = 0.3;

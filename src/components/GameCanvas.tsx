@@ -25,6 +25,10 @@ import {
   JET_PROC_ATTEMPT_INTERVAL_SEC,
   JET_PROC_CHANCE_PER_LEVEL,
   PLANET_TRIBUTE_INTERVAL_SEC,
+  PLANET_GUNS_MIN_CIV,
+  PLANET_GUNS_INTERVAL_SEC,
+  PLANET_GUNS_RADIUS_FRAC,
+  PLANET_GUNS_RANGE_PER_CIV,
   ROCHE_TEAR_FACTOR,
   ROCHE_REWARD_MUL,
   ROCHE_RING_SHARDS,
@@ -650,6 +654,7 @@ export function GameCanvas() {
     let planetUnstableIds = new Set<string>();
     /** Таймеры запуска кораблей-«дани» по id планеты (игр.сек). */
     const tributeAccum = new Map<string, number>();
+    const gunAccum = new Map<string, number>();
     /** EMA дохода MP/игр.сек (для оффлайна) + аккумулятор записи в стор. */
     let incomeEma = useGameStore.getState().incomeEmaMpPerSec;
     let emaWriteAccum = 0;
@@ -1522,12 +1527,54 @@ export function GameCanvas() {
             } else {
               tributeAccum.set(pl.id, acc);
             }
+
+            // Орбитальная оборона: развитая цивилизация сбивает ближайшее
+            // приближающееся тело (не корабли/дань — kind 4) в радиусе обороны.
+            if (pl.civLevel >= PLANET_GUNS_MIN_CIV) {
+              const gAcc = (gunAccum.get(pl.id) ?? 0) + simDt;
+              if (gAcc >= PLANET_GUNS_INTERVAL_SEC) {
+                gunAccum.set(pl.id, gAcc - PLANET_GUNS_INTERVAL_SEC);
+                const minDG = Math.min(layout.width, layout.height);
+                const range =
+                  minDG *
+                  PLANET_GUNS_RADIUS_FRAC *
+                  (1 + PLANET_GUNS_RANGE_PER_CIV * (pl.civLevel - 1));
+                const r2 = range * range;
+                let bestId: number | null = null;
+                let bestD2 = r2;
+                for (const o of objects) {
+                  if (o.kind === 4) continue; // свои корабли/дань не трогаем
+                  const dx = o.x - pos.x;
+                  const dy = o.y - pos.y;
+                  const d2 = dx * dx + dy * dy;
+                  if (d2 < bestD2) {
+                    bestD2 = d2;
+                    bestId = o.id;
+                  }
+                }
+                if (bestId !== null) {
+                  const tgt = objects.find((o) => o.id === bestId);
+                  if (tgt) {
+                    hitFlashes.push({ x: tgt.x, y: tgt.y, t: 0, via: "body" });
+                  }
+                  objects = objects.filter((o) => o.id !== bestId);
+                }
+              } else {
+                gunAccum.set(pl.id, gAcc);
+              }
+            }
           }
-          // Чистка таймеров дани от удалённых планет (анти-утечка Map).
-          if (tributeAccum.size > pList0.length) {
+          // Чистка таймеров дани/обороны от удалённых планет (анти-утечка Map).
+          if (
+            tributeAccum.size > pList0.length ||
+            gunAccum.size > pList0.length
+          ) {
             const ids = new Set(pList0.map((p) => p.id));
             for (const id of [...tributeAccum.keys()]) {
               if (!ids.has(id)) tributeAccum.delete(id);
+            }
+            for (const id of [...gunAccum.keys()]) {
+              if (!ids.has(id)) gunAccum.delete(id);
             }
           }
         }
