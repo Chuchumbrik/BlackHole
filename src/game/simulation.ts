@@ -95,9 +95,12 @@ function randomBoundaryVelocity(
   centerY: number,
 ): { vx: number; vy: number } {
   const inward = Math.atan2(centerY - fromY, centerX - fromX);
-  const spread = (Math.random() - 0.5) * 1.7; // ±~0.85 рад
+  // V1: разброс сужен 1.7 → 0.8 (±~0.4 рад вместо ±0.85) — обломки целятся
+  // ближе к дыре и реже пролетают мимо поля; минимум скорости поднят 12 → 16,
+  // чтобы тела не зависали на ободе зоны притяжения.
+  const spread = (Math.random() - 0.5) * 0.8;
   const dir = inward + spread;
-  const speed = 12 + Math.random() * 34;
+  const speed = 16 + Math.random() * 34;
   return { vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed };
 }
 

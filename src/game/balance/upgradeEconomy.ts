@@ -3,7 +3,9 @@
  * Источник: obsidian/07 — «Улучшения чёрной дыры»; формула цены — как в 02.
  */
 
-export const UPGRADE_FIRST_LEVEL_COST_MP = 8;
+// V1: 8 → 6 — первая покупка по карману за ~8–12 с (с учётом оживления первой
+// минуты), но клик сохраняет вес (не мгновенные 2–3 с, как было бы при 4).
+export const UPGRADE_FIRST_LEVEL_COST_MP = 6;
 export const UPGRADE_COST_MULTIPLIER_PER_LEVEL = 1.53;
 
 /**

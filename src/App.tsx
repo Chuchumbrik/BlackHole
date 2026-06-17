@@ -12,25 +12,44 @@ import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
 import { FieldLegend } from "./components/FieldLegend";
+import { OnboardingCta } from "./components/OnboardingCta";
 import { useGameStore } from "./store/useGameStore";
+import { levelSum } from "./game/upgrades";
+import { UPGRADE_FIRST_LEVEL_COST_MP } from "./game/balance";
 
 const APP_VERSION = __APP_VERSION__;
 
+const CTA_SEEN_KEY = "cbh:onboardingCtaSeen";
+
+/**
+ * V1: прогрессивное раскрытие вкладок. `unlocked` решает, показывать ли вкладку
+ * в навигации (саму панель можно открыть всегда, если игрок туда попал). Цель —
+ * не вываливать новичку 7 разделов сразу; глубина открывается по мере роста.
+ */
 const TABS = [
-  { id: "game" as const, labelKey: "app.tabs.game", hint: "Игровое поле: дыра поглощает материю системы" },
-  { id: "upgrades" as const, labelKey: "app.tabs.upgrades", hint: "Прокачка чёрной дыры за MP" },
-  { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань" },
-  { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)" },
-  { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Все показатели игры" },
-  { id: "achievements" as const, labelKey: "app.tabs.achievements", hint: "Достижения и их постоянные бонусы" },
-  { id: "settings" as const, labelKey: "app.tabs.settings", hint: "Сохранение и сброс прогресса" },
+  { id: "game" as const, labelKey: "app.tabs.game", hint: "Игровое поле: дыра поглощает материю системы", unlocked: () => true },
+  { id: "upgrades" as const, labelKey: "app.tabs.upgrades", hint: "Прокачка чёрной дыры за MP", unlocked: () => true },
+  { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
+  { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)", unlocked: (c: TabUnlockCtx) => c.levelSum >= 5 || c.prestigeCount > 0 },
+  { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Все показатели игры", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
+  { id: "achievements" as const, labelKey: "app.tabs.achievements", hint: "Достижения и их постоянные бонусы", unlocked: (c: TabUnlockCtx) => c.achievementsCount >= 1 },
+  { id: "settings" as const, labelKey: "app.tabs.settings", hint: "Сохранение и сброс прогресса", unlocked: () => true },
 ];
+
+type TabUnlockCtx = {
+  levelSum: number;
+  prestigeCount: number;
+  achievementsCount: number;
+};
 
 function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
+  const upgradeLevelSum = useGameStore((s) => levelSum(s.upgradeLevels));
+  const prestigeCount = useGameStore((s) => s.prestigeCount);
+  const achievementsCount = useGameStore((s) => s.achievementsUnlocked.length);
   const pendingOfflineMp = useGameStore((s) => s.pendingOfflineMp);
   const clearPendingOffline = useGameStore((s) => s.clearPendingOffline);
   const achievementToast = useGameStore((s) => s.achievementToast);
@@ -38,6 +57,38 @@ function App() {
   const activeEventName = useGameStore((s) => s.activeEventName);
   const prestigeFlash = useGameStore((s) => s.prestigeFlash);
   const [collapsing, setCollapsing] = useState(false);
+
+  // V1: онбординг-CTA к первой покупке. Показываем, когда MP уже хватает на
+  // первый апгрейд, но игрок ещё ничего не купил и подсказку не закрывал.
+  const [ctaSeen, setCtaSeen] = useState(() => {
+    try {
+      return localStorage.getItem(CTA_SEEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const dismissCta = () => {
+    setCtaSeen(true);
+    try {
+      localStorage.setItem(CTA_SEEN_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  };
+  const showCta =
+    !ctaSeen &&
+    upgradeLevelSum === 0 &&
+    massMp >= UPGRADE_FIRST_LEVEL_COST_MP &&
+    activeTab === "game";
+
+  const unlockCtx: TabUnlockCtx = {
+    levelSum: upgradeLevelSum,
+    prestigeCount,
+    achievementsCount,
+  };
+  const visibleTabs = TABS.filter(
+    (tab) => tab.unlocked(unlockCtx) || tab.id === activeTab,
+  );
 
   // V8: вспышка коллапса при сжатии.
   useEffect(() => {
@@ -133,6 +184,16 @@ function App() {
         </>
       )}
 
+      {showCta && (
+        <OnboardingCta
+          onOpenUpgrades={() => {
+            dismissCta();
+            setTab("upgrades");
+          }}
+          onDismiss={dismissCta}
+        />
+      )}
+
       <div className="app-ui">
         <header className="app-header">
           <div>
@@ -151,17 +212,28 @@ function App() {
         </header>
 
         <nav className="app-nav" aria-label="Разделы">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={tab.id === activeTab ? "is-active" : undefined}
-              onClick={() => setTab(tab.id)}
-              title={tab.hint}
-            >
-              {t(tab.labelKey)}
-            </button>
-          ))}
+          {visibleTabs.map((tab) => {
+            const classes = [
+              tab.id === activeTab ? "is-active" : "",
+              showCta && tab.id === "upgrades" ? "is-cta-glow" : "",
+            ]
+              .filter(Boolean)
+              .join(" ");
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={classes || undefined}
+                onClick={() => {
+                  if (tab.id === "upgrades") dismissCta();
+                  setTab(tab.id);
+                }}
+                title={tab.hint}
+              >
+                {t(tab.labelKey)}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
