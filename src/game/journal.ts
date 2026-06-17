@@ -100,6 +100,17 @@ export function loreOnAchievement(name: string): LoreLine {
   return { category: "milestone", text: `Достижение: «${name}».` };
 }
 
+export function loreOnCritEvent(planetName: string, eventName: string): LoreLine {
+  return {
+    category: "risk",
+    text: pick([
+      `${planetName}: ${eventName}. Развитие отброшено назад.`,
+      `Катастрофа на ${planetName} — ${eventName}. Биосфера пошатнулась.`,
+      `${eventName} обрушилась на ${planetName}. Прогресс потерян.`,
+    ]),
+  };
+}
+
 export function loreOnAnomaly(
   systemName: string,
   anomalyName: string,

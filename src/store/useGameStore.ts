@@ -27,9 +27,11 @@ import {
   loreOnStarSwallow,
   loreOnUniverseDestroyed,
   loreOnAnomaly,
+  loreOnCritEvent,
   type JournalCategory,
   type JournalEntry,
 } from "../game/journal";
+import { rollCritEvent } from "../game/world/critEvents";
 import { ANOMALY_DEFS } from "../game/world/anomalies";
 import {
   ZERO_UPGRADE_LEVELS,
@@ -394,19 +396,39 @@ export const useGameStore = create<GameState>((set, get) => {
       if (simDt <= 0) return s;
       // Развиваем жизнь/стадии только в АКТИВНОЙ системе: фоновые не растут и не
       // истощаются «вслепую» (иначе цивилизации фоновых систем выжимались без дани).
-      return {
-        gameTimeSec: s.gameTimeSec + simDt,
-        systems: s.systems.map((system) =>
-          system.id !== s.activeSystemId
-            ? system
-            : {
-                ...system,
-                planets: system.planets.map((planet: Planet) =>
-                  tickPlanetLife(advancePlanetStages(planet, simDt), simDt),
-                ),
-              },
-        ),
-      };
+      let critLore: { category: JournalCategory; text: string } | null = null;
+      const systems = s.systems.map((system) =>
+        system.id !== s.activeSystemId
+          ? system
+          : {
+              ...system,
+              planets: system.planets.map((planet: Planet) => {
+                const ticked = tickPlanetLife(
+                  advancePlanetStages(planet, simDt),
+                  simDt,
+                );
+                const r = rollCritEvent(ticked, simDt);
+                if (r.event && !critLore) {
+                  critLore = loreOnCritEvent(planet.name, r.event.name);
+                }
+                return r.planet;
+              }),
+            },
+      );
+      if (critLore) {
+        const cl: { category: JournalCategory; text: string } = critLore;
+        return {
+          gameTimeSec: s.gameTimeSec + simDt,
+          systems,
+          journalEntries: prependJournal(
+            s.journalEntries,
+            s.gameTimeSec,
+            cl.category,
+            cl.text,
+          ),
+        };
+      }
+      return { gameTimeSec: s.gameTimeSec + simDt, systems };
     }),
   acceleratePlanet: (systemId, planetId) =>
     set((s) => {
