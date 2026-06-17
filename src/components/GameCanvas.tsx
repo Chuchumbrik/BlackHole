@@ -186,6 +186,26 @@ function paintStars(g: Graphics, w: number, h: number, timeSec: number): void {
   }
 }
 
+/** Шлейфы движения объектов (аддитивно): короткая черта против скорости. */
+function paintStreaks(g: Graphics, objects: SimObject[]): void {
+  g.clear();
+  for (const o of objects) {
+    const sp = Math.hypot(o.vx, o.vy);
+    if (sp < 16) continue;
+    const len = Math.min(sp * 0.18, 28);
+    const ux = o.vx / sp;
+    const uy = o.vy / sp;
+    g.moveTo(o.x, o.y);
+    g.lineTo(o.x - ux * len, o.y - uy * len);
+    g.stroke({
+      width: Math.max(0.8, objRadius(o) * 0.5),
+      color: o.kind === 4 ? 0x9bd2ff : 0xffcaa0,
+      alpha: Math.min(0.5, sp / 240),
+      cap: "round",
+    });
+  }
+}
+
 /** Мягкая туманность (под сильным блюром) — рисуется редко, на ресайз. */
 function paintNebula(g: Graphics, w: number, h: number): void {
   g.clear();
@@ -659,7 +679,13 @@ export function GameCanvas() {
       const planetSoi = new Graphics();
       const hole = new Graphics();
       const trails = new Graphics();
+      const streaks = new Graphics();
+      streaks.blendMode = "add";
+      streaks.filters = [new BlurFilter({ strength: 2, quality: 2 })];
+      streaks.eventMode = "none";
       const collisionFx = new Graphics();
+      collisionFx.blendMode = "add";
+      collisionFx.eventMode = "none";
       const bodyLayer = new Container();
       const selectionLabel = new Text({
         text: "",
@@ -726,6 +752,7 @@ export function GameCanvas() {
       worldRoot.addChild(holeGlow);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
+      worldRoot.addChild(streaks);
       worldRoot.addChild(bodyLayer);
       worldRoot.addChild(collisionFx);
       worldRoot.addChild(selectionLabel);
@@ -849,6 +876,7 @@ export function GameCanvas() {
           performance.now() / 1000,
         );
         paintGalaxy(galaxy, layout, consumePulse);
+        paintStreaks(streaks, objects);
         syncBodyGraphics(
           bodyLayer,
           graphicsPool,
@@ -1445,8 +1473,6 @@ export function GameCanvas() {
         collisionFx.clear();
         for (const f of hitFlashes) {
           const u = f.t / 0.34;
-          const a = (1 - u) * 0.82;
-          const rr = 4 + u * 150;
           const col =
             f.via === "horizon"
               ? 0xfbbf24
@@ -1455,12 +1481,26 @@ export function GameCanvas() {
                 : f.via === "planet"
                   ? 0x4ade80
                   : 0xf472b6;
-          collisionFx.circle(f.x, f.y, rr);
-          collisionFx.stroke({
-            width: 1.8 + u * 2.5,
-            color: col,
-            alpha: a,
-          });
+          // Расширяющееся кольцо.
+          collisionFx.circle(f.x, f.y, 4 + u * 150);
+          collisionFx.stroke({ width: 1.8 + u * 2.5, color: col, alpha: (1 - u) * 0.8 });
+          // Яркое ядро-вспышка (быстро гаснет).
+          const core = Math.max(0, 1 - u * 2.3);
+          if (core > 0) {
+            collisionFx.circle(f.x, f.y, 3 + (1 - core) * 12);
+            collisionFx.fill({ color: 0xffffff, alpha: core * 0.7 });
+          }
+          // Искры-частицы разлетаются.
+          for (let k = 0; k < 6; k++) {
+            const ang = (k / 6) * Math.PI * 2 + f.x * 0.3;
+            const pr = u * (16 + (k % 3) * 12);
+            collisionFx.circle(
+              f.x + Math.cos(ang) * pr,
+              f.y + Math.sin(ang) * pr,
+              Math.max(0.6, (1 - u) * 2.2),
+            );
+            collisionFx.fill({ color: col, alpha: (1 - u) * 0.6 });
+          }
         }
 
         paintStars(stars, layout.width, layout.height, nowMs / 1000);
@@ -1492,6 +1532,7 @@ export function GameCanvas() {
           planetUnstableIds,
         );
         paintGalaxy(galaxy, layout, consumePulse);
+        paintStreaks(streaks, objects);
         syncBodyGraphics(
           bodyLayer,
           graphicsPool,
