@@ -1,5 +1,6 @@
 import {
   Application,
+  BlurFilter,
   Container,
   Graphics,
   Text,
@@ -164,16 +165,84 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
   };
 }
 
-function paintStars(g: Graphics, w: number, h: number): void {
+/** Звёздное поле: 3 слоя глубины с мерцанием и цветовой вариацией. */
+const STAR_LAYERS = [
+  { count: 96, size: 0.55, baseA: 0.1, tw: 0.6, color: 0xffffff },
+  { count: 54, size: 0.95, baseA: 0.15, tw: 1.0, color: 0xbcd4ff },
+  { count: 28, size: 1.45, baseA: 0.2, tw: 1.5, color: 0xfde6c4 },
+] as const;
+
+function paintStars(g: Graphics, w: number, h: number, timeSec: number): void {
   g.clear();
-  for (let i = 0; i < 160; i++) {
-    const sx = ((i * 73) % 997) / 997;
-    const sy = ((i * 51) % 1009) / 1009;
-    const x = sx * w;
-    const y = sy * h;
-    const a = 0.12 + (i % 7) * 0.04;
-    g.circle(x, y, 0.7 + (i % 3) * 0.35);
-    g.fill({ color: 0xffffff, alpha: a });
+  let i = 0;
+  for (const L of STAR_LAYERS) {
+    for (let k = 0; k < L.count; k++, i++) {
+      const x = (((i * 73) % 997) / 997) * w;
+      const y = (((i * 51) % 1009) / 1009) * h;
+      const tw = 0.5 + 0.5 * Math.sin(timeSec * L.tw + i * 1.7);
+      g.circle(x, y, L.size + tw * 0.4);
+      g.fill({ color: L.color, alpha: L.baseA + tw * 0.16 });
+    }
+  }
+}
+
+/** Мягкая туманность (под сильным блюром) — рисуется редко, на ресайз. */
+function paintNebula(g: Graphics, w: number, h: number): void {
+  g.clear();
+  const d = Math.max(w, h);
+  const blobs = [
+    { x: 0.24, y: 0.3, r: 0.5, c: 0x3a2a72 },
+    { x: 0.72, y: 0.66, r: 0.55, c: 0x123a4c },
+    { x: 0.58, y: 0.18, r: 0.4, c: 0x4a1f44 },
+    { x: 0.4, y: 0.8, r: 0.42, c: 0x1d2f5e },
+  ];
+  for (const b of blobs) {
+    g.circle(b.x * w, b.y * h, b.r * d * 0.5);
+    g.fill({ color: b.c, alpha: 0.18 });
+  }
+}
+
+/** Свечение дыры (аддитивный слой под блюром): тёплый bloom + аккреционный диск. */
+function paintHoleGlow(
+  g: Graphics,
+  layout: SimLayout,
+  pulse01: number,
+  diskLevel: number,
+  timeSec: number,
+  hawkingLevel: number,
+): void {
+  const cx = layout.bh.x;
+  const cy = layout.bh.y;
+  const r = layout.horizonRadius;
+  g.clear();
+  // Тёплый ореол аккреции (несколько колец → bloom после блюра).
+  for (let i = 0; i < 4; i++) {
+    g.circle(cx, cy, r * (1.15 + i * 0.55));
+    g.fill({
+      color: i < 2 ? 0xff8a3c : 0x7b5cc0,
+      alpha: 0.18 - i * 0.035 + pulse01 * 0.06,
+    });
+  }
+  if (diskLevel > 0) {
+    const rInner = r * 1.16;
+    const rOuter = r * (1.5 + diskLevel * 0.04);
+    const omega = 0.4 + diskLevel * 0.05;
+    const hawkingPulse =
+      hawkingLevel > 0
+        ? Math.sin(timeSec * 2.8) * 0.06 * Math.min(1, hawkingLevel * 0.2)
+        : 0;
+    for (let arm = 0; arm < 3; arm++) {
+      const a0 = arm * ((Math.PI * 2) / 3) + timeSec * omega;
+      g.moveTo(cx + Math.cos(a0) * rInner, cy + Math.sin(a0) * rInner);
+      g.arc(cx, cy, rInner, a0, a0 + Math.PI * 1.4);
+      g.stroke({
+        width: 2 + diskLevel * 0.15,
+        color: 0xffb347,
+        alpha: Math.min(0.45 + diskLevel * 0.05 + hawkingPulse, 0.9),
+      });
+    }
+    g.circle(cx, cy, rOuter);
+    g.stroke({ width: 3, color: 0xff7a18, alpha: 0.4 });
   }
 }
 
@@ -181,26 +250,23 @@ function paintHole(
   g: Graphics,
   layout: SimLayout,
   pulse01: number,
-  diskLevel: number,
-  timeSec: number,
   lensingLevel: number,
-  hawkingLevel: number,
   jetBuffActive: boolean,
+  timeSec: number,
 ): void {
   const cx = layout.bh.x;
   const cy = layout.bh.y;
   const r = layout.horizonRadius;
-  const ringBoost = pulse01 * 0.55;
 
   g.clear();
-  g.circle(cx, cy, r * (1.42 + pulse01 * 0.06));
-  g.stroke({
-    width: 2 + pulse01 * 4,
-    color: 0x6b4faa,
-    alpha: 0.45 + ringBoost,
-  });
+  // Событийный горизонт — глубокий чёрный диск.
   g.circle(cx, cy, r);
   g.fill({ color: 0x000000 });
+  // Фотонное кольцо — яркое, тонкое (свет, огибающий горизонт).
+  g.circle(cx, cy, r * 1.035);
+  g.stroke({ width: 1.6 + pulse01 * 2.2, color: 0xfff3d0, alpha: 0.9 });
+  g.circle(cx, cy, r * 1.1);
+  g.stroke({ width: 1, color: 0x9bdcff, alpha: 0.45 + pulse01 * 0.3 });
 
   if (lensingLevel > 0) {
     const lr = r * (1.2 + Math.min(0.15, lensingLevel * 0.02));
@@ -208,81 +274,22 @@ function paintHole(
     g.stroke({
       width: 1.1,
       color: 0x7dd3fc,
-      alpha: 0.1 + Math.min(0.22, lensingLevel * 0.035),
+      alpha: 0.12 + Math.min(0.24, lensingLevel * 0.04),
     });
-  }
-
-  if (diskLevel > 0) {
-    const hawkingPulse =
-      hawkingLevel > 0
-        ? Math.sin(timeSec * 2.8) * 0.04 * Math.min(1, hawkingLevel * 0.2)
-        : 0;
-    const rInnerDisk = r * 1.18;
-    const rOuter = r * (1.52 + diskLevel * 0.04);
-    const omegaInner = 0.38 + diskLevel * 0.05;
-    const omegaOuter =
-      omegaInner * Math.pow(rInnerDisk / rOuter, 1.5);
-    const arms = 3;
-    for (let arm = 0; arm < arms; arm++) {
-      const arm0 = arm * ((Math.PI * 2) / arms);
-      const phaseInner = timeSec * omegaInner + arm0;
-      const phaseOuter = timeSec * omegaOuter + arm0;
-      const sweep = Math.PI * 1.35;
-      g.moveTo(
-        cx + Math.cos(phaseInner) * rInnerDisk,
-        cy + Math.sin(phaseInner) * rInnerDisk,
-      );
-      g.arc(cx, cy, rInnerDisk, phaseInner, phaseInner + sweep);
-      g.stroke({
-        width: 1.15 + diskLevel * 0.12,
-        color: 0xfbbf24,
-        alpha: Math.min(
-          0.22 + diskLevel * 0.05 + hawkingPulse,
-          0.62,
-        ),
-      });
-      g.moveTo(
-        cx + Math.cos(phaseOuter + 0.08) * rOuter,
-        cy + Math.sin(phaseOuter + 0.08) * rOuter,
-      );
-      g.arc(cx, cy, rOuter, phaseOuter + 0.12, phaseOuter + sweep * 0.92);
-      g.stroke({
-        width: 1,
-        color: 0xf59e0b,
-        alpha: Math.min(
-          0.18 + diskLevel * 0.05 + hawkingPulse * 0.8,
-          0.52,
-        ),
-      });
-    }
-    const alpha = Math.min(
-      0.18 + diskLevel * 0.055 + hawkingPulse * 1.1,
-      0.78,
-    );
-    g.circle(cx, cy, r * (1.62 + pulse01 * 0.05));
-    g.stroke({ width: 2.5, color: 0xf59e0b, alpha });
   }
 
   if (jetBuffActive) {
     const poleA = timeSec * 2.2;
-    const r0 = diskLevel > 0 ? r * 0.35 : r * 0.45;
-    const r1 = diskLevel > 0 ? r * 2.4 : r * 2.1;
+    const r0 = r * 0.4;
+    const r1 = r * 2.4;
     for (const pole of [poleA, poleA + Math.PI]) {
-      const x0 = cx + Math.cos(pole) * r0;
-      const y0 = cy + Math.sin(pole) * r0;
-      const x1 = cx + Math.cos(pole) * r1;
-      const y1 = cy + Math.sin(pole) * r1;
-      g.moveTo(x0, y0);
-      g.lineTo(x1, y1);
-      g.stroke({
-        width: diskLevel > 0 ? 2.2 : 1.6,
-        color: 0x38bdf8,
-        alpha: 0.5,
-        cap: "round",
-      });
+      g.moveTo(cx + Math.cos(pole) * r0, cy + Math.sin(pole) * r0);
+      g.lineTo(cx + Math.cos(pole) * r1, cy + Math.sin(pole) * r1);
+      g.stroke({ width: 2.2, color: 0x38bdf8, alpha: 0.55, cap: "round" });
     }
   }
 }
+
 
 function paintMainStar(g: Graphics, layout: SimLayout): void {
   g.clear();
@@ -580,7 +587,14 @@ export function GameCanvas() {
       scene.addChild(worldRoot);
       scene.addChild(galaxyRoot);
 
+      const nebula = new Graphics();
+      nebula.filters = [new BlurFilter({ strength: 42, quality: 3 })];
+      nebula.eventMode = "none";
       const stars = new Graphics();
+      const holeGlow = new Graphics();
+      holeGlow.filters = [new BlurFilter({ strength: 10, quality: 4 })];
+      holeGlow.blendMode = "add";
+      holeGlow.eventMode = "none";
       const mainStar = new Graphics();
       const planetSoi = new Graphics();
       const hole = new Graphics();
@@ -645,9 +659,11 @@ export function GameCanvas() {
       starTooltip.visible = false;
       starTooltip.eventMode = "none";
 
+      worldRoot.addChild(nebula);
       worldRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(planetSoi);
+      worldRoot.addChild(holeGlow);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
       worldRoot.addChild(bodyLayer);
@@ -715,7 +731,8 @@ export function GameCanvas() {
         const jetEnd = useGameStore.getState().jetBuffEndsAtSimSec;
         const jetBuffVis =
           jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
-        paintStars(stars, layout.width, layout.height);
+        paintNebula(nebula, layout.width, layout.height);
+        paintStars(stars, layout.width, layout.height, performance.now() / 1000);
         paintMainStar(mainStar, layout);
         paintPlanetSoiRings(
           planetSoi,
@@ -727,15 +744,21 @@ export function GameCanvas() {
           planetPosById,
           planetUnstableIds,
         );
-        paintHole(
-          hole,
+        paintHoleGlow(
+          holeGlow,
           layout,
           consumePulse,
           levels.disk,
           performance.now() / 1000,
-          levels.lensing,
           levels.hawking,
+        );
+        paintHole(
+          hole,
+          layout,
+          consumePulse,
+          levels.lensing,
           jetBuffVis,
+          performance.now() / 1000,
         );
         paintGalaxy(galaxy, layout, consumePulse);
         syncBodyGraphics(
@@ -1352,15 +1375,22 @@ export function GameCanvas() {
           });
         }
 
-        paintHole(
-          hole,
+        paintStars(stars, layout.width, layout.height, nowMs / 1000);
+        paintHoleGlow(
+          holeGlow,
           layout,
           consumePulse,
           levels.disk,
           simTimeSec,
-          levels.lensing,
           levels.hawking,
+        );
+        paintHole(
+          hole,
+          layout,
+          consumePulse,
+          levels.lensing,
           jetBuffActive,
+          simTimeSec,
         );
         paintMainStar(mainStar, layout);
         paintPlanetSoiRings(
