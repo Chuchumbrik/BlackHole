@@ -160,6 +160,8 @@ type GameState = {
   removePlanet: (systemId: string, planetId: string) => void;
   /** Откат развития планеты от удара астероида (снижает прогресс/жизнь/выход MP). */
   damagePlanet: (systemId: string, planetId: string) => void;
+  /** Звезда наращивает массу за счёт поглощённых телом масс. */
+  absorbStarMass: (systemId: string, amount: number) => void;
   /** Терраформинг: подвинуть параметры планеты к золотой середине (за MP). */
   terraformPlanet: (systemId: string, planetId: string) => void;
   /** Щит планеты от ударов на время (за MP). */
@@ -397,6 +399,17 @@ export const useGameStore = create<GameState>((set, get) => {
             }),
           };
         }),
+      };
+    }),
+  absorbStarMass: (systemId, amount) =>
+    set((s) => {
+      if (amount <= 0) return s;
+      return {
+        systems: s.systems.map((sys) =>
+          sys.id !== systemId
+            ? sys
+            : { ...sys, starMassMp: (sys.starMassMp ?? 0) + amount },
+        ),
       };
     }),
   setActivePlanet: (activePlanetId) => set({ activePlanetId }),

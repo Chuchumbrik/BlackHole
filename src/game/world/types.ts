@@ -37,4 +37,6 @@ export type StarSystem = {
   name: string;
   starClass: string;
   planets: Planet[];
+  /** Накопленная масса, поглощённая звездой из объектов поля (игровые единицы). */
+  starMassMp?: number;
 };

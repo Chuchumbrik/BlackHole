@@ -89,6 +89,10 @@ export {
   OUTSIDE_GRAVITY_RATIO,
   SHIP_THRUST_BASE,
   VELOCITY_DAMPING,
+  STAR_ABSORB_FRACTION,
+  STAR_MASS_SCALE,
+  starGravityMul,
+  starDisplayMul,
 } from "./simulationPhysics";
 
 export {

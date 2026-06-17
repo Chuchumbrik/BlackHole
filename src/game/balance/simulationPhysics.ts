@@ -22,3 +22,19 @@ export const BASE_STAR_MASS = 90000;
 
 /** Базовая тяга корабля наружу (пикс/с²); дальше × качества и апгрейды. */
 export const SHIP_THRUST_BASE = 980;
+
+/**
+ * Рост звезды от поглощённой массы тел. `STAR_ABSORB_FRACTION` — какая доля массы
+ * упавшего в звезду тела идёт в её копилку. Влияние на гравитацию — мягкое (лог),
+ * чтобы орбиты не разносило; на видимый размер — заметнее (но с потолком).
+ */
+export const STAR_ABSORB_FRACTION = 1;
+export const STAR_MASS_SCALE = 4000;
+/** Множитель гравитации звезды от накопленной массы (лог, мягкий). */
+export function starGravityMul(absorbedMass: number): number {
+  return 1 + 0.12 * Math.log1p(Math.max(0, absorbedMass) / STAR_MASS_SCALE);
+}
+/** Множитель видимого радиуса звезды от накопленной массы (заметнее, с потолком). */
+export function starDisplayMul(absorbedMass: number): number {
+  return Math.min(1.8, 1 + 0.22 * Math.log1p(Math.max(0, absorbedMass) / STAR_MASS_SCALE));
+}

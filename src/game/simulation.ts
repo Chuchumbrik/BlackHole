@@ -398,6 +398,8 @@ export type StepOutcome =
       via?: "horizon" | "star" | "planet" | "body";
       /** id планеты при via:"planet" — для отката развития. */
       planetId?: string;
+      /** Масса тела при via:"star" — звезда наращивает массу за счёт поглощённого. */
+      objMass?: number;
       atX: number;
       atY: number;
     }
@@ -446,6 +448,7 @@ export function advanceObjectOneStep(
       mp: 0,
       objectKind: obj.kind,
       via: "star",
+      objMass: obj.mass,
       atX: obj.x,
       atY: obj.y,
     };
@@ -551,6 +554,7 @@ export function advanceObjectOneStep(
       mp: 0,
       objectKind: obj.kind,
       via: "star",
+      objMass: obj.mass,
       atX: newX,
       atY: newY,
     };
@@ -730,6 +734,8 @@ export type ConsumeEvent = {
   via?: "horizon" | "star" | "planet" | "body";
   /** id планеты при via:"planet" — для отката развития. */
   planetId?: string;
+  /** Масса тела при via:"star" — для наращивания массы звезды. */
+  objMass?: number;
   atX?: number;
   atY?: number;
 };
@@ -825,6 +831,7 @@ export function stepSimulation(
         kind: r.objectKind,
         via: r.via,
         planetId: r.planetId,
+        objMass: r.objMass,
         atX: r.atX,
         atY: r.atY,
       });

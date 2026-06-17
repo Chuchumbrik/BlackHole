@@ -10,6 +10,9 @@ import {
   BASE_BH_MASS,
   BASE_HORIZON_FRACTION,
   BASE_STAR_MASS,
+  STAR_ABSORB_FRACTION,
+  starGravityMul,
+  starDisplayMul,
   BASE_SPAWN_PER_SECOND,
   BH_ORBIT_RADIUS_FRACTION,
   BH_SCREEN_ANGLE_RAD,
@@ -342,10 +345,11 @@ function paintMainStar(
   layout: SimLayout,
   starClass: string,
   timeSec: number,
+  displayMul = 1,
 ): void {
   g.clear();
   const minS = Math.min(layout.width, layout.height);
-  const r = Math.max(9, minS * STAR_DISPLAY_RADIUS_FRACTION);
+  const r = Math.max(9, minS * STAR_DISPLAY_RADIUS_FRACTION) * displayMul;
   const [core, glow] =
     STAR_CLASS_COLORS[starClass] ?? STAR_CLASS_COLORS.G;
   const pulse = 0.5 + 0.5 * Math.sin(timeSec * 1.6);
@@ -880,7 +884,7 @@ export function GameCanvas() {
           jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
         paintNebula(nebula, layout.width, layout.height);
         paintStars(stars, layout.width, layout.height, performance.now() / 1000);
-        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000);
+        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
         paintPlanetSoiRings(
           planetSoi,
           layout,
@@ -1220,6 +1224,11 @@ export function GameCanvas() {
             Math.max(0.85, dispHorizon / (minDL * BASE_HORIZON_FRACTION));
         }
 
+        // Звезда наращивает массу за счёт поглощённых тел → крепче держит орбиты
+        // (мягкий лог-рост) и крупнее визуально.
+        const starAbsorbed = activeSystem?.starMassMp ?? 0;
+        layout.star.mass = BASE_STAR_MASS * starGravityMul(starAbsorbed);
+
         if (levels.jets > 0) {
           jetProcAccum += simDt;
         } else {
@@ -1556,6 +1565,7 @@ export function GameCanvas() {
         if (consumed.length > 0) {
           let gain = 0;
           let maxMp = 0;
+          let starMassGain = 0;
           for (const c of consumed) {
             const g = Math.floor(c.mp * mpMult * FIELD_MP_GLOBAL_MULTIPLIER);
             gain += g;
@@ -1565,6 +1575,10 @@ export function GameCanvas() {
               useGameStore
                 .getState()
                 .damagePlanet(activeSystem.id, c.planetId);
+            }
+            // Тело упало в звезду → звезда наращивает массу.
+            if (c.via === "star" && c.objMass) {
+              starMassGain += c.objMass * STAR_ABSORB_FRACTION;
             }
             if (c.atX != null && c.atY != null) {
               hitFlashes.push({
@@ -1579,6 +1593,9 @@ export function GameCanvas() {
             consumePulse = 1;
             useGameStore.getState().addMassMp(gain);
             playAbsorb(maxMp); // throttle внутри — без какофонии
+          }
+          if (starMassGain > 0 && activeSystem) {
+            useGameStore.getState().absorbStarMass(activeSystem.id, starMassGain);
           }
         }
 
@@ -1688,7 +1705,7 @@ export function GameCanvas() {
           jetBuffActive,
           simTimeSec,
         );
-        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000);
+        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
         paintPlanetSoiRings(
           planetSoi,
           layout,
