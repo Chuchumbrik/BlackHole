@@ -8,6 +8,7 @@ import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
+import { FeedbackButton } from "./components/FeedbackButton";
 import { useGameStore } from "./store/useGameStore";
 
 const APP_VERSION = __APP_VERSION__;
@@ -154,6 +155,7 @@ function App() {
       )}
 
       <MpGainFloaters />
+      <FeedbackButton />
     </div>
   );
 }
