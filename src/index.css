@@ -763,38 +763,41 @@ body,
   overflow: hidden;
 }
 
+/* Компактный «+N MP» у счётчика массы (шапка справа): короткий подъём и
+   затухание, без пролёта через весь экран. */
 .mp-gain-floater {
   position: absolute;
+  top: calc(4.1rem + env(safe-area-inset-top, 0px));
   right: max(1rem, env(safe-area-inset-right, 0px));
   font-variant-numeric: tabular-nums;
   font-weight: 600;
-  font-size: clamp(0.88rem, 2.6vw, 1.05rem);
+  font-size: clamp(0.85rem, 2.2vw, 1rem);
   letter-spacing: 0.02em;
   color: #ddd6fe;
   text-shadow:
     0 0 14px rgba(167, 139, 250, 0.95),
     0 0 28px rgba(139, 92, 246, 0.45),
     0 2px 6px rgba(0, 0, 0, 0.85);
-  animation: mp-gain-drift 0.92s cubic-bezier(0.2, 0.85, 0.35, 1) forwards;
-  will-change: transform, opacity, top;
+  animation: mp-gain-drift 0.95s ease-out forwards;
+  will-change: transform, opacity;
 }
 
 @keyframes mp-gain-drift {
   0% {
-    top: min(calc(100vh - 64px), 88vh);
     opacity: 0;
-    transform: translate3d(0, 28px, 0) scale(0.9);
+    transform: translate3d(0, 10px, 0) scale(0.92);
   }
-  14% {
+  18% {
     opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
   }
-  72% {
+  68% {
     opacity: 1;
+    transform: translate3d(0, -14px, 0) scale(1);
   }
   100% {
-    top: calc(4.35rem + env(safe-area-inset-top, 0px));
     opacity: 0;
-    transform: translate3d(0, 0, 0) scale(1);
+    transform: translate3d(0, -30px, 0) scale(1);
   }
 }
 
@@ -806,15 +809,13 @@ body,
 
   @keyframes mp-gain-drift {
     0% {
-      top: min(calc(100vh - 48px), 90vh);
       opacity: 0;
       transform: none;
     }
-    35% {
+    30% {
       opacity: 1;
     }
     100% {
-      top: calc(4.35rem + env(safe-area-inset-top, 0px));
       opacity: 0;
       transform: none;
     }

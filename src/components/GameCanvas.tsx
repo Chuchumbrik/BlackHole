@@ -794,6 +794,10 @@ export function GameCanvas() {
       let lastSimTimeSecForPaint = 0;
       let jetProcAccum = 0;
       let hawkingCarry = 0;
+      // Сглаженные («дисплейные») радиусы дыры: плавно догоняют целевые при
+      // апгрейдах/росте массы, чтобы размер не прыгал скачком (-1 = не задано).
+      let dispHorizon = -1;
+      let dispGravity = -1;
       let lastMs = performance.now();
 
       let hoverObjectId: number | null = null;
@@ -1193,6 +1197,28 @@ export function GameCanvas() {
         const systems = useGameStore.getState().systems;
         const activeSystem = systems.find((s) => s.id === activeSystemId);
         const layout = layoutFromHost(host, levels);
+
+        // Плавная анимация радиусов дыры: экспоненциальное сглаживание к целевым
+        // значениям (горизонт + зона притяжения). Применяется и к визуалу, и к
+        // GM-полю — чтобы физика и картинка оставались согласованы (лаг ~0.2 с).
+        {
+          const targetH = layout.horizonRadius;
+          const targetG = layout.gravityRadius;
+          if (dispHorizon < 0) {
+            dispHorizon = targetH;
+            dispGravity = targetG;
+          } else {
+            const k = 1 - Math.exp(-dt / 0.2); // постоянная времени ≈ 0.2 с
+            dispHorizon += (targetH - dispHorizon) * k;
+            dispGravity += (targetG - dispGravity) * k;
+          }
+          layout.horizonRadius = dispHorizon;
+          layout.gravityRadius = dispGravity;
+          const minDL = Math.min(layout.width, layout.height);
+          layout.bhMass =
+            BASE_BH_MASS *
+            Math.max(0.85, dispHorizon / (minDL * BASE_HORIZON_FRACTION));
+        }
 
         if (levels.jets > 0) {
           jetProcAccum += simDt;
