@@ -7,6 +7,7 @@ import {
   planUpgradePurchase,
   mpIncomeMultiplier,
   hawkingMpPerSecond,
+  computeRadiiPx,
   type UpgradeLevels,
 } from "./upgrades";
 import {
@@ -14,6 +15,7 @@ import {
   UPGRADE_COST_MULTIPLIER_PER_LEVEL,
   JET_FIELD_MP_MULT,
   SUM_FOR_JETS_UNLOCK,
+  massHorizonMul,
 } from "./balance";
 
 const lv = (p: Partial<UpgradeLevels>): UpgradeLevels => ({
@@ -32,6 +34,20 @@ describe("upgrades: стоимость и сумма", () => {
     expect(nextUpgradeCostMp(lv({ size: 3 }), "size")).toBe(
       Math.ceil(UPGRADE_FIRST_LEVEL_COST_MP * UPGRADE_COST_MULTIPLIER_PER_LEVEL ** 3),
     );
+  });
+});
+
+describe("upgrades: горизонт растёт от массы", () => {
+  it("massHorizonMul: =1 при 0, монотонно растёт, мягко (лог)", () => {
+    expect(massHorizonMul(0)).toBe(1);
+    expect(massHorizonMul(20000)).toBeGreaterThan(massHorizonMul(2000));
+    // мягкость: даже при огромной массе множитель остаётся умеренным
+    expect(massHorizonMul(1_000_000)).toBeLessThan(2);
+  });
+  it("computeRadiiPx: горизонт с массой больше, чем без", () => {
+    const r0 = computeRadiiPx(800, ZERO_UPGRADE_LEVELS, 0).horizon;
+    const r1 = computeRadiiPx(800, ZERO_UPGRADE_LEVELS, 100_000).horizon;
+    expect(r1).toBeGreaterThan(r0);
   });
 });
 

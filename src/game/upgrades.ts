@@ -9,6 +9,7 @@ import {
   BASE_HORIZON_FRACTION,
   CAMERA_SCALE_MIN,
   GRAVITY_RADIUS_MIN_OVER_HORIZON,
+  massHorizonMul,
   JET_FIELD_MP_MULT,
   SHIPS_UNLOCK_MIN_SUM,
   SUM_FOR_DISK_UNLOCK,
@@ -154,11 +155,13 @@ export function mpIncomeMultiplier(
 export function computeRadiiPx(
   minDimensionPx: number,
   levels: UpgradeLevels,
+  massMp = 0,
 ): { horizon: number; gravity: number } {
   const mods = computeModifiers({ upgradeLevels: levels });
   const baseHorizon = minDimensionPx * BASE_HORIZON_FRACTION;
   const baseGravity = minDimensionPx * BASE_GRAVITY_FRACTION;
-  const horizon = baseHorizon * mods.horizonMul;
+  // Горизонт растёт от ветки size И от накопленной массы (мягко, лог).
+  const horizon = baseHorizon * mods.horizonMul * massHorizonMul(massMp);
   let gravity = baseGravity * mods.gravityRadiusMul;
   const minGravity = horizon * GRAVITY_RADIUS_MIN_OVER_HORIZON;
   if (gravity < minGravity) gravity = minGravity;

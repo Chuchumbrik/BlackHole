@@ -65,7 +65,7 @@ export function UpgradesPanel() {
   const sum = levelSum(upgradeLevels);
   const viewportMin = useViewportMinPx();
   const snap = upgradeBranchSnapshot(upgradeLevels, massMp);
-  const radii = computeRadiiPx(viewportMin, upgradeLevels);
+  const radii = computeRadiiPx(viewportMin, upgradeLevels, massMp);
 
   return (
     <div className="upgrades-panel">

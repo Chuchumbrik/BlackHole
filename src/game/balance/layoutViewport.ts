@@ -11,6 +11,21 @@ export const BASE_HORIZON_FRACTION = 0.032;
 export const BASE_GRAVITY_FRACTION = 0.42;
 
 /**
+ * Горизонт дыры растёт и от накопленной массы (R_s ∝ M — с игровым допущением).
+ * Мягкая логарифмическая зависимость, чтобы дыра «толстела» по мере поглощения,
+ * но не заполняла экран: множитель = 1 + COEFF·ln(1 + massMp/SCALE).
+ * На старте (масса ~0) ≈ 1. Усиливает связку «растёшь → возмущаешь орбиты планет».
+ */
+export const MASS_HORIZON_SCALE = 2000;
+export const MASS_HORIZON_COEFF = 0.15;
+
+export function massHorizonMul(massMp: number): number {
+  return (
+    1 + MASS_HORIZON_COEFF * Math.log1p(Math.max(0, massMp) / MASS_HORIZON_SCALE)
+  );
+}
+
+/**
  * Геометрия v1.5: звезда в центре вида, дыра на орбите этой доли min(width,height).
  */
 /** Доля min(width,height): дыра дальше от звезды — читаемее поле и орбиты. */

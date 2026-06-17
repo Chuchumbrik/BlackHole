@@ -136,7 +136,9 @@ function layoutFromHost(el: HTMLElement, upgradeLevels: UpgradeLevels): SimLayou
   const w = Math.max(el.clientWidth, 1);
   const h = Math.max(el.clientHeight, 1);
   const minD = Math.min(w, h);
-  const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels);
+  // Горизонт учитывает и накопленную массу (читаем из стора — не тянем через вызовы).
+  const massMp = useGameStore.getState().massMp;
+  const { horizon, gravity } = computeRadiiPx(minD, upgradeLevels, massMp);
   const starX = w / 2;
   const starY = h / 2;
   const sysMul = STELLAR_SYSTEM_RADIUS_MUL;
