@@ -405,10 +405,37 @@ body,
 }
 
 .upgrades-card {
-  padding: 0.85rem 1rem;
+  padding: 0.7rem 0.9rem;
   border-radius: 0.65rem;
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(155, 126, 217, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+/* Левая колонка — описание; правая — цена и кнопка покупки. */
+.upgrades-card-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.upgrades-card-action {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  text-align: right;
+  min-width: 8.5rem;
+}
+
+.upgrades-card-action .upgrades-card-cost {
+  margin: 0;
+}
+
+.upgrades-card-action .upgrades-buy {
+  width: 100%;
 }
 
 .upgrades-card-head {
@@ -433,18 +460,18 @@ body,
 }
 
 .upgrades-card-effect {
-  margin: 0 0 0.35rem;
-  font-size: 0.82rem;
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
   color: #c9c2d6;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .upgrades-card-current {
-  margin: 0 0 0.6rem;
-  font-size: 0.82rem;
+  margin: 0;
+  font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
   color: #e8e4f0;
-  line-height: 1.35;
+  line-height: 1.3;
 }
 
 .upgrades-card-cost {

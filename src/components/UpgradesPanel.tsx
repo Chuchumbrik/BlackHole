@@ -135,46 +135,50 @@ export function UpgradesPanel() {
 
           return (
             <li key={branch} className="upgrades-card">
-              <div className="upgrades-card-head">
-                <h3 className="upgrades-card-name">
-                  {t(`upgrades.branches.${branch}.name`)}
-                </h3>
-                <span className="upgrades-card-level">
-                  {t("upgrades.levelShort", { value: level })}
-                </span>
+              <div className="upgrades-card-main">
+                <div className="upgrades-card-head">
+                  <h3 className="upgrades-card-name">
+                    {t(`upgrades.branches.${branch}.name`)}
+                  </h3>
+                  <span className="upgrades-card-level">
+                    {t("upgrades.levelShort", { value: level })}
+                  </span>
+                </div>
+                <p className="upgrades-card-effect">
+                  {t(`upgrades.branches.${branch}.effect`)}
+                </p>
+                <p className="upgrades-card-current">{currentLine}</p>
               </div>
-              <p className="upgrades-card-effect">
-                {t(`upgrades.branches.${branch}.effect`)}
-              </p>
-              <p className="upgrades-card-current">{currentLine}</p>
-              <p className="upgrades-card-cost">
-                {buyMultiplier === 1 || !canBuy
-                  ? t("upgrades.nextCost", {
-                      value: nextUpgradeCostMp(
-                        upgradeLevels,
-                        branch,
-                      ).toLocaleString("ru-RU"),
-                    })
-                  : t(
-                      capped ? "upgrades.bulkCostCapped" : "upgrades.bulkCost",
-                      {
+              <div className="upgrades-card-action">
+                <p className="upgrades-card-cost">
+                  {buyMultiplier === 1 || !canBuy
+                    ? t("upgrades.nextCost", {
+                        value: nextUpgradeCostMp(
+                          upgradeLevels,
+                          branch,
+                        ).toLocaleString("ru-RU"),
+                      })
+                    : t(
+                        capped ? "upgrades.bulkCostCapped" : "upgrades.bulkCost",
+                        {
+                          count: plan.count,
+                          value: plan.totalCost.toLocaleString("ru-RU"),
+                        },
+                      )}
+                </p>
+                <button
+                  type="button"
+                  className="upgrades-buy"
+                  disabled={!canBuy}
+                  onClick={() => buyUpgrade(branch, buyMultiplier)}
+                >
+                  {buyMultiplier === 1
+                    ? t("upgrades.buy")
+                    : t(capped ? "upgrades.buyNMax" : "upgrades.buyN", {
                         count: plan.count,
-                        value: plan.totalCost.toLocaleString("ru-RU"),
-                      },
-                    )}
-              </p>
-              <button
-                type="button"
-                className="upgrades-buy"
-                disabled={!canBuy}
-                onClick={() => buyUpgrade(branch, buyMultiplier)}
-              >
-                {buyMultiplier === 1
-                  ? t("upgrades.buy")
-                  : t(capped ? "upgrades.buyNMax" : "upgrades.buyN", {
-                      count: plan.count,
-                    })}
-              </button>
+                      })}
+                </button>
+              </div>
             </li>
           );
         })}
@@ -190,52 +194,56 @@ export function UpgradesPanel() {
           const capped = affordable && plan.count < buyMultiplier;
           return (
             <li key={up.id} className="upgrades-card">
-              <div className="upgrades-card-head">
-                <h3 className="upgrades-card-name">{up.name}</h3>
-                <span className="upgrades-card-level">
-                  Ур. {lvl}/{up.maxLevel}
-                </span>
+              <div className="upgrades-card-main">
+                <div className="upgrades-card-head">
+                  <h3 className="upgrades-card-name">{up.name}</h3>
+                  <span className="upgrades-card-level">
+                    Ур. {lvl}/{up.maxLevel}
+                  </span>
+                </div>
+                <p className="upgrades-card-effect">{up.desc}</p>
+                <p className="upgrades-card-current">
+                  {`Сейчас: ×${formatMultiplier(up.perLevel ** lvl)} к ${
+                    up.kind === "mpMul"
+                      ? "добыче MP"
+                      : up.kind === "spawnRateMul"
+                        ? "частоте спавна материи"
+                        : "пассиву Хокинга"
+                  } (ур. ${lvl})`}
+                </p>
               </div>
-              <p className="upgrades-card-effect">{up.desc}</p>
-              <p className="upgrades-card-current">
-                {`Сейчас: ×${formatMultiplier(up.perLevel ** lvl)} к ${
-                  up.kind === "mpMul"
-                    ? "добыче MP"
-                    : up.kind === "spawnRateMul"
-                      ? "частоте спавна материи"
-                      : "пассиву Хокинга"
-                } (ур. ${lvl})`}
-              </p>
-              {maxed ? (
-                <p className="upgrades-card-cost">Максимум</p>
-              ) : (
-                <>
-                  <p className="upgrades-card-cost">
-                    {buyMultiplier === 1 || !affordable
-                      ? `Следующий уровень: ${mpUpgradeCost(
-                          up,
-                          lvl,
-                        ).toLocaleString("ru-RU")} MP`
-                      : capped
-                        ? `Хватает на ×${plan.count} (макс.): ${plan.totalCost.toLocaleString(
-                            "ru-RU",
-                          )} MP`
-                        : `${plan.count} ур.: ${plan.totalCost.toLocaleString(
-                            "ru-RU",
-                          )} MP`}
-                  </p>
-                  <button
-                    type="button"
-                    className="upgrades-buy"
-                    disabled={!affordable}
-                    onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
-                  >
-                    {buyMultiplier === 1
-                      ? "Купить"
-                      : `Купить ×${plan.count}${capped ? " (макс.)" : ""}`}
-                  </button>
-                </>
-              )}
+              <div className="upgrades-card-action">
+                {maxed ? (
+                  <p className="upgrades-card-cost">Максимум</p>
+                ) : (
+                  <>
+                    <p className="upgrades-card-cost">
+                      {buyMultiplier === 1 || !affordable
+                        ? `Следующий уровень: ${mpUpgradeCost(
+                            up,
+                            lvl,
+                          ).toLocaleString("ru-RU")} MP`
+                        : capped
+                          ? `Хватает на ×${plan.count} (макс.): ${plan.totalCost.toLocaleString(
+                              "ru-RU",
+                            )} MP`
+                          : `${plan.count} ур.: ${plan.totalCost.toLocaleString(
+                              "ru-RU",
+                            )} MP`}
+                    </p>
+                    <button
+                      type="button"
+                      className="upgrades-buy"
+                      disabled={!affordable}
+                      onClick={() => buyMpUpgrade(up.id, buyMultiplier)}
+                    >
+                      {buyMultiplier === 1
+                        ? "Купить"
+                        : `Купить ×${plan.count}${capped ? " (макс.)" : ""}`}
+                    </button>
+                  </>
+                )}
+              </div>
             </li>
           );
         })}
