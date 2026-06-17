@@ -24,6 +24,7 @@ import {
   loreOnPrestige,
   loreOnSupernova,
   loreOnAchievement,
+  loreOnStarSwallow,
   type JournalCategory,
   type JournalEntry,
 } from "../game/journal";
@@ -43,6 +44,7 @@ import {
   ENVIRONMENT_UPGRADES,
   planEnvironmentPurchase,
 } from "../game/environment";
+import { starSwallowReward } from "../game/balance";
 import {
   loadSave,
   writeSave,
@@ -102,6 +104,8 @@ type GameState = {
   massSpentTotal: number;
   /** Сколько раз совершено сжатие (prestige). */
   prestigeCount: number;
+  /** Сколько звёзд поглощено дырой за всё время (для достижений; переживает сжатие). */
+  starsSwallowed: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   /** Масштаб вида: у дыры / звёздная система / карта галактики (узлы). */
@@ -163,6 +167,8 @@ type GameState = {
   damagePlanet: (systemId: string, planetId: string) => void;
   /** Звезда наращивает массу за счёт поглощённых телом масс. */
   absorbStarMass: (systemId: string, amount: number) => void;
+  /** Дыра поглощает звезду (горизонт дорос): куш MP + коллапс системы + журнал. */
+  consumeStar: (systemId: string) => void;
   /** Синхронизировать климат планет с физикой: температура/орбита → к целям (eased). */
   syncPlanetClimate: (
     systemId: string,
@@ -221,6 +227,7 @@ function buildSaveData(s: GameState): SaveData {
     peakMassMp: s.peakMassMp,
     massSpentTotal: s.massSpentTotal,
     prestigeCount: s.prestigeCount,
+    starsSwallowed: s.starsSwallowed,
     gameTimeSec: s.gameTimeSec,
     upgradeLevels: s.upgradeLevels,
     systems: s.systems,
@@ -287,6 +294,7 @@ export const useGameStore = create<GameState>((set, get) => {
     peakMassMp: saved?.peakMassMp ?? saved?.massMp ?? 0,
     massSpentTotal: saved?.massSpentTotal ?? 0,
     prestigeCount: saved?.prestigeCount ?? 0,
+    starsSwallowed: saved?.starsSwallowed ?? 0,
     pendingOfflineMp,
     gameTimeSec: saved?.gameTimeSec ?? 0,
     upgradeLevels,
@@ -441,6 +449,29 @@ export const useGameStore = create<GameState>((set, get) => {
             }),
           };
         }),
+      };
+    }),
+  consumeStar: (systemId) =>
+    set((s) => {
+      const sys = s.systems.find((x) => x.id === systemId);
+      if (!sys || sys.starConsumed) return s;
+      const reward = starSwallowReward(sys.starMassMp ?? 0);
+      const massMp = s.massMp + reward;
+      const line = loreOnStarSwallow(sys.name);
+      return {
+        massMp,
+        lifetimeMassMp: s.lifetimeMassMp + reward,
+        peakMassMp: Math.max(s.peakMassMp, massMp),
+        starsSwallowed: s.starsSwallowed + 1,
+        systems: s.systems.map((x) =>
+          x.id !== systemId ? x : { ...x, starConsumed: true },
+        ),
+        journalEntries: prependJournal(
+          s.journalEntries,
+          s.gameTimeSec,
+          line.category,
+          line.text,
+        ),
       };
     }),
   setActivePlanet: (activePlanetId) => set({ activePlanetId }),
@@ -739,6 +770,7 @@ export const useGameStore = create<GameState>((set, get) => {
         peakMassMp: 0,
         massSpentTotal: 0,
         prestigeCount: 0,
+        starsSwallowed: 0,
         gameTimeSec: 0,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,

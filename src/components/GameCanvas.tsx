@@ -889,7 +889,8 @@ export function GameCanvas() {
           jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
         paintNebula(nebula, layout.width, layout.height);
         paintStars(stars, layout.width, layout.height, performance.now() / 1000);
-        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
+        if (activeSystem?.starConsumed) mainStar.clear();
+        else paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
         paintPlanetSoiRings(
           planetSoi,
           layout,
@@ -1256,7 +1257,21 @@ export function GameCanvas() {
         // Звезда наращивает массу за счёт поглощённых тел → крепче держит орбиты
         // (мягкий лог-рост) и крупнее визуально.
         const starAbsorbed = activeSystem?.starMassMp ?? 0;
-        layout.star.mass = BASE_STAR_MASS * starGravityMul(starAbsorbed);
+        const starConsumed = activeSystem?.starConsumed ?? false;
+        // Поглощение звезды дырой: горизонт дорос до светила → куш + коллапс системы.
+        if (activeSystem && !starConsumed && simScale > 0) {
+          const dBhStar = Math.hypot(
+            layout.bh.x - layout.star.x,
+            layout.bh.y - layout.star.y,
+          );
+          if (dBhStar < layout.horizonRadius) {
+            useGameStore.getState().consumeStar(activeSystem.id);
+          }
+        }
+        // Поглощённая звезда не держит орбиты (масса 0) — планеты падают в дыру.
+        layout.star.mass = starConsumed
+          ? 0
+          : BASE_STAR_MASS * starGravityMul(starAbsorbed);
 
         if (levels.jets > 0) {
           jetProcAccum += simDt;
@@ -1674,6 +1689,7 @@ export function GameCanvas() {
               incomeMpPerSec: st.incomeEmaMpPerSec,
               planetsWithLife: allPlanets.filter((p) => p.lifeBorn).length,
               maxCivLevel: allPlanets.reduce((m, p) => Math.max(m, p.civLevel), 0),
+              starsSwallowed: st.starsSwallowed,
             },
             st.achievementsUnlocked,
           );
@@ -1772,7 +1788,8 @@ export function GameCanvas() {
           jetBuffActive,
           simTimeSec,
         );
-        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
+        if (activeSystem?.starConsumed) mainStar.clear();
+        else paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000, starDisplayMul(activeSystem?.starMassMp ?? 0));
         paintPlanetSoiRings(
           planetSoi,
           layout,

@@ -91,8 +91,10 @@ export {
   VELOCITY_DAMPING,
   STAR_ABSORB_FRACTION,
   STAR_MASS_SCALE,
+  STAR_SWALLOW_BASE_MP,
   starGravityMul,
   starDisplayMul,
+  starSwallowReward,
 } from "./simulationPhysics";
 
 export {

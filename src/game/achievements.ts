@@ -33,6 +33,8 @@ export type AchievementCtx = {
   planetsWithLife: number;
   /** Максимальный достигнутый тир цивилизации. */
   maxCivLevel: number;
+  /** Сколько звёзд поглощено дырой (lifetime). */
+  starsSwallowed: number;
 };
 
 export type AchievementDef = {
@@ -205,6 +207,11 @@ export const ACHIEVEMENT_THEMES: AchievementTheme[] = [
     { at: 2, name: "Космическая эра", desc: "Цивилизация тира 2", mul: 1.06 },
     { at: 3, name: "Сфера Дайсона", desc: "Цивилизация тира 3", mul: 1.08 },
     { at: 4, name: "Галактическая дань", desc: "Цивилизация тира 4", mul: 1.12 },
+  ]),
+  theme("Поглощённые звёзды", "stars", (c) => c.starsSwallowed, fmtInt, [
+    { at: 1, name: "Звездоед", desc: "Поглотить звезду целиком", mul: 1.15 },
+    { at: 3, name: "Гаситель светил", desc: "Поглотить 3 звезды", mul: 1.2 },
+    { at: 10, name: "Конец света", desc: "Поглотить 10 звёзд", mul: 1.3 },
   ]),
   ...branchThemes(),
 ];

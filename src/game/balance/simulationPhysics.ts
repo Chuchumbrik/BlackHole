@@ -38,3 +38,14 @@ export function starGravityMul(absorbedMass: number): number {
 export function starDisplayMul(absorbedMass: number): number {
   return Math.min(1.8, 1 + 0.22 * Math.log1p(Math.max(0, absorbedMass) / STAR_MASS_SCALE));
 }
+
+/**
+ * Награда за поглощение звезды дырой — крупный единоразовый куш (звезда ≫ планет
+ * ≫ астероидов). Растёт с массой, которую звезда успела набрать.
+ */
+export const STAR_SWALLOW_BASE_MP = 1_000_000;
+export function starSwallowReward(absorbedMass: number): number {
+  return Math.floor(
+    STAR_SWALLOW_BASE_MP * (1 + Math.max(0, absorbedMass) / STAR_MASS_SCALE),
+  );
+}

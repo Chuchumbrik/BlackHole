@@ -99,3 +99,14 @@ export function loreOnLifeBorn(planetName: string): LoreLine {
 export function loreOnAchievement(name: string): LoreLine {
   return { category: "milestone", text: `Достижение: «${name}».` };
 }
+
+export function loreOnStarSwallow(starName: string): LoreLine {
+  return {
+    category: "milestone",
+    text: pick([
+      `Горизонт дорос до светила: ${starName} поглощена целиком. Система осиротела — планеты сорваны с орбит.`,
+      `${starName} исчезла за горизонтом событий. Тьма легла на систему; её миры падают следом.`,
+      `Вы проглотили звезду. ${starName} больше не греет — её планеты обречены на спираль в бездну.`,
+    ]),
+  };
+}

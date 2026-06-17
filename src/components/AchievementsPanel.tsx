@@ -79,6 +79,7 @@ export function AchievementsPanel() {
   const upgradeLevels = useGameStore((s) => s.upgradeLevels);
   const incomeEmaMpPerSec = useGameStore((s) => s.incomeEmaMpPerSec);
   const systems = useGameStore((s) => s.systems);
+  const starsSwallowed = useGameStore((s) => s.starsSwallowed);
 
   const allPlanets = systems.flatMap((sys) => sys.planets);
   const ctx: AchievementCtx = {
@@ -93,6 +94,7 @@ export function AchievementsPanel() {
     incomeMpPerSec: incomeEmaMpPerSec,
     planetsWithLife: allPlanets.filter((p) => p.lifeBorn).length,
     maxCivLevel: allPlanets.reduce((m, p) => Math.max(m, p.civLevel), 0),
+    starsSwallowed,
   };
 
   const mul = achievementMpMul(unlocked);

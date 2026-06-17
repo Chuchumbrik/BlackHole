@@ -231,6 +231,29 @@ describe("store: сверхновая (узел №11)", () => {
   });
 });
 
+describe("store: поглощение звезды", () => {
+  it("даёт крупный куш MP, коллапсирует систему, считает звёзды, пишет в журнал", () => {
+    setup(0);
+    useGameStore.setState({ starsSwallowed: 0 });
+    const jBefore = useGameStore.getState().journalEntries.length;
+    useGameStore.getState().consumeStar("sys1");
+    const s = useGameStore.getState();
+    expect(s.massMp).toBeGreaterThan(100_000); // звезда ≫ планет/астероидов
+    expect(s.systems[0].starConsumed).toBe(true);
+    expect(s.starsSwallowed).toBe(1);
+    expect(s.journalEntries.length).toBe(jBefore + 1);
+  });
+  it("повторно не срабатывает (звезда уже поглощена)", () => {
+    setup(0);
+    useGameStore.setState({ starsSwallowed: 0 });
+    useGameStore.getState().consumeStar("sys1");
+    const massAfterFirst = useGameStore.getState().massMp;
+    useGameStore.getState().consumeStar("sys1");
+    expect(useGameStore.getState().massMp).toBe(massAfterFirst);
+    expect(useGameStore.getState().starsSwallowed).toBe(1);
+  });
+});
+
 describe("store: развитие планеты", () => {
   it("терраформинг двигает инженерные параметры к 50 и списывает MP", () => {
     // атмосфера двигается терраформингом; температура теперь физико-зависима

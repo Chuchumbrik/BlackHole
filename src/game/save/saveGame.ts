@@ -26,6 +26,8 @@ export type SaveData = {
   peakMassMp?: number;
   massSpentTotal?: number;
   prestigeCount?: number;
+  /** Сколько звёзд поглощено дырой (опционально; для достижений). */
+  starsSwallowed?: number;
   gameTimeSec: number;
   upgradeLevels: UpgradeLevels;
   systems: StarSystem[];
