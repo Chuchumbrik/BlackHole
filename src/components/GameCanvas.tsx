@@ -1175,14 +1175,17 @@ export function GameCanvas() {
           }
         }
 
-        const { objects: nextObjects, consumed } = stepSimulation(
-          objects,
-          layout,
-          simDt,
-          levels,
-          planetSnaps,
-        );
-        objects = nextObjects;
+        // Суб-шаги интегратора объектов: на ускорении ×10 один шаг Эйлера на
+        // simDt до 1.2с туннелирует сквозь горизонт и «накачивает» орбиты.
+        // Дробим до ~0.06с/шаг (с потолком), чтобы поведение было стабильным.
+        const objSubsteps = Math.min(6, Math.max(1, Math.ceil(simDt / 0.06)));
+        const subDt = simDt / objSubsteps;
+        const consumed: ReturnType<typeof stepSimulation>["consumed"] = [];
+        for (let sub = 0; sub < objSubsteps; sub++) {
+          const r = stepSimulation(objects, layout, subDt, levels, planetSnaps);
+          objects = r.objects;
+          for (const c of r.consumed) consumed.push(c);
+        }
 
         if (activeSystem) {
           const planetListSnapshot = [...activeSystem.planets];
@@ -1278,7 +1281,7 @@ export function GameCanvas() {
           const fresh = newlyUnlocked(
             {
               massMp: st.massMp,
-              prestigePoints: st.prestigePoints,
+              prestigePoints: st.lifetimePp, // достижения — по суммарным PP, не текущим
               gameTimeSec: st.gameTimeSec,
               upgradeSum: levelSum(st.upgradeLevels),
             },

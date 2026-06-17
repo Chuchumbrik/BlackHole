@@ -381,6 +381,12 @@ export function advanceObjectOneStep(
   let ny = dy / dist;
 
   if (dist > layout.horizonRadius) {
+    // «Эффективность» (скорость поглощения) усиливает ТОЛЬКО притяжение дыры,
+    // не гравитацию звезды/планет и не тягу кораблей.
+    const effRatio =
+      layout.gravityAccel > 0
+        ? layout.gravityAccel / BASE_GRAVITY_ACCEL
+        : 1;
     const bhField = bhGravityFieldStrength(dist, layout);
     const bhGravity = applyBodyGravity(
       { ...obj, vx: nvx, vy: nvy },
@@ -388,8 +394,8 @@ export function advanceObjectOneStep(
       dt,
       bhField,
     );
-    nvx = bhGravity.vx;
-    nvy = bhGravity.vy;
+    nvx = obj.vx + (bhGravity.vx - obj.vx) * effRatio;
+    nvy = obj.vy + (bhGravity.vy - obj.vy) * effRatio;
     nx = bhGravity.nx;
     ny = bhGravity.ny;
 
@@ -417,13 +423,6 @@ export function advanceObjectOneStep(
         nvy = pg.vy;
       }
     }
-
-    const effRatio =
-      layout.gravityAccel > 0
-        ? layout.gravityAccel / BASE_GRAVITY_ACCEL
-        : 1;
-    nvx = obj.vx + (nvx - obj.vx) * effRatio;
-    nvy = obj.vy + (nvy - obj.vy) * effRatio;
 
     if (obj.kind === 4) {
       const thrust = outwardThrustAccel(obj, upgradeLevels);

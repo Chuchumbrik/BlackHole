@@ -62,6 +62,8 @@ type GameState = {
   pendingOfflineMp: number;
   /** Накопленные очки престижа (между ранами). */
   prestigePoints: number;
+  /** Суммарно заработанные PP за всё время (для достижений; не тратится, не сбрасывается). */
+  lifetimePp: number;
   /** Уровни перков престижа по id. */
   prestigePerkLevels: Record<string, number>;
   /** Уровни data-driven MP-апгрейдов по id (ран-скоуп, сброс при сжатии). */
@@ -131,6 +133,7 @@ function buildSaveData(s: GameState): SaveData {
     savedAtMs: Date.now(),
     incomeEmaMpPerSec: s.incomeEmaMpPerSec,
     prestigePoints: s.prestigePoints,
+    lifetimePp: s.lifetimePp,
     prestigePerkLevels: s.prestigePerkLevels,
     mpUpgradeLevels: s.mpUpgradeLevels,
     achievementsUnlocked: s.achievementsUnlocked,
@@ -145,7 +148,10 @@ function maxUnlockedViewTier(levels: UpgradeLevels): ViewTierId {
 
 export const useGameStore = create<GameState>((set, get) => {
   const saved = loadSave();
-  const systems = saved?.systems ?? generateStarSystems();
+  const systems =
+    saved?.systems && saved.systems.length > 0
+      ? saved.systems
+      : generateStarSystems();
   const upgradeLevels = saved?.upgradeLevels ?? { ...ZERO_UPGRADE_LEVELS };
   const viewTierCap = maxUnlockedViewTier(upgradeLevels);
   const initialViewTier = Math.min(
@@ -183,6 +189,7 @@ export const useGameStore = create<GameState>((set, get) => {
     jetBuffEndsAtSimSec: saved?.jetBuffEndsAtSimSec ?? 0,
     incomeEmaMpPerSec: saved?.incomeEmaMpPerSec ?? 0,
     prestigePoints: saved?.prestigePoints ?? 0,
+    lifetimePp: saved?.lifetimePp ?? saved?.prestigePoints ?? 0,
     prestigePerkLevels: saved?.prestigePerkLevels ?? {},
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
@@ -239,7 +246,11 @@ export const useGameStore = create<GameState>((set, get) => {
             ...sys,
             planets: sys.planets.map((p: Planet) => {
               if (p.id !== planetId) return p;
-              return advancePlanetStages(p, PLANET_ACCELERATION_SECONDS);
+              // Ускорение двигает и стадии, и жизнь/цивилизацию (петля «жизнь→дань»).
+              return tickPlanetLife(
+                advancePlanetStages(p, PLANET_ACCELERATION_SECONDS),
+                PLANET_ACCELERATION_SECONDS,
+              );
             }),
           };
         }),
@@ -376,6 +387,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const fresh = generateStarSystems(rs.extraPlanets);
       return {
         prestigePoints: s.prestigePoints + gain,
+        lifetimePp: s.lifetimePp + gain,
         massMp: rs.startMassMp,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         systems: fresh,
@@ -448,6 +460,7 @@ export const useGameStore = create<GameState>((set, get) => {
         incomeEmaMpPerSec: 0,
         pendingOfflineMp: 0,
         prestigePoints: 0,
+        lifetimePp: 0,
         prestigePerkLevels: {},
         mpUpgradeLevels: {},
         achievementsUnlocked: [],
