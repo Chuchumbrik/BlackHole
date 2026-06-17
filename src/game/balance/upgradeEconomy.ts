@@ -12,11 +12,13 @@ export const UPGRADE_COST_MULTIPLIER_PER_LEVEL = 1.53;
  * Мультипликатор за один уровень ветки (мультипликативно по уровням).
  * Сужено относительно ТЗ (+12 % / +18 % …): более жёсткий темп прокачки.
  */
+// Калибровка v0.5.73 (анализ doc 17 — плато дохода): радиус притяжения и диск
+// усилены, чтобы вложение в доход читалось мультипликативно (захват + mpMul).
 export const UPGRADE_PER_LEVEL_FACTOR = {
   horizon: 1.075,
-  gravityRadius: 1.11,
-  diskGlobalMp: 1.045,
-  efficiencyGlobalMp: 1.035,
+  gravityRadius: 1.14,
+  diskGlobalMp: 1.05,
+  efficiencyGlobalMp: 1.04,
   efficiencyPull: 1.022,
 } as const;
 
