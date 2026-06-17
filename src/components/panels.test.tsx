@@ -5,7 +5,7 @@ import { AchievementsPanel } from "./AchievementsPanel";
 import { UpgradesPanel } from "./UpgradesPanel";
 import { PlanetPanel } from "./PlanetPanel";
 import { useGameStore } from "../store/useGameStore";
-import { ZERO_UPGRADE_LEVELS } from "../game/upgrades";
+import { ZERO_UPGRADE_LEVELS, nextUpgradeCostMp } from "../game/upgrades";
 import type { Planet, StarSystem } from "../game/world/types";
 
 const mkPlanet = (): Planet => ({
@@ -84,6 +84,24 @@ describe("UpgradesPanel (UI)", () => {
       screen.getAllByRole("button", { name: /Купить ×10/ }).length,
     ).toBeGreaterThan(0);
     expect(screen.getAllByText(/10 ур\.:/).length).toBeGreaterThan(0);
+  });
+  it("при ×10 и нехватке массы кнопка НЕ блокируется, показывает максимум доступного", () => {
+    // масса ровно на 3 уровня size — при выбранном ×10 должно купиться 3 (макс.)
+    const levels = { ...ZERO_UPGRADE_LEVELS };
+    let mass = 0;
+    const tmp = { ...ZERO_UPGRADE_LEVELS };
+    for (let i = 0; i < 3; i++) {
+      mass += nextUpgradeCostMp(tmp, "size");
+      tmp.size += 1;
+    }
+    useGameStore.setState({ massMp: mass, upgradeLevels: levels, buyMultiplier: 10 });
+    render(<UpgradesPanel />);
+    // кнопка «Купить ×3 (макс.)» есть и активна
+    const btn = screen.getAllByRole("button", { name: /Купить ×3 \(макс\.\)/ })[0];
+    expect(btn).toBeInTheDocument();
+    expect(btn).not.toBeDisabled();
+    // строка цены отражает максимум ×3
+    expect(screen.getAllByText(/Хватает на ×3 \(макс\.\):/).length).toBeGreaterThan(0);
   });
 });
 

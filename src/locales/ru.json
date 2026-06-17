@@ -38,8 +38,9 @@
     "levelShort": "Ур. {{value}}",
     "nextCost": "Следующий уровень: {{value}} MP",
     "bulkCost": "{{count}} ур.: {{value}} MP",
-    "bulkCostCapped": "{{count}} ур. (хватает массы): {{value}} MP",
+    "bulkCostCapped": "Хватает на ×{{count}} (макс.): {{value}} MP",
     "buyN": "Купить ×{{count}}",
+    "buyNMax": "Купить ×{{count}} (макс.)",
     "current": {
       "size": "Сейчас: ×{{mul}} к базовому горизонту; при текущем размере окна горизонт ≈ {{px}} px",
       "gravity": "Сейчас: ×{{mul}} к базовой зоне; радиус ≈ {{px}} px (не меньше горизонта; к краю зоны сила плавно спадает).",

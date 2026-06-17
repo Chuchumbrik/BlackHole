@@ -122,6 +122,8 @@ export function UpgradesPanel() {
           );
           const locked = branchLocked(branch, upgradeLevels);
           const canBuy = plan.count > 0;
+          // массы хватает не на весь множитель — покупаем максимум возможного
+          const capped = canBuy && plan.count < buyMultiplier;
 
           const currentLine =
             branch === "size"
@@ -184,7 +186,7 @@ export function UpgradesPanel() {
                           ).toLocaleString("ru-RU"),
                         })
                       : t(
-                          plan.count < buyMultiplier
+                          capped
                             ? "upgrades.bulkCostCapped"
                             : "upgrades.bulkCost",
                           {
@@ -201,7 +203,9 @@ export function UpgradesPanel() {
                   >
                     {buyMultiplier === 1
                       ? t("upgrades.buy")
-                      : t("upgrades.buyN", { count: Math.max(plan.count, 1) })}
+                      : t(capped ? "upgrades.buyNMax" : "upgrades.buyN", {
+                          count: plan.count,
+                        })}
                   </button>
                 </>
               )}
@@ -217,6 +221,7 @@ export function UpgradesPanel() {
           const maxed = lvl >= up.maxLevel;
           const plan = planMpUpgradePurchase(up, lvl, massMp, buyMultiplier);
           const affordable = plan.count > 0;
+          const capped = affordable && plan.count < buyMultiplier;
           return (
             <li key={up.id}>
               <div className="upgrade-head">
@@ -236,9 +241,13 @@ export function UpgradesPanel() {
                           up,
                           lvl,
                         ).toLocaleString("ru-RU")} MP`
-                      : `${plan.count}${
-                          plan.count < buyMultiplier ? " (хватает массы)" : ""
-                        } ур.: ${plan.totalCost.toLocaleString("ru-RU")} MP`}
+                      : capped
+                        ? `Хватает на ×${plan.count} (макс.): ${plan.totalCost.toLocaleString(
+                            "ru-RU",
+                          )} MP`
+                        : `${plan.count} ур.: ${plan.totalCost.toLocaleString(
+                            "ru-RU",
+                          )} MP`}
                   </p>
                   <button
                     type="button"
@@ -247,7 +256,7 @@ export function UpgradesPanel() {
                   >
                     {buyMultiplier === 1
                       ? "Купить"
-                      : `Купить ×${Math.max(plan.count, 1)}`}
+                      : `Купить ×${plan.count}${capped ? " (макс.)" : ""}`}
                   </button>
                 </>
               )}
