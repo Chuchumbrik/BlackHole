@@ -75,6 +75,19 @@ body,
   min-height: 100dvh;
 }
 
+/* Мягкая виньетка по краям кадра (скрывает прямоугольную «рамку» спавна). */
+.game-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 78% 78% at 50% 50%,
+    transparent 60%,
+    rgba(3, 4, 8, 0.55) 100%
+  );
+}
+
 .game-canvas-host canvas {
   display: block;
   width: 100%;

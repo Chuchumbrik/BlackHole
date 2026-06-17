@@ -17,7 +17,9 @@ export const BASE_GRAVITY_FRACTION = 0.42;
  * На старте (масса ~0) ≈ 1. Усиливает связку «растёшь → возмущаешь орбиты планет».
  */
 export const MASS_HORIZON_SCALE = 2000;
-export const MASS_HORIZON_COEFF = 0.15;
+// 0.15→0.20: рост/убыль горизонта при наборе/трате MP читается заметнее
+// (по фидбеку), оставаясь ≪ масштаба системы.
+export const MASS_HORIZON_COEFF = 0.2;
 
 export function massHorizonMul(massMp: number): number {
   return (

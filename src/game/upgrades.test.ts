@@ -41,8 +41,8 @@ describe("upgrades: горизонт растёт от массы", () => {
   it("massHorizonMul: =1 при 0, монотонно растёт, мягко (лог)", () => {
     expect(massHorizonMul(0)).toBe(1);
     expect(massHorizonMul(20000)).toBeGreaterThan(massHorizonMul(2000));
-    // мягкость: даже при огромной массе множитель остаётся умеренным
-    expect(massHorizonMul(1_000_000)).toBeLessThan(2);
+    // мягкость (лог): даже при огромной массе множитель остаётся умеренным
+    expect(massHorizonMul(1_000_000)).toBeLessThan(3);
   });
   it("computeRadiiPx: горизонт с массой больше, чем без", () => {
     const r0 = computeRadiiPx(800, ZERO_UPGRADE_LEVELS, 0).horizon;
