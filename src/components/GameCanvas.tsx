@@ -291,14 +291,39 @@ function paintHole(
 }
 
 
-function paintMainStar(g: Graphics, layout: SimLayout): void {
+/** Палитра звезды по спектральному классу: [ядро, свечение]. */
+const STAR_CLASS_COLORS: Record<string, [number, number]> = {
+  F: [0xe6eeff, 0x9bbcff],
+  G: [0xfff4cf, 0xfbbf24],
+  K: [0xffd9a0, 0xf59e0b],
+  M: [0xffb38a, 0xef6b3c],
+};
+
+function paintMainStar(
+  g: Graphics,
+  layout: SimLayout,
+  starClass: string,
+  timeSec: number,
+): void {
   g.clear();
   const minS = Math.min(layout.width, layout.height);
   const r = Math.max(9, minS * STAR_DISPLAY_RADIUS_FRACTION);
-  g.circle(layout.star.x, layout.star.y, r * 1.7);
-  g.fill({ color: 0xfbbf24, alpha: 0.2 });
-  g.circle(layout.star.x, layout.star.y, r);
-  g.fill({ color: 0xf59e0b, alpha: 0.95 });
+  const [core, glow] =
+    STAR_CLASS_COLORS[starClass] ?? STAR_CLASS_COLORS.G;
+  const pulse = 0.5 + 0.5 * Math.sin(timeSec * 1.6);
+  const { x, y } = layout.star;
+  // Корона: несколько затухающих слоёв + лёгкий пульс.
+  g.circle(x, y, r * (2.6 + pulse * 0.3));
+  g.fill({ color: glow, alpha: 0.06 + pulse * 0.03 });
+  g.circle(x, y, r * 1.9);
+  g.fill({ color: glow, alpha: 0.12 });
+  g.circle(x, y, r * 1.35);
+  g.fill({ color: glow, alpha: 0.3 });
+  // Тело и горячий ободок.
+  g.circle(x, y, r);
+  g.fill({ color: glow, alpha: 0.96 });
+  g.circle(x, y, r * 0.72);
+  g.fill({ color: core, alpha: 0.95 });
 }
 
 function paintPlanetSoiRings(
@@ -353,13 +378,48 @@ function paintPlanetSoiRings(
     }
 
     const rgb = fillRgbById.get(planet.id) ?? planetPaletteRgb(planet);
-    g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
-    g.fill({ color: rgbToFill(rgb), alpha: 0.94 });
-    g.circle(s.x, s.y, Math.max(2.3, s.surfaceRadius));
+    const sr = Math.max(2.3, s.surfaceRadius);
+    // Направление на звезду (для дня/ночи и огней на тёмной стороне).
+    const dx = s.x - layout.star.x;
+    const dy = s.y - layout.star.y;
+    const dl = Math.hypot(dx, dy) || 1;
+    const nx = dx / dl; // от звезды к планете → тёмная сторона
+    const ny = dy / dl;
+
+    // Атмосферное свечение (если есть атмосфера).
+    if (planet.atmosphere > 28) {
+      g.circle(s.x, s.y, sr * 1.42);
+      g.fill({
+        color: planet.hydrosphere > 45 ? 0x7ec8ff : 0xa8e6c4,
+        alpha: 0.1 + planet.atmosphere / 700,
+      });
+    }
+    // Тело планеты.
+    g.circle(s.x, s.y, sr);
+    g.fill({ color: rgbToFill(rgb), alpha: 0.97 });
+    // Освещённая сторона (блик к звезде) и затенённая ночная.
+    g.circle(s.x - nx * sr * 0.32, s.y - ny * sr * 0.32, sr * 0.62);
+    g.fill({ color: 0xffffff, alpha: 0.14 });
+    g.circle(s.x + nx * sr * 0.34, s.y + ny * sr * 0.34, sr * 0.62);
+    g.fill({ color: 0x05070d, alpha: 0.42 });
+    // Огни цивилизации на ночной стороне.
+    if (planet.lifeBorn && planet.civLevel > 0 && sr > 3) {
+      const lights = 2 + planet.civLevel * 2;
+      for (let li = 0; li < lights; li++) {
+        const ang = (li / lights) * Math.PI * 2 + planetIndex;
+        const rad = sr * (0.25 + 0.5 * (((li * 37) % 100) / 100));
+        const lx = s.x + nx * sr * 0.4 + Math.cos(ang) * rad * 0.55;
+        const ly = s.y + ny * sr * 0.4 + Math.sin(ang) * rad * 0.55;
+        g.circle(lx, ly, Math.max(0.5, sr * 0.06));
+        g.fill({ color: 0xffe08a, alpha: 0.85 });
+      }
+    }
+    // Обводка.
+    g.circle(s.x, s.y, sr);
     g.stroke({
       width: hot ? 1.55 : 1.1,
       color: 0x0f172a,
-      alpha: hot ? 0.5 : 0.35,
+      alpha: hot ? 0.5 : 0.3,
     });
   });
 }
@@ -733,7 +793,7 @@ export function GameCanvas() {
           jetEnd > 0 && lastSimTimeSecForPaint < jetEnd;
         paintNebula(nebula, layout.width, layout.height);
         paintStars(stars, layout.width, layout.height, performance.now() / 1000);
-        paintMainStar(mainStar, layout);
+        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000);
         paintPlanetSoiRings(
           planetSoi,
           layout,
@@ -1392,7 +1452,7 @@ export function GameCanvas() {
           jetBuffActive,
           simTimeSec,
         );
-        paintMainStar(mainStar, layout);
+        paintMainStar(mainStar, layout, activeSystem?.starClass ?? "G", performance.now() / 1000);
         paintPlanetSoiRings(
           planetSoi,
           layout,
