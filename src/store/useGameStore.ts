@@ -10,7 +10,13 @@ import {
   ENERGY_REGEN_PER_SEC,
   ENERGY_TAP_COST,
   MAX_TAPS_PER_MIN,
+  SUPERNOVA_ENERGY_COST,
+  SUPERNOVA_COOLDOWN_SEC,
+  SUPERNOVA_BURST,
+  SUPERNOVA_BUFF_SEC,
+  SUPERNOVA_UNLOCK_PRESTIGE,
 } from "../game/balance";
+import { isEnvironmentBranchUnlocked } from "../game/environment";
 import {
   ZERO_UPGRADE_LEVELS,
   isViewTierUnlocked,
@@ -100,6 +106,12 @@ type GameState = {
   energy: number;
   /** Метки времени тапов (мс эпохи) за последнюю минуту — лимит/мин. Не сохраняется. */
   tapTimestamps: number[];
+  /** Игровое время окончания баффа сверхновой (×3 MP); 0 — нет. */
+  supernovaBuffEndsAtSimSec: number;
+  /** Реальное время (мс эпохи), когда сверхнова снова доступна (перезарядка). Не сохраняется. */
+  supernovaReadyAtMs: number;
+  /** Отложенный всплеск спавна от сверхновой — читает и обнуляет игровой цикл. Не сохраняется. */
+  pendingSupernovaBurst: number;
   /** Открытые достижения (постоянные, переживают сжатие). */
   achievementsUnlocked: string[];
   /** Имя только что открытого достижения для тоста; null — нет. */
@@ -143,6 +155,10 @@ type GameState = {
   regenEnergy: (realDtSec: number) => void;
   /** Попытаться пустить волну притяжения: списать Energy с учётом лимита/мин. */
   tryCastPullWave: () => boolean;
+  /** Запустить сверхновую (узел №11): всплеск + ×3 MP. true — сработало. */
+  triggerSupernova: () => boolean;
+  /** Прочитать и обнулить отложенный всплеск сверхновой (из игрового цикла). */
+  consumeSupernovaBurst: () => number;
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
   buyMultiplier: number;
   setBuyMultiplier: (m: number) => void;
@@ -183,6 +199,7 @@ function buildSaveData(s: GameState): SaveData {
     mpUpgradeLevels: s.mpUpgradeLevels,
     environmentLevels: s.environmentLevels,
     energy: s.energy,
+    supernovaBuffEndsAtSimSec: s.supernovaBuffEndsAtSimSec,
     achievementsUnlocked: s.achievementsUnlocked,
   };
 }
@@ -247,6 +264,9 @@ export const useGameStore = create<GameState>((set, get) => {
     environmentLevels: saved?.environmentLevels ?? {},
     energy: Math.max(0, Math.min(ENERGY_MAX, saved?.energy ?? ENERGY_MAX)),
     tapTimestamps: [],
+    supernovaBuffEndsAtSimSec: saved?.supernovaBuffEndsAtSimSec ?? 0,
+    supernovaReadyAtMs: 0,
+    pendingSupernovaBurst: 0,
     achievementsUnlocked: saved?.achievementsUnlocked ?? [],
     achievementToast: null,
     activeEventName: null,
@@ -484,6 +504,9 @@ export const useGameStore = create<GameState>((set, get) => {
         environmentLevels: {},
         energy: ENERGY_MAX,
         tapTimestamps: [],
+        supernovaBuffEndsAtSimSec: 0,
+        supernovaReadyAtMs: 0,
+        pendingSupernovaBurst: 0,
         mpGainFloaters: [],
       };
     }),
@@ -560,6 +583,27 @@ export const useGameStore = create<GameState>((set, get) => {
     set({ energy: s.energy - ENERGY_TAP_COST, tapTimestamps: [...recent, now] });
     return true;
   },
+  triggerSupernova: () => {
+    const s = get();
+    // Узел №11: открыт после ветки B и первого сжатия (как в каноне).
+    if (!isEnvironmentBranchUnlocked(levelSum(s.upgradeLevels))) return false;
+    if (s.prestigeCount < SUPERNOVA_UNLOCK_PRESTIGE) return false;
+    const now = Date.now();
+    if (now < s.supernovaReadyAtMs) return false;
+    if (s.energy < SUPERNOVA_ENERGY_COST) return false;
+    set({
+      energy: s.energy - SUPERNOVA_ENERGY_COST,
+      supernovaReadyAtMs: now + SUPERNOVA_COOLDOWN_SEC * 1000,
+      supernovaBuffEndsAtSimSec: s.gameTimeSec + SUPERNOVA_BUFF_SEC,
+      pendingSupernovaBurst: s.pendingSupernovaBurst + SUPERNOVA_BURST,
+    });
+    return true;
+  },
+  consumeSupernovaBurst: () => {
+    const n = get().pendingSupernovaBurst;
+    if (n > 0) set({ pendingSupernovaBurst: 0 });
+    return n;
+  },
   saveNow: () => writeSave(buildSaveData(get())),
   resetProgress: () =>
     set(() => {
@@ -589,6 +633,9 @@ export const useGameStore = create<GameState>((set, get) => {
         environmentLevels: {},
         energy: ENERGY_MAX,
         tapTimestamps: [],
+        supernovaBuffEndsAtSimSec: 0,
+        supernovaReadyAtMs: 0,
+        pendingSupernovaBurst: 0,
         achievementsUnlocked: [],
         achievementToast: null,
         mpGainFloaters: [],

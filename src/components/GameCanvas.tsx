@@ -31,6 +31,7 @@ import {
   USER_ZOOM_MAX,
   USER_ZOOM_MIN,
   WAVE_PULL_SPEED,
+  SUPERNOVA_MP_MULT,
 } from "../game/balance";
 import {
   advanceSpawnAccumulator,
@@ -1227,6 +1228,18 @@ export function GameCanvas() {
         const jetBuffActive =
           jetBuffEndsAt > 0 && simTimeSec < jetBuffEndsAt;
 
+        // Сверхнова (узел №11): отложенный всплеск спавна + временный ×3 MP.
+        const snBurst = useGameStore.getState().consumeSupernovaBurst();
+        if (snBurst > 0) {
+          objects = trySpawn(objects, layout, snBurst, {
+            shipsUnlocked: areShipsUnlocked(levels),
+            upgradeLevels: levels,
+          });
+        }
+        const snBuffEndsAt = useGameStore.getState().supernovaBuffEndsAtSimSec;
+        const supernovaMpMul =
+          snBuffEndsAt > 0 && simTimeSec < snBuffEndsAt ? SUPERNOVA_MP_MULT : 1;
+
         const perkLevels = useGameStore.getState().prestigePerkLevels;
         const pmods = prestigeModifiers(perkLevels);
         const runStart = prestigeRunStart(perkLevels);
@@ -1288,7 +1301,8 @@ export function GameCanvas() {
             mpu.mpMul *
             envMods.mpMul *
             achMul *
-            eventMpMul,
+            eventMpMul *
+            supernovaMpMul,
         );
         const shipsUnlocked = areShipsUnlocked(levels);
 

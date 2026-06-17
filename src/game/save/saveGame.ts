@@ -49,6 +49,8 @@ export type SaveData = {
   environmentLevels?: Record<string, number>;
   /** Запас Energy (опционально; на загрузке клампится к [0, ENERGY_MAX]). */
   energy?: number;
+  /** Игровое время окончания баффа сверхновой (опционально). */
+  supernovaBuffEndsAtSimSec?: number;
   /** Открытые достижения (опционально; постоянные, переживают сжатие). */
   achievementsUnlocked?: string[];
 };

@@ -4,7 +4,12 @@ import { nextUpgradeCostMp, ZERO_UPGRADE_LEVELS } from "../game/upgrades";
 import { MP_UPGRADES, mpUpgradeCost } from "../game/mpUpgrades";
 import { PRESTIGE_PERKS, perkCost } from "../game/prestigePerks";
 import { PRESTIGE_SPENT_PER_PP } from "../game/prestige";
-import { ENERGY_MAX, ENERGY_TAP_COST, MAX_TAPS_PER_MIN } from "../game/balance";
+import {
+  ENERGY_MAX,
+  ENERGY_TAP_COST,
+  MAX_TAPS_PER_MIN,
+  SUPERNOVA_ENERGY_COST,
+} from "../game/balance";
 import type { Planet, StarSystem } from "../game/world/types";
 
 /** Потратить ровно 4×порог → 2 PP (floor(sqrt(4))), независимо от калибровки. */
@@ -172,6 +177,48 @@ describe("store: Energy и волна притяжения", () => {
     expect(useGameStore.getState().tryCastPullWave()).toBe(false);
     // Energy не списана, т.к. упёрлись в лимит/мин:
     expect(useGameStore.getState().energy).toBe(ENERGY_MAX);
+  });
+});
+
+describe("store: сверхновая (узел №11)", () => {
+  const armSupernova = () =>
+    useGameStore.setState({
+      upgradeLevels: { ...ZERO_UPGRADE_LEVELS, size: 20 }, // сумма ≥ 18 → ветка B открыта
+      prestigeCount: 1,
+      energy: ENERGY_MAX,
+      supernovaReadyAtMs: 0,
+      supernovaBuffEndsAtSimSec: 0,
+      pendingSupernovaBurst: 0,
+      gameTimeSec: 0,
+    });
+  it("не запускается без разблокировки ветки B", () => {
+    armSupernova();
+    useGameStore.setState({ upgradeLevels: { ...ZERO_UPGRADE_LEVELS } }); // сумма 0
+    expect(useGameStore.getState().triggerSupernova()).toBe(false);
+  });
+  it("не запускается без сжатия", () => {
+    armSupernova();
+    useGameStore.setState({ prestigeCount: 0 });
+    expect(useGameStore.getState().triggerSupernova()).toBe(false);
+  });
+  it("запускается: списывает Energy, ставит бафф и всплеск, уходит в перезарядку", () => {
+    armSupernova();
+    expect(useGameStore.getState().triggerSupernova()).toBe(true);
+    const s = useGameStore.getState();
+    expect(s.energy).toBe(ENERGY_MAX - SUPERNOVA_ENERGY_COST);
+    expect(s.supernovaBuffEndsAtSimSec).toBeGreaterThan(0);
+    expect(s.pendingSupernovaBurst).toBeGreaterThan(0);
+    expect(s.supernovaReadyAtMs).toBeGreaterThan(Date.now());
+    // повторно сразу — нельзя (перезарядка)
+    expect(useGameStore.getState().triggerSupernova()).toBe(false);
+  });
+  it("consumeSupernovaBurst отдаёт всплеск и обнуляет", () => {
+    armSupernova();
+    useGameStore.getState().triggerSupernova();
+    const burst = useGameStore.getState().consumeSupernovaBurst();
+    expect(burst).toBeGreaterThan(0);
+    expect(useGameStore.getState().pendingSupernovaBurst).toBe(0);
+    expect(useGameStore.getState().consumeSupernovaBurst()).toBe(0);
   });
 });
 

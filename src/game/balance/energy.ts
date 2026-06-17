@@ -17,3 +17,16 @@ export const ENERGY_TAP_COST = 25;
 export const MAX_TAPS_PER_MIN = 30;
 /** Скорость импульса, придаваемого телам волной (к дыре). */
 export const WAVE_PULL_SPEED = 90;
+
+/**
+ * Сверхновая (узел №11 ветки B) — активируемая способность: всплеск спавна +
+ * временный ×3 MP. Дорогая по Energy, с длинной перезарядкой. Открывается после
+ * первого сжатия (как в каноне). «Мини-дыра» из ТЗ — упрощена до всплеска+баффа
+ * (отдельный гравитационный источник — отдельная итерация).
+ */
+export const SUPERNOVA_ENERGY_COST = 80;
+export const SUPERNOVA_COOLDOWN_SEC = 120; // реального времени
+export const SUPERNOVA_BURST = 40; // тел во всплеске
+export const SUPERNOVA_MP_MULT = 3; // временный множитель MP
+export const SUPERNOVA_BUFF_SEC = 30; // длительность баффа (игрового времени)
+export const SUPERNOVA_UNLOCK_PRESTIGE = 1; // открыта после N сжатий

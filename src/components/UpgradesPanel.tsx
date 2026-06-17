@@ -24,6 +24,11 @@ import {
   isEnvironmentUpgradeUnlocked,
   planEnvironmentPurchase,
 } from "../game/environment";
+import {
+  SUPERNOVA_ENERGY_COST,
+  SUPERNOVA_COOLDOWN_SEC,
+  SUPERNOVA_UNLOCK_PRESTIGE,
+} from "../game/balance";
 
 function formatMultiplier(x: number): string {
   return x.toLocaleString(undefined, {
@@ -70,6 +75,10 @@ export function UpgradesPanel() {
   const buyMpUpgrade = useGameStore((s) => s.buyMpUpgrade);
   const environmentLevels = useGameStore((s) => s.environmentLevels);
   const buyEnvironmentUpgrade = useGameStore((s) => s.buyEnvironmentUpgrade);
+  const energy = useGameStore((s) => s.energy);
+  const supernovaReadyAtMs = useGameStore((s) => s.supernovaReadyAtMs);
+  const prestigeCount = useGameStore((s) => s.prestigeCount);
+  const triggerSupernova = useGameStore((s) => s.triggerSupernova);
   const buyMultiplier = useGameStore((s) => s.buyMultiplier);
   const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
   const sum = levelSum(upgradeLevels);
@@ -336,6 +345,54 @@ export function UpgradesPanel() {
               );
             })}
           </ul>
+
+          {prestigeCount >= SUPERNOVA_UNLOCK_PRESTIGE &&
+            (() => {
+              const cooldownLeftSec = Math.max(
+                0,
+                Math.ceil((supernovaReadyAtMs - Date.now()) / 1000),
+              );
+              const onCooldown = cooldownLeftSec > 0;
+              const canFire = energy >= SUPERNOVA_ENERGY_COST && !onCooldown;
+              return (
+                <ul className="upgrades-card-list">
+                  <li className="upgrades-card">
+                    <div className="upgrades-card-main">
+                      <div className="upgrades-card-head">
+                        <h3 className="upgrades-card-name">Сверхновая ☀</h3>
+                      </div>
+                      <p className="upgrades-card-effect">
+                        Активируемая способность: мощный всплеск материи + ×3 к
+                        добыче MP на время.
+                      </p>
+                      <p className="upgrades-card-risk">
+                        Стоит {SUPERNOVA_ENERGY_COST} импульса · перезарядка{" "}
+                        {Math.round(SUPERNOVA_COOLDOWN_SEC / 60)} мин
+                      </p>
+                    </div>
+                    <div className="upgrades-card-action">
+                      <p className="upgrades-card-cost">
+                        {onCooldown
+                          ? `Перезарядка: ${cooldownLeftSec} с`
+                          : energy < SUPERNOVA_ENERGY_COST
+                            ? `Нужно ${SUPERNOVA_ENERGY_COST} импульса`
+                            : "Готова"}
+                      </p>
+                      <button
+                        type="button"
+                        className="upgrades-buy"
+                        disabled={!canFire}
+                        onClick={() => {
+                          if (triggerSupernova()) playPurchase();
+                        }}
+                      >
+                        Запустить
+                      </button>
+                    </div>
+                  </li>
+                </ul>
+              );
+            })()}
         </>
       )}
     </div>
