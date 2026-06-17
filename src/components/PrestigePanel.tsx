@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
+import { playPrestige } from "../game/audio/sound";
 import { prestigePpGain, PRESTIGE_SPENT_PER_PP } from "../game/prestige";
 import { PRESTIGE_PERKS, perkCost, planPerkPurchase } from "../game/prestigePerks";
 import {
@@ -138,6 +139,7 @@ export function PrestigePanel() {
                     className="prestige-btn"
                     onClick={() => {
                       destroyUniverse();
+                      playPrestige();
                       setConfirmingDestroy(false);
                     }}
                   >

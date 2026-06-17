@@ -1,6 +1,8 @@
 import { useGameStore } from "../store/useGameStore";
 import { levelSum } from "../game/upgrades";
 import { PLANET_CIV_MAX_LEVEL } from "../game/balance";
+import { ENTROPY_THRESHOLD, ultimateMpMul } from "../game/endgame";
+import { ANOMALY_DEFS } from "../game/world/anomalies";
 
 function fmt(n: number): string {
   return Math.floor(n).toLocaleString("ru-RU");
@@ -29,12 +31,18 @@ export function StatsPanel() {
   const upgradeLevels = useGameStore((s) => s.upgradeLevels);
   const incomeEma = useGameStore((s) => s.incomeEmaMpPerSec);
   const systems = useGameStore((s) => s.systems);
+  const activeSystemId = useGameStore((s) => s.activeSystemId);
   const achievementsUnlocked = useGameStore((s) => s.achievementsUnlocked);
+  const starsSwallowed = useGameStore((s) => s.starsSwallowed);
+  const universeEntropy = useGameStore((s) => s.universeEntropy);
+  const ultimatePoints = useGameStore((s) => s.ultimatePoints);
+  const newGamePlusCount = useGameStore((s) => s.newGamePlusCount);
 
   const planets = systems.flatMap((sys) => sys.planets);
   const planetsWithLife = planets.filter((p) => p.lifeBorn).length;
   const civPlanets = planets.filter((p) => p.civLevel > 0).length;
   const maxCiv = planets.reduce((m, p) => Math.max(m, p.civLevel), 0);
+  const activeAnomaly = systems.find((s) => s.id === activeSystemId)?.anomaly;
 
   const groups: { title: string; rows: [string, string][] }[] = [
     {
@@ -69,6 +77,24 @@ export function StatsPanel() {
         ["Планет", fmt(planets.length)],
         ["Планет с жизнью", fmt(planetsWithLife)],
         ["С цивилизацией", `${fmt(civPlanets)} (макс. тир ${maxCiv}/${PLANET_CIV_MAX_LEVEL})`],
+      ],
+    },
+    {
+      title: "Эндшпиль и космос",
+      rows: [
+        ["Поглощено звёзд", fmt(starsSwallowed)],
+        ["Энтропия вселенной", `${fmt(universeEntropy)}/${ENTROPY_THRESHOLD}`],
+        [
+          "Ultimate Points",
+          ultimatePoints > 0
+            ? `${fmt(ultimatePoints)} (доход ×${ultimateMpMul(ultimatePoints).toFixed(2)})`
+            : "0",
+        ],
+        ["New Game+", fmt(newGamePlusCount)],
+        [
+          "Аномалия системы",
+          activeAnomaly ? ANOMALY_DEFS[activeAnomaly].name : "—",
+        ],
       ],
     },
     {

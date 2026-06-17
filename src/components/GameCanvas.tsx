@@ -109,7 +109,7 @@ import {
 import type { Rgb } from "../game/world/planetPalette";
 import { buildStarHoverText } from "../game/world/starHoverText";
 import type { Planet } from "../game/world/types";
-import { playAbsorb } from "../game/audio/sound";
+import { playAbsorb, playPrestige } from "../game/audio/sound";
 import { useGameStore } from "../store/useGameStore";
 
 function smoothPlanetFillColors(
@@ -1274,6 +1274,7 @@ export function GameCanvas() {
           );
           if (dBhStar < layout.horizonRadius) {
             useGameStore.getState().consumeStar(activeSystem.id);
+            playPrestige(); // глубокий свелл на поглощение звезды
           }
         }
         // Поглощённая звезда не держит орбиты (масса 0) — планеты падают в дыру.
