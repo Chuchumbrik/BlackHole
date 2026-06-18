@@ -888,6 +888,42 @@ body,
     flex-wrap: wrap;
     max-width: calc(100vw - 1.5rem);
   }
+  /* Mobile-compact: шапка плотнее, бар импульса не растягивается. */
+  .app-header {
+    gap: 0.4rem;
+    padding-bottom: 0.4rem;
+  }
+  .app-energy {
+    min-width: 96px;
+  }
+  /* 8 вкладок не влезают в ряд — единая горизонтальная прокрутка (свайп),
+     вместо переноса в несколько строк (экономия высоты). */
+  .app-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 0.6rem;
+  }
+  .app-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .app-nav button {
+    flex: 0 0 auto;
+    min-height: 40px;
+  }
+  /* Тач-цели кратности/времени и кнопок покупки — крупнее. */
+  .buy-mult button,
+  .time-scale-controls button,
+  .view-tier-controls button {
+    min-height: 38px;
+    min-width: 38px;
+  }
+  .upgrades-buy,
+  .planet-accelerate,
+  .planet-action-btn {
+    min-height: 42px;
+  }
 }
 
 /* Окно оффлайн-дохода «пока вас не было» */
