@@ -250,6 +250,7 @@ function App() {
           >
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
             <span className="app-mass-hint"> {t("app.massHint")}</span>
+            <MpGainFloaters />
           </div>
           <div
             className="app-energy"
@@ -342,7 +343,6 @@ function App() {
         </div>
       )}
 
-      <MpGainFloaters />
       <FeedbackButton />
     </div>
   );

@@ -19,6 +19,7 @@ const ZERO: AchievementCtx = {
   incomeMpPerSec: 0,
   planetsWithLife: 0,
   maxCivLevel: 0,
+  starsSwallowed: 0,
 };
 
 describe("achievements: каталог", () => {
@@ -56,11 +57,12 @@ describe("achievements: newlyUnlocked (многоуровневые)", () => {
     expect(newlyUnlocked(ZERO, [])).toHaveLength(0);
   });
   it("порог массы открывает первый тир массы (mass_1)", () => {
-    const fresh = newlyUnlocked({ ...ZERO, massMp: 1000 }, []);
+    // ×2 сложность: mass_1 теперь при 2000 (было 1000).
+    const fresh = newlyUnlocked({ ...ZERO, massMp: 2000 }, []);
     expect(fresh.map((a) => a.id)).toContain("mass_1");
   });
   it("уже открытые не возвращаются повторно", () => {
-    const fresh = newlyUnlocked({ ...ZERO, massMp: 1000 }, ["mass_1"]);
+    const fresh = newlyUnlocked({ ...ZERO, massMp: 2000 }, ["mass_1"]);
     expect(fresh.map((a) => a.id)).not.toContain("mass_1");
   });
   it("многоуровневость: высокий порог открывает несколько тиров сразу", () => {
@@ -72,7 +74,8 @@ describe("achievements: newlyUnlocked (многоуровневые)", () => {
   it("первое сжатие (pp_1) завязано на PP-контекст", () => {
     expect(newlyUnlocked({ ...ZERO, prestigePoints: 0 }, []).map((a) => a.id))
       .not.toContain("pp_1");
-    expect(newlyUnlocked({ ...ZERO, prestigePoints: 1 }, []).map((a) => a.id))
+    // ×2 сложность: pp_1 теперь при 2 PP (было 1).
+    expect(newlyUnlocked({ ...ZERO, prestigePoints: 2 }, []).map((a) => a.id))
       .toContain("pp_1");
   });
   it("жизнь и цивилизация — по своим показателям", () => {

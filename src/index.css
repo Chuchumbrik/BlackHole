@@ -722,6 +722,7 @@ body,
 }
 
 .app-mass {
+  position: relative;
   font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   padding: 0.35rem 0.65rem;
@@ -803,19 +804,21 @@ body,
 }
 
 .mp-gain-floater-layer {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 0;
   z-index: 6;
   pointer-events: none;
-  overflow: hidden;
 }
 
-/* Компактный «+N MP» у счётчика массы (шапка справа): короткий подъём и
-   затухание, без пролёта через весь экран. */
+/* Компактный «+N MP» ПРЯМО под счётчиком массы (рендерится внутри .app-mass):
+   короткий подъём и затухание у самого счётчика, без пролёта через экран. */
 .mp-gain-floater {
   position: absolute;
-  top: calc(4.1rem + env(safe-area-inset-top, 0px));
-  right: max(1rem, env(safe-area-inset-right, 0px));
+  top: 0.25rem;
+  right: 0.2rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: clamp(0.85rem, 2.2vw, 1rem);

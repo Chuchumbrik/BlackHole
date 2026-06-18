@@ -32,6 +32,7 @@ import {
   type JournalEntry,
 } from "../game/journal";
 import { rollCritEvent } from "../game/world/critEvents";
+import { ACHIEVEMENTS } from "../game/achievements";
 import {
   ADV_UPGRADES,
   advancedModifiers,
@@ -668,9 +669,15 @@ export const useGameStore = create<GameState>((set, get) => {
     set((s) => {
       if (s.achievementsUnlocked.includes(id)) return s;
       const line = loreOnAchievement(name);
+      const def = ACHIEVEMENTS.find((a) => a.id === id);
+      const pct = def ? Math.round((def.bonusMpMul - 1) * 100) : 0;
+      // «Что дало»: имя + бонус дохода + краткое условие.
+      const toast =
+        (pct > 0 ? `${name} · +${pct}% MP` : name) +
+        (def ? ` — ${def.desc}` : "");
       return {
         achievementsUnlocked: [...s.achievementsUnlocked, id],
-        achievementToast: name,
+        achievementToast: toast,
         journalEntries: prependJournal(
           s.journalEntries,
           s.gameTimeSec,
