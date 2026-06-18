@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useGameStore } from "../store/useGameStore";
 import { isMuted, setMuted, resumeAudio, playPurchase } from "../game/audio/sound";
+
+const LANG_KEY = "cbh:lang";
 
 const APP_VERSION = __APP_VERSION__;
 
@@ -9,12 +12,24 @@ const APP_VERSION = __APP_VERSION__;
  * Сброс — за двухшаговым подтверждением (необратимое действие, чистит сейв).
  */
 export function SettingsPanel() {
+  const { i18n } = useTranslation();
   const saveNow = useGameStore((s) => s.saveNow);
   const resetProgress = useGameStore((s) => s.resetProgress);
   const setTab = useGameStore((s) => s.setTab);
   const [confirmingReset, setConfirmingReset] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
   const [muted, setMutedState] = useState(isMuted());
+  const [lang, setLangState] = useState(i18n.language?.startsWith("en") ? "en" : "ru");
+
+  const setLang = (lng: "ru" | "en") => {
+    void i18n.changeLanguage(lng);
+    setLangState(lng);
+    try {
+      localStorage.setItem(LANG_KEY, lng);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const onToggleSound = () => {
     const next = !muted;
@@ -51,6 +66,30 @@ export function SettingsPanel() {
         <button type="button" className="settings-btn" onClick={onSave}>
           {savedFlash ? "Сохранено ✓" : "Сохранить сейчас"}
         </button>
+      </section>
+
+      <section className="settings-section">
+        <h3 className="settings-section-title">Язык / Language</h3>
+        <p className="settings-hint">
+          Переключение языка интерфейса. Часть текстов пока только на русском —
+          перевод дополняется.
+        </p>
+        <div className="settings-lang">
+          <button
+            type="button"
+            className={lang === "ru" ? "settings-btn is-active" : "settings-btn settings-btn-ghost"}
+            onClick={() => setLang("ru")}
+          >
+            Русский
+          </button>
+          <button
+            type="button"
+            className={lang === "en" ? "settings-btn is-active" : "settings-btn settings-btn-ghost"}
+            onClick={() => setLang("en")}
+          >
+            English
+          </button>
+        </div>
       </section>
 
       <section className="settings-section">

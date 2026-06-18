@@ -76,6 +76,7 @@ import type { Planet, StarSystem } from "../game/world/types";
 type TabId =
   | "game"
   | "upgrades"
+  | "blackhole"
   | "planet"
   | "prestige"
   | "stats"

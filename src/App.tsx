@@ -6,6 +6,7 @@ import { ViewScaleControls } from "./components/ViewScaleControls";
 import { MpGainFloaters } from "./components/MpGainFloaters";
 import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
+import { BlackHolePanel } from "./components/BlackHolePanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
 import { JournalPanel } from "./components/JournalPanel";
@@ -31,6 +32,7 @@ const CTA_SEEN_KEY = "cbh:onboardingCtaSeen";
 const TABS = [
   { id: "game" as const, labelKey: "app.tabs.game", hint: "Игровое поле: дыра поглощает материю системы", unlocked: () => true },
   { id: "upgrades" as const, labelKey: "app.tabs.upgrades", hint: "Прокачка чёрной дыры за MP", unlocked: () => true },
+  { id: "blackhole" as const, labelKey: "app.tabs.blackhole", hint: "Характеристики чёрной дыры в реальном времени", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)", unlocked: (c: TabUnlockCtx) => c.levelSum >= 5 || c.prestigeCount > 0 },
   { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Все показатели игры", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
@@ -48,6 +50,7 @@ type TabUnlockCtx = {
 /** Класс-модификатор оверлея по вкладке (для специфичных стилей панели). */
 const PANEL_OVERLAY_CLASS: Record<string, string> = {
   upgrades: "app-panel-upgrades",
+  blackhole: "app-panel-stats",
   planet: "app-panel-planet",
   prestige: "app-panel-prestige",
   stats: "app-panel-stats",
@@ -201,6 +204,7 @@ function App() {
             ✕
           </button>
           {activeTab === "upgrades" && <UpgradesPanel />}
+          {activeTab === "blackhole" && <BlackHolePanel />}
           {activeTab === "planet" && <PlanetPanel />}
           {activeTab === "prestige" && <PrestigePanel />}
           {activeTab === "stats" && <StatsPanel />}
