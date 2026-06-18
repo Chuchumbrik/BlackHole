@@ -62,10 +62,11 @@ body,
   pointer-events: auto;
 }
 
-/* Фон-космос за боковыми модалками (виден, но не кликается вне игровой вкладки). */
+/* Космос за боковой панелью — виден И интерактивен (зум/пан/тап остаются
+   доступны при открытой панели; панель не затемняет и не блокирует поле). */
 .game-canvas-wrap.is-backdrop {
   visibility: visible;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .game-canvas-host {
@@ -196,27 +197,18 @@ body,
 }
 
 /* Полупрозрачный бэкдроп: космос виден позади, клик закрывает панель. */
-.app-panel-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: rgba(3, 5, 10, 0.4);
-  backdrop-filter: blur(1.5px);
-  pointer-events: auto;
-}
-
 /* Мобайл: панель — нижний лист (не на весь экран), сверху виден космос. */
 .app-panel-overlay {
-  position: absolute;
+  position: fixed;
   inset: auto 0 0 0;
-  z-index: 2;
-  max-height: 86vh;
+  z-index: 8;
+  max-height: 78vh;
   overflow: auto;
-  padding: 1.6rem 1rem 1.5rem;
+  padding: 1.7rem 1rem 1.5rem;
   background: linear-gradient(
     180deg,
-    rgba(16, 11, 26, 0.98) 0%,
-    rgba(10, 7, 16, 0.98) 100%
+    rgba(16, 11, 26, 0.97) 0%,
+    rgba(10, 7, 16, 0.97) 100%
   );
   border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
@@ -224,48 +216,43 @@ body,
   pointer-events: auto;
 }
 
-/* Большие экраны: панель — правый дровер, космос остаётся виден слева. */
+/* Большие экраны: ШИРОКИЙ правый дровер НИЖЕ нав-бара — не перекрывает меню,
+   не затемняет космос (он остаётся слева и интерактивен). */
 @media (min-width: 980px) {
   .app-panel-overlay {
-    inset: 0 0 0 auto;
+    inset: 5.4rem 0 0 auto;
     max-height: none;
-    width: min(480px, 42vw);
-    padding: 5.25rem 1.5rem 1.5rem;
-    border-top: none;
-    border-radius: 0;
+    width: min(640px, 46vw);
+    padding: 1.4rem 1.6rem 1.6rem;
+    border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
-    box-shadow: -24px 0 64px rgba(0, 0, 0, 0.55);
+    border-radius: 14px 0 0 0;
+    box-shadow: -24px 0 64px rgba(0, 0, 0, 0.5);
   }
 }
 
-/* Кнопка закрытия панели (✕) — всегда доступна, не нужно жать вкладку. */
+/* Кнопка закрытия панели (✕) — теперь панель НАД интерфейсом, ✕ всегда кликается. */
 .app-panel-close {
   position: absolute;
-  top: 0.6rem;
+  top: 0.55rem;
   right: 0.7rem;
   z-index: 3;
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
 }
 .app-panel-close:hover {
-  background: rgba(155, 126, 217, 0.25);
+  background: rgba(155, 126, 217, 0.3);
   border-color: rgba(155, 126, 217, 0.5);
-}
-@media (min-width: 980px) {
-  .app-panel-close {
-    top: 5.35rem;
-    right: 1rem;
-  }
 }
 
 .app-panel-upgrades {

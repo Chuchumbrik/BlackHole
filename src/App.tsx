@@ -180,48 +180,40 @@ function App() {
         {/* Виньетка: мягко затемняет края, чтобы прямоугольный край кадра (где
             «вплывают» тела с дальней круглой границы) не читался как рамка. */}
         <div className="game-vignette" aria-hidden="true" />
-        {activeTab !== "game" && (
-          <>
-            {/* Полупрозрачный бэкдроп: космос виден позади, клик по нему закрывает
-                панель (модальное поведение, а не блокировка всего экрана). */}
-            <div
-              className="app-panel-backdrop"
-              onClick={() => setTab("game")}
-              aria-hidden="true"
-            />
-            <div
-              className={`app-panel-overlay ${PANEL_OVERLAY_CLASS[activeTab] ?? ""}`}
-              role="dialog"
-              aria-modal="false"
-            >
-              <button
-                type="button"
-                className="app-panel-close"
-                onClick={() => setTab("game")}
-                aria-label="Закрыть"
-                title="Закрыть (или клик по космосу)"
-              >
-                ✕
-              </button>
-              {activeTab === "upgrades" && <UpgradesPanel />}
-              {activeTab === "planet" && <PlanetPanel />}
-              {activeTab === "prestige" && <PrestigePanel />}
-              {activeTab === "stats" && <StatsPanel />}
-              {activeTab === "achievements" && <AchievementsPanel />}
-              {activeTab === "journal" && <JournalPanel />}
-              {activeTab === "settings" && <SettingsPanel />}
-            </div>
-          </>
-        )}
       </div>
 
-      {activeTab === "game" && (
-        <>
-          <ViewScaleControls />
-          <TimeScaleControls />
-          <FieldLegend />
-        </>
+      {/* Панель — НЕ внутри game-layer (иначе её перекрывает шапка/нав): отдельный
+          правый дровер НИЖЕ нав-бара, не затемняет космос, космос остаётся
+          интерактивным (зум/пан). Закрытие — ✕ или повторный клик по вкладке. */}
+      {activeTab !== "game" && (
+        <div
+          className={`app-panel-overlay ${PANEL_OVERLAY_CLASS[activeTab] ?? ""}`}
+          role="dialog"
+          aria-modal="false"
+        >
+          <button
+            type="button"
+            className="app-panel-close"
+            onClick={() => setTab("game")}
+            aria-label="Закрыть"
+            title="Закрыть"
+          >
+            ✕
+          </button>
+          {activeTab === "upgrades" && <UpgradesPanel />}
+          {activeTab === "planet" && <PlanetPanel />}
+          {activeTab === "prestige" && <PrestigePanel />}
+          {activeTab === "stats" && <StatsPanel />}
+          {activeTab === "achievements" && <AchievementsPanel />}
+          {activeTab === "journal" && <JournalPanel />}
+          {activeTab === "settings" && <SettingsPanel />}
+        </div>
       )}
+
+      {/* Зум/время доступны и при открытой панели (космос остаётся интерактивным). */}
+      <ViewScaleControls />
+      <TimeScaleControls />
+      {activeTab === "game" && <FieldLegend />}
 
       {showCta && (
         <OnboardingCta
