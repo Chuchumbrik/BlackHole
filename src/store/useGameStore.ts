@@ -687,7 +687,19 @@ export const useGameStore = create<GameState>((set, get) => {
       const gain = prestigePpGain(s.massSpentRun, s.massMp);
       if (gain <= 0) return s;
       const rs = prestigeRunStart(s.prestigePerkLevels);
-      const fresh = generateStarSystems(rs.extraPlanets);
+      const generated = generateStarSystems(rs.extraPlanets);
+      // Космическое наследие: планеты стартуют с форой по стадиям (мост к жизни —
+      // серия сжатий доращивает планеты до зрелости). Стадия не выше 4.
+      const fresh =
+        rs.planetHeadStartStages > 0
+          ? generated.map((sys) => ({
+              ...sys,
+              planets: sys.planets.map((p) => ({
+                ...p,
+                stage: Math.min(4, p.stage + rs.planetHeadStartStages) as Planet["stage"],
+              })),
+            }))
+          : generated;
       const nextCount = s.prestigeCount + 1;
       const line = loreOnPrestige(nextCount);
       let journal = prependJournal(s.journalEntries, 0, line.category, line.text);

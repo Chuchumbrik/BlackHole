@@ -12,7 +12,8 @@ export type PrestigePerkKind =
   | "hawkingMul" // B: ×пассив хокинга
   | "spawnRateMul" // A: ×частота спавна
   | "extraPlanets" // A: +планет на систему
-  | "startMass"; // A: +стартовая масса MP
+  | "startMass" // A: +стартовая масса MP
+  | "planetHeadStart"; // Наследие: +стадий планетам на старте рана (мост к жизни)
 
 export type PrestigePerkDef = {
   id: string;
@@ -87,6 +88,17 @@ export const PRESTIGE_PERKS: PrestigePerkDef[] = [
     kind: "startMass",
     perLevel: 60,
   },
+  // — Космическое Наследие: мост к жизни (планеты доращиваются между ранами) —
+  {
+    id: "cosmic_memory",
+    name: "Космическая память",
+    desc: "+1 стадия развития планет на старте нового рана за уровень",
+    baseCost: 5,
+    costMult: 2.6,
+    maxLevel: 3,
+    kind: "planetHeadStart",
+    perLevel: 1,
+  },
 ];
 
 /** Цена следующего уровня перка (PP). */
@@ -140,6 +152,8 @@ export type PrestigeRunStart = {
   spawnRateMul: number;
   extraPlanets: number;
   startMassMp: number;
+  /** Фора по стадиям планет на старте рана (наследие — мост к жизни). */
+  planetHeadStartStages: number;
 };
 
 /** Тип A: модификаторы старта рана. */
@@ -150,6 +164,7 @@ export function prestigeRunStart(
     spawnRateMul: 1,
     extraPlanets: 0,
     startMassMp: 0,
+    planetHeadStartStages: 0,
   };
   for (const def of PRESTIGE_PERKS) {
     const lvl = perkLevels[def.id] ?? 0;
@@ -157,6 +172,8 @@ export function prestigeRunStart(
     if (def.kind === "spawnRateMul") r.spawnRateMul *= Math.pow(def.perLevel, lvl);
     else if (def.kind === "extraPlanets") r.extraPlanets += def.perLevel * lvl;
     else if (def.kind === "startMass") r.startMassMp += def.perLevel * lvl;
+    else if (def.kind === "planetHeadStart")
+      r.planetHeadStartStages += def.perLevel * lvl;
   }
   return r;
 }

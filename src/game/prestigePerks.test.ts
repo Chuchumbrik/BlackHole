@@ -41,7 +41,11 @@ describe("prestigePerks: prestigeRunStart (тип A)", () => {
       spawnRateMul: 1,
       extraPlanets: 0,
       startMassMp: 0,
+      planetHeadStartStages: 0,
     });
+  });
+  it("cosmic_memory даёт фору по стадиям планет", () => {
+    expect(prestigeRunStart({ cosmic_memory: 2 }).planetHeadStartStages).toBe(2);
   });
   it("spawnRateMul мультипликативен, extraPlanets/startMass аддитивны", () => {
     const spawn = PRESTIGE_PERKS.find((p) => p.kind === "spawnRateMul")!;
