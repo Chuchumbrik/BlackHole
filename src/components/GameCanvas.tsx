@@ -201,16 +201,42 @@ const STAR_LAYERS = [
   { count: 34, size: 2.3, baseA: 0.58, tw: 1.5, color: 0xfde6c4 },
 ] as const;
 
+/** Детерминированный псевдослучайный хеш [0,1) — хаотичное, но стабильное поле. */
+function hash01(n: number): number {
+  const s = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/** Тёплые/холодные оттенки звёзд для хаотичной палитры (item 26). */
+const STAR_TINTS = [
+  0xffffff, 0xbcd4ff, 0xfde6c4, 0xa7c0ff, 0xffd9b0, 0xe8ecff, 0xffc9a0,
+] as const;
+
 function paintStars(g: Graphics, w: number, h: number, timeSec: number): void {
   g.clear();
   let i = 0;
   for (const L of STAR_LAYERS) {
     for (let k = 0; k < L.count; k++, i++) {
-      const x = (((i * 73) % 997) / 997) * w;
-      const y = (((i * 51) % 1009) / 1009) * h;
-      const tw = 0.5 + 0.5 * Math.sin(timeSec * L.tw + i * 1.7);
-      g.circle(x, y, L.size + tw * 0.5);
-      g.fill({ color: L.color, alpha: L.baseA + tw * 0.26 });
+      // Хаотичные координаты по хешу (а не по регулярной решётке) — поле «дышит».
+      const x = hash01(i * 2.13 + 0.5) * w;
+      const y = hash01(i * 3.71 + 1.7) * h;
+      const tintIdx = (i + Math.floor(hash01(i) * 7)) % STAR_TINTS.length;
+      const sizeJit = 0.55 + hash01(i * 5.2) * 1.1; // разброс размеров
+      const phase = hash01(i * 7.3) * Math.PI * 2;
+      const twSpeed = L.tw * (0.6 + hash01(i * 9.1) * 1.1);
+      const tw = 0.5 + 0.5 * Math.sin(timeSec * twSpeed + phase);
+      const r = L.size * sizeJit + tw * 0.6;
+      g.circle(x, y, r);
+      g.fill({ color: STAR_TINTS[tintIdx], alpha: L.baseA + tw * 0.3 });
+      // Редкие яркие звёзды с крестовым бликом — добавляют «хаоса» и глубины.
+      if (hash01(i * 11.7) > 0.94) {
+        const gl = r * 2.6;
+        g.moveTo(x - gl, y);
+        g.lineTo(x + gl, y);
+        g.moveTo(x, y - gl);
+        g.lineTo(x, y + gl);
+        g.stroke({ width: 0.7, color: STAR_TINTS[tintIdx], alpha: (0.18 + tw * 0.22) });
+      }
     }
   }
 }
@@ -295,6 +321,50 @@ function paintHoleGlow(
     g.circle(cx, cy, rOuter);
     g.stroke({ width: 3, color: 0xff7a18, alpha: 0.4 });
   }
+}
+
+/**
+ * Гравитационное поле дыры (item 15): концентрические «эквипотенциали», стекающие
+ * к горизонту, + радиальные силовые линии. Аддитивно, слабый alpha — читается как
+ * воронка притяжения. Интенсивность спадает к краю зоны (gravityRadius).
+ */
+function paintGravityField(g: Graphics, layout: SimLayout, timeSec: number): void {
+  const cx = layout.bh.x;
+  const cy = layout.bh.y;
+  const hr = layout.horizonRadius;
+  const gr = Math.max(layout.gravityRadius, hr * 1.4);
+  g.clear();
+
+  // Бегущие внутрь кольца (эквипотенциальные поверхности): фаза сдвигается к центру.
+  const RINGS = 5;
+  for (let i = 0; i < RINGS; i++) {
+    const phase = (i / RINGS + (timeSec * 0.12) % 1) % 1;
+    // радиус интерполируется от внешней зоны к горизонту; ближе к центру — ярче.
+    const r = hr * 1.05 + (gr - hr * 1.05) * phase;
+    const edgeFade = 1 - phase; // у горизонта ярче, к краю гаснет
+    g.circle(cx, cy, r);
+    g.stroke({
+      width: 1 + edgeFade * 1.6,
+      color: 0x6f8cff,
+      alpha: 0.04 + edgeFade * 0.14,
+    });
+  }
+
+  // Радиальные силовые линии — намёк на направление притяжения.
+  const SPOKES = 12;
+  for (let i = 0; i < SPOKES; i++) {
+    const a = (i / SPOKES) * Math.PI * 2 + timeSec * 0.05;
+    const r0 = gr * 0.98;
+    const r1 = hr * 1.08;
+    g.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0);
+    g.lineTo(cx + Math.cos(a) * r1, cy + Math.sin(a) * r1);
+    g.stroke({ width: 0.8, color: 0x7c93ff, alpha: 0.07 });
+  }
+
+  // Граница зоны притяжения — тонкое пульсирующее кольцо.
+  const pulse = 0.5 + 0.5 * Math.sin(timeSec * 1.3);
+  g.circle(cx, cy, gr);
+  g.stroke({ width: 1, color: 0x8aa0ff, alpha: 0.08 + pulse * 0.06 });
 }
 
 function paintHole(
@@ -585,8 +655,15 @@ function pickObjectAtWorld(
   return bestId;
 }
 
-/** Масштаб спрайта у самого горизонта (было 0.14 — эффект ослаблен в ~2 раза по амплитуде). */
-const SHRINK_MIN_AT_HORIZON = 0.57;
+/** Тёплый/холодный цвет «остатка» тела для анимации поглощения (item 25). */
+function absorbColorForKind(kind: number): number {
+  if (kind === 4) return 0x9bd2ff; // корабль — голубой
+  if (kind === 3) return 0xc4b5fd; // комета/лёд — сиреневый
+  return 0xffcaa0; // обломки/материя — тёплый
+}
+
+/** Масштаб спрайта у самого горизонта: тело заметно сжимается перед исчезновением. */
+const SHRINK_MIN_AT_HORIZON = 0.42;
 
 /** Визуальное сжатие у горизонта дыры перед исчезновением. */
 function spriteShrinkNearHorizon(o: SimObject, layout: SimLayout): number {
@@ -677,6 +754,20 @@ export function GameCanvas() {
     const planetFillSmooth = new Map<string, Rgb>();
     type HitFlash = { x: number; y: number; t: number; via: string };
     const hitFlashes: HitFlash[] = [];
+    // Анимация поглощения (item 25): тело по спирали стягивается к центру дыры,
+    // уменьшаясь до исчезновения — вместо резкой вспышки-«импульса».
+    type AbsorbSpiral = {
+      cx: number;
+      cy: number;
+      r0: number;
+      ang0: number;
+      dir: number;
+      color: number;
+      size0: number;
+      t: number;
+      dur: number;
+    };
+    const absorbSpirals: AbsorbSpiral[] = [];
 
     const boot = async () => {
       const application = new Application();
@@ -717,6 +808,9 @@ export function GameCanvas() {
       const stars = new Graphics();
       stars.blendMode = "add";
       stars.eventMode = "none";
+      const gravityField = new Graphics();
+      gravityField.blendMode = "add";
+      gravityField.eventMode = "none";
       const holeGlow = new Graphics();
       holeGlow.filters = [new BlurFilter({ strength: 10, quality: 4 })];
       holeGlow.blendMode = "add";
@@ -795,6 +889,7 @@ export function GameCanvas() {
       bgRoot.addChild(stars);
       worldRoot.addChild(mainStar);
       worldRoot.addChild(planetSoi);
+      worldRoot.addChild(gravityField);
       worldRoot.addChild(holeGlow);
       worldRoot.addChild(hole);
       worldRoot.addChild(trails);
@@ -910,6 +1005,7 @@ export function GameCanvas() {
           planetPosById,
           planetUnstableIds,
         );
+        paintGravityField(gravityField, layout, performance.now() / 1000);
         paintHoleGlow(
           holeGlow,
           layout,
@@ -1634,7 +1730,21 @@ export function GameCanvas() {
                 consumePulse = 1;
                 useGameStore.getState().addMassMp(gain);
               }
-              hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "horizon" });
+              {
+                const dx = s.x - layout.bh.x;
+                const dy = s.y - layout.bh.y;
+                absorbSpirals.push({
+                  cx: layout.bh.x,
+                  cy: layout.bh.y,
+                  r0: Math.max(Math.hypot(dx, dy), layout.horizonRadius * 1.7),
+                  ang0: Math.atan2(dy, dx),
+                  dir: 1,
+                  color: 0x6ee7ff,
+                  size0: Math.max(5, s.surfaceRadius * 0.9),
+                  t: 0,
+                  dur: 0.85,
+                });
+              }
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);
               continue;
             }
@@ -1696,12 +1806,29 @@ export function GameCanvas() {
               starMassGain += c.objMass * STAR_ABSORB_FRACTION;
             }
             if (c.atX != null && c.atY != null) {
-              hitFlashes.push({
-                x: c.atX,
-                y: c.atY,
-                t: 0,
-                via: c.via ?? "body",
-              });
+              if (c.via === "horizon") {
+                // Поглощение дырой → спираль к центру (item 25), без вспышки.
+                const dx = c.atX - layout.bh.x;
+                const dy = c.atY - layout.bh.y;
+                absorbSpirals.push({
+                  cx: layout.bh.x,
+                  cy: layout.bh.y,
+                  r0: Math.max(Math.hypot(dx, dy), layout.horizonRadius * 1.5),
+                  ang0: Math.atan2(dy, dx),
+                  dir: c.atX % 2 < 1 ? 1 : -1,
+                  color: absorbColorForKind(c.kind),
+                  size0: 3.4,
+                  t: 0,
+                  dur: 0.6,
+                });
+              } else {
+                hitFlashes.push({
+                  x: c.atX,
+                  y: c.atY,
+                  t: 0,
+                  via: c.via ?? "body",
+                });
+              }
             }
           }
           if (gain > 0) {
@@ -1840,7 +1967,46 @@ export function GameCanvas() {
           }
         }
 
+        // Анимация поглощения (item 25): спираль к центру дыры + сжатие до нуля.
+        for (let i = absorbSpirals.length - 1; i >= 0; i--) {
+          const a = absorbSpirals[i];
+          a.t += dt;
+          if (a.t >= a.dur) {
+            absorbSpirals.splice(i, 1);
+            continue;
+          }
+          const u = a.t / a.dur;
+          const TURNS = 1.6;
+          // Голова и короткий хвост — рисуем полилинию с затуханием к центру.
+          const SEGS = 7;
+          let px = 0;
+          let py = 0;
+          for (let k = SEGS; k >= 0; k--) {
+            const uu = Math.max(0, u - k * 0.03);
+            const ang = a.ang0 + a.dir * uu * TURNS * Math.PI * 2;
+            const r = a.r0 * Math.pow(1 - uu, 1.3);
+            const x = a.cx + Math.cos(ang) * r;
+            const y = a.cy + Math.sin(ang) * r;
+            if (k < SEGS) {
+              collisionFx.moveTo(px, py);
+              collisionFx.lineTo(x, y);
+              collisionFx.stroke({
+                width: Math.max(0.6, a.size0 * (1 - uu) * 0.5),
+                color: a.color,
+                alpha: (1 - u) * 0.5 * (1 - k / (SEGS + 1)),
+                cap: "round",
+              });
+            }
+            px = x;
+            py = y;
+          }
+          // Голова-«остаток», сжимается до исчезновения.
+          collisionFx.circle(px, py, Math.max(0.4, a.size0 * (1 - u)));
+          collisionFx.fill({ color: a.color, alpha: (1 - u) * 0.85 });
+        }
+
         paintStars(stars, layout.width, layout.height, nowMs / 1000);
+        paintGravityField(gravityField, layout, simTimeSec);
         paintHoleGlow(
           holeGlow,
           layout,

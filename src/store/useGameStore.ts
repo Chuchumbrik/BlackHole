@@ -318,6 +318,16 @@ export const useGameStore = create<GameState>((set, get) => {
     }
   }
 
+  // Засеять счётчик id журнала максимумом из сохранённых записей: иначе после
+  // перезагрузки новые записи стартуют с id=1 и коллизируют с восстановленными
+  // (React: «two children with the same key»).
+  if (saved?.journalEntries?.length) {
+    journalIdSeq = saved.journalEntries.reduce(
+      (m, e) => Math.max(m, e.id),
+      journalIdSeq,
+    );
+  }
+
   return {
     systems,
     activeSystemId: saved?.activeSystemId ?? systems[0]?.id ?? "",
