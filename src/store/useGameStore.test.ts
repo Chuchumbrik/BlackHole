@@ -147,8 +147,9 @@ describe("store: prestige (по потраченной массе)", () => {
     useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });
     useGameStore.getState().doPrestige();
     const entries = useGameStore.getState().journalEntries;
-    expect(entries.length).toBe(before + 1);
-    expect(entries[0].category).toBe("milestone");
+    // +1 (сжатие), иногда +2 если у новой системы выпала аномалия (RNG).
+    expect(entries.length).toBeGreaterThanOrEqual(before + 1);
+    expect(entries.some((e) => e.category === "milestone")).toBe(true);
   });
   it("lifetimePp накапливается и НЕ сбрасывается тратой PP (для достижений)", () => {
     setup(100);

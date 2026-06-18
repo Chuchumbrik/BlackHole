@@ -17,9 +17,8 @@ export const BASE_GRAVITY_FRACTION = 0.42;
  * На старте (масса ~0) ≈ 1. Усиливает связку «растёшь → возмущаешь орбиты планет».
  */
 export const MASS_HORIZON_SCALE = 2000;
-// 0.15→0.20: рост/убыль горизонта при наборе/трате MP читается заметнее
-// (по фидбеку), оставаясь ≪ масштаба системы.
-export const MASS_HORIZON_COEFF = 0.2;
+// Фидбек: горизонт рос от массы слишком быстро → 0.20 ÷4 = 0.05 (мягче).
+export const MASS_HORIZON_COEFF = 0.05;
 
 export function massHorizonMul(massMp: number): number {
   return (
@@ -60,7 +59,9 @@ export const STAR_COLLISION_RADIUS_FRACTION = 0.098;
  * Ядро звезды на экране — должно быть заметно крупнее горизонта дыры при уровне size=0
  * (`BASE_HORIZON_FRACTION`), иначе дырная сингулярность визуально доминирует над звездой системы.
  */
-export const STAR_DISPLAY_RADIUS_FRACTION = 0.108;
+// Фидбек: звёзды крупнее (0.108 → 0.16, ×~1.5). Радиус столкновения оставлен
+// меньшим, чтобы звезда не «съедала» планеты раньше времени.
+export const STAR_DISPLAY_RADIUS_FRACTION = 0.16;
 
 /** Нижняя граница масштаба слоя дыры (не уводить в точку). */
 export const CAMERA_SCALE_MIN = 0.22;

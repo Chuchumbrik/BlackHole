@@ -18,7 +18,8 @@ export const GRAVITY_SOFTENING = 280;
 /** Базовое ускорение к центру до множителя «Эффективность». */
 export const BASE_GRAVITY_ACCEL = 2200;
 export const BASE_BH_MASS = 180000;
-export const BASE_STAR_MASS = 90000;
+// Фидбек: звезда крепче держит планеты на орбите (90k → 200k).
+export const BASE_STAR_MASS = 200000;
 
 /** Базовая тяга корабля наружу (пикс/с²); дальше × качества и апгрейды. */
 export const SHIP_THRUST_BASE = 980;

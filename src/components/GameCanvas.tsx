@@ -16,6 +16,7 @@ import {
   starLuminosity01,
   targetTemperature01,
   BASE_SPAWN_PER_SECOND,
+  spawnRateFromLevels,
   BH_ORBIT_RADIUS_FRACTION,
   BH_SCREEN_ANGLE_RAD,
   FIELD_MP_GLOBAL_MULTIPLIER,
@@ -244,11 +245,11 @@ function paintNebula(g: Graphics, w: number, h: number): void {
     { x: 0.58, y: 0.18, r: 0.4, c: 0x5e2856 },
     { x: 0.4, y: 0.8, r: 0.42, c: 0x243d78 },
   ];
-  // Аддитивный блендинг: перекрытие блобов накапливает яркость, поэтому держим
-  // alpha низким (0.13) — мягкое свечение, но фон не «забивает» объекты поля.
+  // Аддитивный блендинг накапливает яркость; alpha 0.13 → 0.08 (фидбек: мелкие
+  // объекты плохо видны на ярком фоне) — фон ещё спокойнее, контраст выше.
   for (const b of blobs) {
     g.circle(b.x * w, b.y * h, b.r * d * 0.5);
-    g.fill({ color: b.c, alpha: 0.13 });
+    g.fill({ color: b.c, alpha: 0.08 });
   }
 }
 
@@ -1412,6 +1413,7 @@ export function GameCanvas() {
           spawnControl,
           simDt,
           BASE_SPAWN_PER_SECOND *
+            spawnRateFromLevels(levelSum(levels)) *
             runStart.spawnRateMul *
             mpu.spawnRateMul *
             envMods.spawnRateMul *
@@ -1442,9 +1444,11 @@ export function GameCanvas() {
         // Окружение (ветка B) усиливает возмущение орбит дырой (риск): множитель
         // применяется ВНУТРИ клампа [0.03, 1], поэтому раннее влияние мало и растёт
         // вместе с массой дыры — орбиты деградируют быстрее, планеты падают раньше.
+        // Фидбек: сбивать планеты с орбиты должно быть НАМНОГО сложнее —
+        // возмущающее влияние дыры резко снижено (фактор 0.8→0.2, потолок 1→0.4).
         const bhPerturbFrac = Math.min(
-          1,
-          Math.max(0.03, (bhGrowth - 1) * 0.8) * envMods.orbitPerturbMul,
+          0.4,
+          Math.max(0.02, (bhGrowth - 1) * 0.2) * envMods.orbitPerturbMul,
         );
         const bhSrc = {
           x: layout.bh.x,

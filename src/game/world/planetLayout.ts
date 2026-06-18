@@ -53,10 +53,11 @@ export function buildPlanetPhysicsSnapshot(
   const soiRadius =
     ctx.horizonRadius *
     (1.45 + (planet.gravityProxy / 100) * 1.45 + (planet.atmosphere / 100) * 0.6);
-  const baseSurf = Math.max(2.3, soiRadius * 0.18);
+  // Фидбек: планеты крупнее (×~1.5) и массивнее (база 38k → 160k, ×~4).
+  const baseSurf = Math.max(3.2, soiRadius * 0.26);
   const surfaceRadius = baseSurf * planet.radiusScale;
   const mass =
-    38_000 *
+    160_000 *
     Math.pow(Math.max(0.15, planet.gravityProxy / 50), 1.15) *
     Math.pow(Math.max(0.35, planet.radiusScale), 0.9);
 

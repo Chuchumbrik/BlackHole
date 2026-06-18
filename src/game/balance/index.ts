@@ -8,6 +8,7 @@ export {
   MAX_OBJECTS_ON_FIELD,
   SHIP_SPAWN_FRACTION,
   SPAWN_WEIGHTS,
+  spawnRateFromLevels,
 } from "./spawn";
 
 export type { ObjectKind } from "./objectKinds";
