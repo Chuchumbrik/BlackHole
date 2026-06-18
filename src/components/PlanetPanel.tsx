@@ -28,8 +28,37 @@ import {
   inHabitableZone,
   likelyTidalLocked,
 } from "../game/world/planetAstroHints";
+import { planetPaletteRgb } from "../game/world/planetPalette";
 import { useGameStore } from "../store/useGameStore";
 import type { Planet } from "../game/world/types";
+
+/** Процедурный визуал планеты (CSS-диск) из её параметров. */
+function PlanetGlobe({ planet }: { planet: Planet }) {
+  const c = planetPaletteRgb(planet);
+  const clamp = (n: number) => Math.max(0, Math.min(255, Math.round(n)));
+  const rgb = (k: number) => `rgb(${clamp(c.r * k)}, ${clamp(c.g * k)}, ${clamp(c.b * k)})`;
+  const lite = `rgb(${clamp(c.r + 55)}, ${clamp(c.g + 55)}, ${clamp(c.b + 55)})`;
+  const base = `rgb(${c.r}, ${c.g}, ${c.b})`;
+  const atmo = planet.atmosphere > 55;
+  const size = Math.round(86 + planet.radiusScale * 26);
+  return (
+    <div className="planet-viewer">
+      <div
+        className="planet-globe"
+        style={{
+          width: size,
+          height: size,
+          background: `radial-gradient(circle at 33% 28%, ${lite}, ${base} 52%, ${rgb(0.5)} 86%, ${rgb(0.32)} 100%)`,
+          boxShadow: atmo
+            ? `0 0 ${Math.round(planet.atmosphere / 4)}px ${base}, inset -6px -8px 14px rgba(0,0,0,0.45)`
+            : "inset -6px -8px 14px rgba(0,0,0,0.45)",
+        }}
+        aria-hidden="true"
+      />
+      {planet.lifeBorn && <span className="planet-globe-life" title="Есть жизнь">🌱</span>}
+    </div>
+  );
+}
 
 function formatParam(value: number): string {
   return `${Math.round(value)}/100`;
@@ -145,6 +174,7 @@ export function PlanetPanel() {
       )}
 
       <article className="planet-card">
+        <PlanetGlobe planet={planet} />
         <h3 className="planet-name">{planet.name}</h3>
         <p className="planet-stage">
           {t("planet.stageLabel", {

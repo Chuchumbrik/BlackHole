@@ -409,6 +409,24 @@ body,
   line-height: 1.35;
 }
 
+.planet-viewer {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  margin: 0.2rem 0 0.6rem;
+}
+.planet-globe {
+  border-radius: 50%;
+  position: relative;
+}
+.planet-globe-life {
+  position: absolute;
+  right: calc(50% - 56px);
+  bottom: 2px;
+  font-size: 1.1rem;
+  filter: drop-shadow(0 0 4px rgba(110, 231, 183, 0.7));
+}
+
 .planet-eco-deficits {
   margin: -0.35rem 0 0.65rem;
   font-size: 0.78rem;
