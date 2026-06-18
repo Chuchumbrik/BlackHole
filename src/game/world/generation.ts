@@ -63,8 +63,14 @@ function genPlanet(systemIdx: number, planetIdx: number): Planet {
   };
 }
 
-export function generateStarSystems(extraPlanets = 0): StarSystem[] {
+/**
+ * Генерация мира. `ngPlus` (число New Game+) делает вселенную «древнее»: больше
+ * аномалий и появляются блуждающие ЧД (контент-слой NG+); звёзды стартуют с
+ * накопленной массой (старые тяжёлые светила) — крупнее, щедрее при поглощении.
+ */
+export function generateStarSystems(extraPlanets = 0, ngPlus = 0): StarSystem[] {
   const bonus = Math.max(0, Math.floor(extraPlanets));
+  const ng = Math.max(0, Math.floor(ngPlus));
   const systemsCount = randomInt(PLANET_SYSTEM_COUNT_MIN, PLANET_SYSTEM_COUNT_MAX);
   return Array.from({ length: systemsCount }, (_, systemIdx) => {
     const planetsCount =
@@ -72,6 +78,8 @@ export function generateStarSystems(extraPlanets = 0): StarSystem[] {
         ? randomInt(PLANETS_FIRST_SYSTEM_MIN, PLANETS_FIRST_SYSTEM_MAX)
         : randomInt(PLANETS_PER_SYSTEM_MIN, PLANETS_PER_SYSTEM_MAX)) + bonus;
     const systemName = SYSTEM_NAMES[systemIdx % SYSTEM_NAMES.length];
+    // Старые тяжёлые звёзды в NG+ (накопленная масса на старте).
+    const starMassMp = ng > 0 ? Math.round(3000 * ng * (0.6 + Math.random())) : 0;
     return {
       id: id("system", systemIdx),
       name: `${systemName}-${systemIdx + 1}`,
@@ -79,7 +87,8 @@ export function generateStarSystems(extraPlanets = 0): StarSystem[] {
       planets: Array.from({ length: planetsCount }, (_, planetIdx) =>
         genPlanet(systemIdx, planetIdx),
       ),
-      anomaly: rollAnomaly(),
+      anomaly: rollAnomaly(ng),
+      ...(starMassMp > 0 ? { starMassMp } : {}),
     };
   });
 }

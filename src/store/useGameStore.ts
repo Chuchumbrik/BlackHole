@@ -293,7 +293,7 @@ export const useGameStore = create<GameState>((set, get) => {
   const systems =
     saved?.systems && saved.systems.length > 0
       ? saved.systems
-      : generateStarSystems();
+      : generateStarSystems(0, saved?.newGamePlusCount ?? 0);
   const upgradeLevels = saved?.upgradeLevels ?? { ...ZERO_UPGRADE_LEVELS };
   const viewTierCap = maxUnlockedViewTier(upgradeLevels);
   const initialViewTier = Math.min(
@@ -688,7 +688,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const gain = prestigePpGain(s.massSpentRun, s.massMp);
       if (gain <= 0) return s;
       const rs = prestigeRunStart(s.prestigePerkLevels);
-      const generated = generateStarSystems(rs.extraPlanets);
+      const generated = generateStarSystems(rs.extraPlanets, s.newGamePlusCount);
       // Космическое наследие: планеты стартуют с форой по стадиям (мост к жизни —
       // серия сжатий доращивает планеты до зрелости). Стадия не выше 4.
       const fresh =
@@ -746,7 +746,7 @@ export const useGameStore = create<GameState>((set, get) => {
       const ng = s.newGamePlusCount + 1;
       const totalUp = s.ultimatePoints + up;
       const line = loreOnUniverseDestroyed(ng, up);
-      const fresh = generateStarSystems();
+      const fresh = generateStarSystems(0, ng); // древняя богатая вселенная NG+
       // NG+ стартует «сверхмассивным» — бонус-масса от накопленных UP.
       const startMass = ngPlusStartMass(totalUp);
       return {

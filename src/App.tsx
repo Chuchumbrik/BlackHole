@@ -60,6 +60,7 @@ function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
   const energy = useGameStore((s) => s.energy);
+  const newGamePlusCount = useGameStore((s) => s.newGamePlusCount);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
   const upgradeLevelSum = useGameStore((s) => levelSum(s.upgradeLevels));
@@ -238,6 +239,9 @@ function App() {
             <h1 className="app-title">{t("app.title")}</h1>
             <p className="app-subtitle">
               {t("app.subtitle")} · v{APP_VERSION}
+              {newGamePlusCount > 0 && (
+                <span className="app-ngplus"> · Поколение {newGamePlusCount}</span>
+              )}
             </p>
           </div>
           <div

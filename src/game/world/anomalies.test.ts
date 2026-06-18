@@ -21,12 +21,20 @@ describe("anomalies: множители и определения", () => {
       ANOMALY_DEFS.neutron_star.mpMul,
     );
   });
-  it("rollAnomaly: chanceMul=0 → почти всегда обычная, =большой → часто аномалия", () => {
+  it("rollAnomaly: ng0 → почти всегда обычная, большой NG+ → часто аномалия", () => {
     let plain = 0;
     for (let i = 0; i < 200; i++) if (rollAnomaly(0) === undefined) plain++;
     expect(plain).toBeGreaterThan(150); // легендарная всё же изредка проскочит
     let anom = 0;
     for (let i = 0; i < 200; i++) if (rollAnomaly(50) !== undefined) anom++;
     expect(anom).toBeGreaterThan(150);
+  });
+  it("блуждающая ЧД появляется ТОЛЬКО в NG+ (ng>0)", () => {
+    const ng0 = new Set();
+    for (let i = 0; i < 500; i++) ng0.add(rollAnomaly(0));
+    expect(ng0.has("wandering_bh")).toBe(false);
+    const ngP = new Set();
+    for (let i = 0; i < 500; i++) ngP.add(rollAnomaly(3));
+    expect(ngP.has("wandering_bh")).toBe(true);
   });
 });

@@ -11,6 +11,7 @@ export type AnomalyKind =
   | "rogue_planet"
   | "pulsar"
   | "protoplanetary"
+  | "wandering_bh" // NG+: другая чёрная дыра как цель
   | "stellar_nursery"; // легендарная
 
 export type AnomalyDef = {
@@ -59,6 +60,12 @@ export const ANOMALY_DEFS: Record<AnomalyKind, AnomalyDef> = {
     desc: "Молодая система полна строительного мусора (×1.35 MP)",
     mpMul: 1.35,
   },
+  wandering_bh: {
+    kind: "wandering_bh",
+    name: "Блуждающая чёрная дыра",
+    desc: "Другая ЧД неподалёку искажает пространство — лавина материи (×1.8 MP)",
+    mpMul: 1.8,
+  },
   stellar_nursery: {
     kind: "stellar_nursery",
     name: "Звёздная колыбель",
@@ -81,11 +88,18 @@ const COMMON: AnomalyKind[] = [
 export const ANOMALY_BASE_CHANCE = 0.12;
 export const LEGENDARY_CHANCE = 1 / 300;
 
-/** Бросок аномалии для системы. undefined — обычная система. */
-export function rollAnomaly(chanceMul = 1): AnomalyKind | undefined {
+/**
+ * Бросок аномалии для системы. `ngPlus` (число New Game+) делает вселенную
+ * «древнее и экзотичнее»: выше шанс аномалий и появляется «Блуждающая чёрная
+ * дыра» — другая ЧД как цель (контент-слой NG+). undefined — обычная система.
+ */
+export function rollAnomaly(ngPlus = 0): AnomalyKind | undefined {
   if (Math.random() < LEGENDARY_CHANCE) return "stellar_nursery";
+  const chanceMul = 1 + Math.max(0, ngPlus) * 0.6;
   if (Math.random() < ANOMALY_BASE_CHANCE * chanceMul) {
-    return COMMON[Math.floor(Math.random() * COMMON.length)];
+    const pool =
+      ngPlus > 0 ? [...COMMON, "wandering_bh" as AnomalyKind] : COMMON;
+    return pool[Math.floor(Math.random() * pool.length)];
   }
   return undefined;
 }

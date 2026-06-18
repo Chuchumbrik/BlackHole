@@ -716,6 +716,10 @@ body,
   font-size: 0.75rem;
   color: var(--muted);
 }
+.app-ngplus {
+  color: #fbbf24;
+  font-weight: 600;
+}
 
 .app-mass {
   font-variant-numeric: tabular-nums;
