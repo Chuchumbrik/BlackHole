@@ -12,6 +12,7 @@ import { AchievementsPanel } from "./components/AchievementsPanel";
 import { JournalPanel } from "./components/JournalPanel";
 import { JournalWidget } from "./components/JournalWidget";
 import { SkillBar } from "./components/SkillBar";
+import { HoverCard } from "./components/HoverCard";
 import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
@@ -229,6 +230,7 @@ function App() {
       {activeTab === "game" && <FieldLegend />}
       {activeTab === "game" && <JournalWidget />}
       {activeTab === "game" && <SkillBar />}
+      {activeTab === "game" && <HoverCard />}
 
       {showCta && (
         <OnboardingCta

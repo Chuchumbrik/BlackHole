@@ -1109,6 +1109,33 @@ export function GameCanvas() {
           hoverObjectId === null &&
           hoverPlanet === null &&
           distToStar < starHitR;
+
+        // Мост к HTML-мини-модалке (item 6/7): что наведено + позиция курсора.
+        const setHoverInfo = useGameStore.getState().setHoverInfo;
+        const jb = st.jetBuffEndsAtSimSec;
+        const jetBuffActiveHov = jb > 0 && st.gameTimeSec < jb;
+        if (hoverPlanet && sys) {
+          setHoverInfo({
+            kind: "planet",
+            text: buildPlanetHoverText(
+              hoverPlanet,
+              st.upgradeLevels,
+              jetBuffActiveHov,
+              sys.starClass,
+            ),
+            x: e.global.x,
+            y: e.global.y,
+          });
+        } else if (hoverStar && sys) {
+          setHoverInfo({
+            kind: "star",
+            text: buildStarHoverText(sys),
+            x: e.global.x,
+            y: e.global.y,
+          });
+        } else if (useGameStore.getState().hoverInfo !== null) {
+          setHoverInfo(null);
+        }
       });
 
       const finishPointerPick = (e: {
@@ -1175,6 +1202,9 @@ export function GameCanvas() {
         hoverPlanet = null;
         hoverStar = false;
         ptrDown = false;
+        if (useGameStore.getState().hoverInfo !== null) {
+          useGameStore.getState().setHoverInfo(null);
+        }
       });
 
       const onStageWheel = (e: {
@@ -2076,8 +2106,6 @@ export function GameCanvas() {
         planetTooltip.scale.set(labelScreenScale);
         starTooltip.scale.set(labelScreenScale);
 
-        const draggingPan = ptrDown && ptrMoved;
-
         if (viewTier >= 2) {
           selectionLabel.visible = false;
           hoverTooltip.visible = false;
@@ -2127,70 +2155,10 @@ export function GameCanvas() {
             selectionLabel.visible = false;
           }
 
-          if (
-            hoverPlanet &&
-            hoverObjectId === null &&
-            !draggingPan &&
-            !hoverTooltip.visible
-          ) {
-            const hPl = hoverPlanet;
-            const systemsNow = useGameStore.getState().systems;
-            const sysNow = systemsNow.find((s) => s.id === activeSystemId);
-            const hp = sysNow?.planets.find((p: Planet) => p.id === hPl.id);
-            if (hp && sysNow) {
-              planetTooltip.text = buildPlanetHoverText(
-                hp,
-                levels,
-                jetBuffActive,
-                sysNow.starClass,
-              );
-              const planetsArr = sysNow.planets;
-              const hi = planetsArr.findIndex((p: Planet) => p.id === hp.id);
-              const s = buildPlanetPhysicsSnapshot(
-                hp,
-                planetContextFromSimLayout(layout),
-                simTimeSec,
-                Math.max(0, hi),
-                planetsArr.length,
-                planetPosById.get(hp.id),
-              );
-              const liftP = (s.surfaceRadius * 2 + 14) / worldScale;
-              planetTooltip.position.set(s.x, s.y - liftP);
-              planetTooltip.visible = true;
-              starTooltip.visible = false;
-            } else {
-              planetTooltip.visible = false;
-            }
-          } else {
-            planetTooltip.visible = false;
-          }
-
-          if (
-            hoverStar &&
-            !draggingPan &&
-            hoverObjectId === null &&
-            !hoverTooltip.visible &&
-            !planetTooltip.visible
-          ) {
-            const systemsNow = useGameStore.getState().systems;
-            const sysNow = systemsNow.find((s) => s.id === activeSystemId);
-            if (sysNow) {
-              starTooltip.text = buildStarHoverText(sysNow);
-              const minS = Math.min(layout.width, layout.height);
-              const liftS =
-                (Math.max(18, minS * STAR_DISPLAY_RADIUS_FRACTION) * 2 + 10) /
-                worldScale;
-              starTooltip.position.set(
-                layout.star.x,
-                layout.star.y - liftS,
-              );
-              starTooltip.visible = true;
-            } else {
-              starTooltip.visible = false;
-            }
-          } else {
-            starTooltip.visible = false;
-          }
+          // Планета/звезда: подсказки теперь HTML-мини-модалкой (item 6/7,
+          // компонент HoverCard), Pixi-тултипы для них отключены.
+          planetTooltip.visible = false;
+          starTooltip.visible = false;
         }
 
         raf = requestAnimationFrame(tick);

@@ -98,6 +98,16 @@ export type SimTimeScale = 0 | 1 | 2 | 3 | 5 | 10;
 
 export type MpGainFloaterEvent = { id: number; amount: number };
 
+/** Мини-модалка наведения (item 6/7): что и где показать. Транзитное состояние. */
+export type HoverInfo = {
+  kind: "planet" | "star";
+  /** Готовый многострочный текст (первая строка — заголовок). */
+  text: string;
+  /** Экранные координаты курсора (CSS px). */
+  x: number;
+  y: number;
+};
+
 let mpGainFloaterIdSeq = 0;
 /** Время старта текущего «+MP»-флоатера (мс) — для коалесинга частых начислений. */
 let lastFloaterAtMs = 0;
@@ -148,6 +158,8 @@ type GameState = {
   activeSystemId: string;
   /** Активные всплывающие подсказки «+MP» к счётчику (очищаются после анимации). */
   mpGainFloaters: MpGainFloaterEvent[];
+  /** Мини-модалка при наведении на планету/звезду (item 6/7). Не сохраняется. */
+  hoverInfo: HoverInfo | null;
   /** Игровое время окончания баффа джетов (сек); 0 — нет активного баффа. */
   jetBuffEndsAtSimSec: number;
   /** Сглаженная ставка дохода MP/с (для оффлайн-начисления); пишется из игрового цикла. */
@@ -190,6 +202,8 @@ type GameState = {
   prestigeFlash: number;
   addMassMp: (amount: number) => void;
   dismissMpGainFloater: (id: number) => void;
+  /** Обновить/скрыть мини-модалку наведения (item 6/7). null — скрыть. */
+  setHoverInfo: (info: HoverInfo | null) => void;
   buyUpgrade: (branch: UpgradeBranch, count?: number) => void;
   setJetBuffEndsAt: (simSec: number) => void;
   setActiveSystem: (systemId: string) => void;
@@ -342,7 +356,9 @@ export const useGameStore = create<GameState>((set, get) => {
 
   return {
     systems,
-    activeSystemId: saved?.activeSystemId ?? systems[0]?.id ?? "",
+    // `||` (а не `??`): пустой/битый activeSystemId из сейва не залипает —
+    // откатываемся к первой системе, иначе активной системы нет (мягкий локап).
+    activeSystemId: saved?.activeSystemId || systems[0]?.id || "",
     activePlanetId: saved?.activePlanetId ?? null,
     massMp: (saved?.massMp ?? 0) + pendingOfflineMp,
     massSpentRun: saved?.massSpentRun ?? 0,
@@ -361,6 +377,7 @@ export const useGameStore = create<GameState>((set, get) => {
     activeTab: "game",
     simTimeScale: saved?.simTimeScale ?? 1,
     mpGainFloaters: [],
+    hoverInfo: null,
     jetBuffEndsAtSimSec: saved?.jetBuffEndsAtSimSec ?? 0,
     incomeEmaMpPerSec: saved?.incomeEmaMpPerSec ?? 0,
     prestigePoints: saved?.prestigePoints ?? 0,
@@ -426,6 +443,7 @@ export const useGameStore = create<GameState>((set, get) => {
         mpGainFloaters,
       };
     }),
+  setHoverInfo: (info) => set({ hoverInfo: info }),
   dismissMpGainFloater: (id) =>
     set((s) => ({
       mpGainFloaters: s.mpGainFloaters.filter((e) => e.id !== id),

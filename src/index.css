@@ -639,6 +639,51 @@ body,
 }
 
 /* Компактный журнал-виджет в правом нижнем углу (всегда на виду во время игры). */
+/* Мини-модалка наведения на планету/звезду (item 6/7) */
+.hover-card {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  padding: 8px 11px 9px;
+  background: rgba(10, 8, 18, 0.92);
+  border: 1px solid #34406a;
+  border-radius: 0.55rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  color: #d7def0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.hover-card-star {
+  border-color: #7a5a1e;
+}
+.hover-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5ff;
+  margin-bottom: 5px;
+}
+.hover-card-star .hover-card-title {
+  color: #fde8c0;
+}
+.hover-card-icon {
+  font-size: 14px;
+}
+.hover-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hover-card-line {
+  color: #aeb9d4;
+}
+
 /* Экранная панель скиллов (item 17) — снизу по центру */
 .skillbar {
   position: fixed;
