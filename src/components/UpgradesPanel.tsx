@@ -74,6 +74,9 @@ function branchLocked(
   return false;
 }
 
+/** Категории-вкладки для навигации по улучшениям. */
+type UpgradeCategory = "all" | "core" | "special" | "env" | "deep";
+
 
 export function UpgradesPanel() {
   const { t, i18n } = useTranslation();
@@ -94,6 +97,9 @@ export function UpgradesPanel() {
   const triggerSupernova = useGameStore((s) => s.triggerSupernova);
   const buyMultiplier = useGameStore((s) => s.buyMultiplier);
   const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
+  const [category, setCategory] = useState<UpgradeCategory>("all");
+  const [onlyAffordable, setOnlyAffordable] = useState(false);
+  const [hideMaxed, setHideMaxed] = useState(false);
   const sum = levelSum(upgradeLevels);
   const viewportMin = useViewportMinPx();
   const snap = upgradeBranchSnapshot(upgradeLevels, massMp);
@@ -108,12 +114,127 @@ export function UpgradesPanel() {
     massMp,
   });
 
+  // Какие категории вообще доступны (чтобы не показывать пустые вкладки).
+  const envUnlocked = isEnvironmentBranchUnlocked(sum);
+  const advBranchesUnlocked = (["time", "life", "exotic"] as AdvBranch[]).filter(
+    (b) => isAdvBranchUnlocked(b, prestigeCount),
+  );
+  const hasDeep = advBranchesUnlocked.length > 0;
+
+  const CATS: { id: UpgradeCategory; label: string; show: boolean }[] = [
+    { id: "all", label: "Все", show: true },
+    { id: "core", label: "Чёрная дыра", show: true },
+    { id: "special", label: "Особые", show: true },
+    { id: "env", label: "Окружение", show: envUnlocked },
+    { id: "deep", label: "Глубокие", show: hasDeep },
+  ];
+  const showCat = (c: UpgradeCategory) => category === "all" || category === c;
+
+  // Предрасчёт списков с учётом фильтров «только доступные» / «скрыть макс.».
+  const coreList = UPGRADE_BRANCHES.filter(
+    (branch) => !branchLocked(branch, upgradeLevels),
+  )
+    .map((branch) => ({
+      branch,
+      plan: planUpgradePurchase(upgradeLevels, branch, massMp, buyMultiplier),
+    }))
+    .filter(({ plan }) => !onlyAffordable || plan.count > 0);
+
+  const mpList = MP_UPGRADES.map((up) => {
+    const lvl = mpUpgradeLevels[up.id] ?? 0;
+    return {
+      up,
+      lvl,
+      maxed: lvl >= up.maxLevel,
+      plan: planMpUpgradePurchase(up, lvl, massMp, buyMultiplier),
+    };
+  }).filter(
+    ({ maxed, plan }) =>
+      (!hideMaxed || !maxed) && (!onlyAffordable || plan.count > 0),
+  );
+
+  const envList = (
+    envUnlocked
+      ? ENVIRONMENT_UPGRADES.filter((up) => isEnvironmentUpgradeUnlocked(up, sum))
+      : []
+  )
+    .map((up) => {
+      const lvl = environmentLevels[up.id] ?? 0;
+      return {
+        up,
+        lvl,
+        maxed: lvl >= up.maxLevel,
+        plan: planEnvironmentPurchase(up, lvl, massMp, buyMultiplier, sum),
+      };
+    })
+    .filter(
+      ({ maxed, plan }) =>
+        (!hideMaxed || !maxed) && (!onlyAffordable || plan.count > 0),
+    );
+
+  const deepGroups = advBranchesUnlocked
+    .map((branch) => ({
+      branch,
+      items: ADV_UPGRADES.filter((up) => up.branch === branch)
+        .map((up) => {
+          const lvl = advancedLevels[up.id] ?? 0;
+          return {
+            up,
+            lvl,
+            maxed: lvl >= up.maxLevel,
+            plan: planAdvancedPurchase(up, lvl, massMp, buyMultiplier, prestigeCount),
+          };
+        })
+        .filter(
+          ({ maxed, plan }) =>
+            (!hideMaxed || !maxed) && (!onlyAffordable || plan.count > 0),
+        ),
+    }))
+    .filter((g) => g.items.length > 0);
+
+  const supernovaShown =
+    envUnlocked && prestigeCount >= SUPERNOVA_UNLOCK_PRESTIGE;
+
+  const nothingShown =
+    (!showCat("core") || coreList.length === 0) &&
+    (!showCat("special") || mpList.length === 0) &&
+    (!showCat("env") || (envList.length === 0 && !supernovaShown)) &&
+    (!showCat("deep") || deepGroups.length === 0);
+
   return (
     <div className="upgrades-panel">
       <h2 className="upgrades-panel-title">{t("upgrades.title")}</h2>
       <p className="upgrades-panel-meta">
         {t("upgrades.holeLevel", { value: sum.toLocaleString("ru-RU") })}
       </p>
+      <nav className="upg-cats" aria-label="Категории улучшений">
+        {CATS.filter((c) => c.show).map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            className={category === c.id ? "is-active" : undefined}
+            onClick={() => setCategory(c.id)}
+          >
+            {c.label}
+          </button>
+        ))}
+      </nav>
+      <div className="upg-filters">
+        <button
+          type="button"
+          className={onlyAffordable ? "is-active" : undefined}
+          onClick={() => setOnlyAffordable((v) => !v)}
+        >
+          ✓ Только доступные
+        </button>
+        <button
+          type="button"
+          className={hideMaxed ? "is-active" : undefined}
+          onClick={() => setHideMaxed((v) => !v)}
+        >
+          ⤓ Скрыть макс.
+        </button>
+      </div>
       <div className="buy-mult">
         <span className="buy-mult-label">Покупать:</span>
         {[1, 2, 5, 10, 50, 100].map((m) => (
@@ -127,17 +248,10 @@ export function UpgradesPanel() {
           </button>
         ))}
       </div>
+      {showCat("core") && coreList.length > 0 && (
       <ul className="upgrades-card-list">
-        {UPGRADE_BRANCHES.filter(
-          (branch) => !branchLocked(branch, upgradeLevels),
-        ).map((branch) => {
+        {coreList.map(({ branch, plan }) => {
           const level = upgradeLevels[branch];
-          const plan = planUpgradePurchase(
-            upgradeLevels,
-            branch,
-            massMp,
-            buyMultiplier,
-          );
           const canBuy = plan.count > 0;
           // массы хватает не на весь множитель — покупаем максимум возможного
           const capped = canBuy && plan.count < buyMultiplier;
@@ -227,13 +341,13 @@ export function UpgradesPanel() {
           );
         })}
       </ul>
+      )}
 
+      {showCat("special") && mpList.length > 0 && (
+      <>
       <h3 className="upgrades-extra-title">Особые улучшения</h3>
       <ul className="upgrades-card-list">
-        {MP_UPGRADES.map((up) => {
-          const lvl = mpUpgradeLevels[up.id] ?? 0;
-          const maxed = lvl >= up.maxLevel;
-          const plan = planMpUpgradePurchase(up, lvl, massMp, buyMultiplier);
+        {mpList.map(({ up, lvl, maxed, plan }) => {
           const affordable = plan.count > 0;
           const capped = affordable && plan.count < buyMultiplier;
           return (
@@ -295,23 +409,16 @@ export function UpgradesPanel() {
           );
         })}
       </ul>
+      </>
+      )}
 
-      {isEnvironmentBranchUnlocked(sum) && (
+      {showCat("env") && (envList.length > 0 || supernovaShown) && (
         <>
+          {envList.length > 0 && (
+          <>
           <h3 className="upgrades-extra-title">Окружение (риск / награда)</h3>
           <ul className="upgrades-card-list">
-            {ENVIRONMENT_UPGRADES.filter((up) =>
-              isEnvironmentUpgradeUnlocked(up, sum),
-            ).map((up) => {
-              const lvl = environmentLevels[up.id] ?? 0;
-              const maxed = lvl >= up.maxLevel;
-              const plan = planEnvironmentPurchase(
-                up,
-                lvl,
-                massMp,
-                buyMultiplier,
-                sum,
-              );
+            {envList.map(({ up, lvl, maxed, plan }) => {
               const affordable = plan.count > 0;
               const capped = affordable && plan.count < buyMultiplier;
               return (
@@ -367,8 +474,10 @@ export function UpgradesPanel() {
               );
             })}
           </ul>
+          </>
+          )}
 
-          {prestigeCount >= SUPERNOVA_UNLOCK_PRESTIGE &&
+          {supernovaShown &&
             (() => {
               const cooldownLeftSec = Math.max(
                 0,
@@ -418,22 +527,12 @@ export function UpgradesPanel() {
         </>
       )}
 
-      {(["time", "life", "exotic"] as AdvBranch[])
-        .filter((b) => isAdvBranchUnlocked(b, prestigeCount))
-        .map((branch) => (
+      {showCat("deep") &&
+        deepGroups.map(({ branch, items }) => (
           <div key={branch}>
             <h3 className="upgrades-extra-title">{ADV_BRANCH_LABEL[branch]}</h3>
             <ul className="upgrades-card-list">
-              {ADV_UPGRADES.filter((up) => up.branch === branch).map((up) => {
-                const lvl = advancedLevels[up.id] ?? 0;
-                const maxed = lvl >= up.maxLevel;
-                const plan = planAdvancedPurchase(
-                  up,
-                  lvl,
-                  massMp,
-                  buyMultiplier,
-                  prestigeCount,
-                );
+              {items.map(({ up, lvl, maxed, plan }) => {
                 const affordable = plan.count > 0;
                 const capped = affordable && plan.count < buyMultiplier;
                 return (
@@ -488,6 +587,14 @@ export function UpgradesPanel() {
             </ul>
           </div>
         ))}
+
+      {nothingShown && (
+        <p className="upg-empty">
+          {onlyAffordable
+            ? "Сейчас нет доступных для покупки улучшений в этой категории — копите массу."
+            : "В этой категории пока нет улучшений."}
+        </p>
+      )}
     </div>
   );
 }

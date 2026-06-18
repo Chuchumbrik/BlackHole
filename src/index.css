@@ -1104,6 +1104,16 @@ body,
 .buy-mult button { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 7px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
 .buy-mult button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; }
 
+/* Навигация по улучшениям: вкладки-категории + фильтры */
+.upg-cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.upg-cats button { background: #131c2e; color: #cbd5e1; border: 1px solid #2a3650; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; transition: background .12s, border-color .12s; }
+.upg-cats button:hover { border-color: #475569; }
+.upg-cats button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; font-weight: 600; }
+.upg-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.upg-filters button { background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 7px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+.upg-filters button.is-active { background: #14532d; color: #bbf7d0; border-color: #16a34a; }
+.upg-empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 18px 8px; line-height: 1.5; }
+
 /* Легенда игрового поля (ясность: почему материя летит к дыре) */
 .field-legend {
   position: fixed; left: 1rem; bottom: 5rem; z-index: 3;
