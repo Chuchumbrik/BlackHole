@@ -10,6 +10,7 @@ import { BlackHolePanel } from "./components/BlackHolePanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
 import { JournalPanel } from "./components/JournalPanel";
+import { JournalWidget } from "./components/JournalWidget";
 import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
@@ -218,6 +219,7 @@ function App() {
       <ViewScaleControls />
       <TimeScaleControls />
       {activeTab === "game" && <FieldLegend />}
+      {activeTab === "game" && <JournalWidget />}
 
       {showCta && (
         <OnboardingCta
