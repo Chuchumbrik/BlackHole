@@ -409,6 +409,18 @@ body,
   line-height: 1.35;
 }
 
+.planet-eco-deficits {
+  margin: -0.35rem 0 0.65rem;
+  font-size: 0.78rem;
+  color: #fca5a5;
+  line-height: 1.4;
+}
+.planet-deficit-how {
+  color: #94a3b8;
+  font-style: normal;
+  font-size: 0.72rem;
+}
+
 .planet-astro-hint {
   margin: 0 0 0.45rem;
   font-size: 0.78rem;

@@ -19,8 +19,10 @@ import {
 } from "../game/world/planetProgress";
 import {
   ecosystemStable,
+  ecosystemDeficits,
   lifeEmergenceRatio,
   planetMatureForLife,
+  type PlanetParamKey,
 } from "../game/world/planetLife";
 import {
   inHabitableZone,
@@ -32,6 +34,16 @@ import type { Planet } from "../game/world/types";
 function formatParam(value: number): string {
   return `${Math.round(value)}/100`;
 }
+
+/** Имя параметра и можно ли его терраформить (температура/орбита — физико-зависимы). */
+const PARAM_INFO: Record<PlanetParamKey, { name: string; terraform: boolean }> = {
+  orbitalDistance: { name: "Орбита", terraform: false },
+  surfaceTemperature: { name: "Температура", terraform: false },
+  gravityProxy: { name: "Гравитация", terraform: true },
+  atmosphere: { name: "Атмосфера", terraform: true },
+  hydrosphere: { name: "Гидросфера", terraform: true },
+  geologicalActivity: { name: "Геология", terraform: true },
+};
 
 export function PlanetPanel() {
   const { t, i18n } = useTranslation();
@@ -184,6 +196,24 @@ export function PlanetPanel() {
               })
             : t("planet.ecoPending")}
         </p>
+        {!stable && (
+          <p className="planet-eco-deficits">
+            Мешают жизни (вне коридора {PLANET_ECOSYSTEM_LOW}–{PLANET_ECOSYSTEM_HIGH}):{" "}
+            {ecosystemDeficits(planet).map((k, i) => {
+              const info = PARAM_INFO[k];
+              const dir = planet[k] < PLANET_ECOSYSTEM_LOW ? "↓" : "↑";
+              return (
+                <span key={k}>
+                  {i > 0 ? ", " : ""}
+                  {info.name} {dir}{" "}
+                  <i className="planet-deficit-how">
+                    ({info.terraform ? "терраформинг" : "орбита/звезда"})
+                  </i>
+                </span>
+              );
+            })}
+          </p>
+        )}
         {stable && !mature && !planet.lifeBorn && (
           <p className="planet-eco-hint">
             Экосистема готова, но планета ещё не зрелая. Жизнь зарождается только
