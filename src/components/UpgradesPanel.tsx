@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { playPurchase } from "../game/audio/sound";
+import { playPurchase, playSupernova } from "../game/audio/sound";
 import {
   UPGRADE_BRANCHES,
   computeRadiiPx,
@@ -405,7 +405,7 @@ export function UpgradesPanel() {
                         className="upgrades-buy"
                         disabled={!canFire}
                         onClick={() => {
-                          if (triggerSupernova()) playPurchase();
+                          if (triggerSupernova()) playSupernova();
                         }}
                       >
                         Запустить

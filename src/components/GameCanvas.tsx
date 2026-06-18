@@ -109,7 +109,7 @@ import {
 import type { Rgb } from "../game/world/planetPalette";
 import { buildStarHoverText } from "../game/world/starHoverText";
 import type { Planet } from "../game/world/types";
-import { playAbsorb, playPrestige } from "../game/audio/sound";
+import { playAbsorb, playPrestige, playWave, playTear } from "../game/audio/sound";
 import { useGameStore } from "../store/useGameStore";
 
 function smoothPlanetFillColors(
@@ -1051,6 +1051,7 @@ export function GameCanvas() {
           }
           // Тап по пустому космосу → волна притяжения (Energy): импульс всем телам к дыре.
           if (useGameStore.getState().tryCastPullWave()) {
+            playWave();
             applyJetImpulseToObjects(objects, layoutPk, WAVE_PULL_SPEED);
             hitFlashes.push({
               x: layoutPk.bh.x,
@@ -1651,6 +1652,7 @@ export function GameCanvas() {
                 ),
               );
               hitFlashes.push({ x: s.x, y: s.y, t: 0, via: "body" });
+              playTear();
               const lore = loreOnRocheTear(pl.name);
               useGameStore.getState().addJournalEntry(lore.category, lore.text);
               useGameStore.getState().removePlanet(activeSystem.id, pl.id);

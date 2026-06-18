@@ -125,3 +125,25 @@ export function playPrestige(): void {
   tone({ freq: 180, freqEnd: 90, dur: 0.9, type: "sine", gain: 0.09 });
   tone({ freq: 270, freqEnd: 540, dur: 1.1, type: "triangle", gain: 0.05, delay: 0.1 });
 }
+
+/** Волна притяжения (тап) — короткий воздушный «вуш» снизу вверх. */
+export function playWave(): void {
+  resumeAudio();
+  tone({ freq: 160, freqEnd: 520, dur: 0.22, type: "sine", gain: 0.05, attack: 0.02 });
+  tone({ freq: 90, freqEnd: 220, dur: 0.26, type: "triangle", gain: 0.03 });
+}
+
+/** Приливный разрыв планеты (предел Роша) — резкий нисходящий «треск» + гул. */
+export function playTear(): void {
+  resumeAudio();
+  tone({ freq: 420, freqEnd: 70, dur: 0.34, type: "sawtooth", gain: 0.06 });
+  tone({ freq: 130, freqEnd: 55, dur: 0.5, type: "sine", gain: 0.05, delay: 0.02 });
+}
+
+/** Сверхновая — яркая вспышка-всплеск с короткой «звонкостью». */
+export function playSupernova(): void {
+  resumeAudio();
+  tone({ freq: 300, freqEnd: 1200, dur: 0.18, type: "sawtooth", gain: 0.06 });
+  tone({ freq: 800, freqEnd: 1600, dur: 0.4, type: "sine", gain: 0.045, delay: 0.05 });
+  tone({ freq: 120, freqEnd: 60, dur: 0.7, type: "sine", gain: 0.05, delay: 0.04 });
+}
