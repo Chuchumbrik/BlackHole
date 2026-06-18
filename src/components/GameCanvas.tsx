@@ -1916,6 +1916,7 @@ export function GameCanvas() {
               massMp: st.massMp,
               lifetimeMassMp: st.lifetimeMassMp,
               massSpentTotal: st.massSpentTotal,
+              massSpentRun: st.massSpentRun,
               prestigePoints: st.lifetimePp, // достижения — по суммарным PP, не текущим
               prestigeCount: st.prestigeCount,
               gameTimeSec: st.gameTimeSec,

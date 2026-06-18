@@ -73,6 +73,7 @@ export function AchievementsPanel() {
   const massMp = useGameStore((s) => s.massMp);
   const lifetimeMassMp = useGameStore((s) => s.lifetimeMassMp);
   const massSpentTotal = useGameStore((s) => s.massSpentTotal);
+  const massSpentRun = useGameStore((s) => s.massSpentRun);
   const lifetimePp = useGameStore((s) => s.lifetimePp);
   const prestigeCount = useGameStore((s) => s.prestigeCount);
   const gameTimeSec = useGameStore((s) => s.gameTimeSec);
@@ -86,6 +87,7 @@ export function AchievementsPanel() {
     massMp,
     lifetimeMassMp,
     massSpentTotal,
+    massSpentRun,
     prestigePoints: lifetimePp,
     prestigeCount,
     gameTimeSec,
@@ -99,6 +101,9 @@ export function AchievementsPanel() {
 
   const mul = achievementMpMul(unlocked);
 
+  const lifetimeThemes = ACHIEVEMENT_THEMES.filter((t) => t.scope === "lifetime");
+  const runThemes = ACHIEVEMENT_THEMES.filter((t) => t.scope === "run");
+
   return (
     <div className="ach-panel">
       <h2 className="app-panel-title">Достижения</h2>
@@ -106,8 +111,24 @@ export function AchievementsPanel() {
         Открыто {unlocked.length}/{ACHIEVEMENTS.length} · суммарный бонус дохода ×
         {mul.toFixed(2)}
       </p>
+
+      <h3 className="ach-section-title">За всю игру</h3>
+      <p className="ach-section-hint">
+        Накопительные показатели — переживают сжатие.
+      </p>
       <ul className="ach-card-list">
-        {ACHIEVEMENT_THEMES.map((t) => (
+        {lifetimeThemes.map((t) => (
+          <ThemeCard key={t.group} t={t} ctx={ctx} />
+        ))}
+      </ul>
+
+      <h3 className="ach-section-title">За один ран</h3>
+      <p className="ach-section-hint">
+        Показатели текущего рана — обнуляются при сжатии (но открытые тиры
+        остаются навсегда).
+      </p>
+      <ul className="ach-card-list">
+        {runThemes.map((t) => (
           <ThemeCard key={t.group} t={t} ctx={ctx} />
         ))}
       </ul>

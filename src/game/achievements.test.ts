@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   ACHIEVEMENTS,
+  ACHIEVEMENT_THEMES,
   achievementMpMul,
   newlyUnlocked,
   type AchievementCtx,
@@ -11,6 +12,7 @@ const ZERO: AchievementCtx = {
   massMp: 0,
   lifetimeMassMp: 0,
   massSpentTotal: 0,
+  massSpentRun: 0,
   prestigePoints: 0,
   prestigeCount: 0,
   gameTimeSec: 0,
@@ -83,5 +85,28 @@ describe("achievements: newlyUnlocked (многоуровневые)", () => {
       .toContain("bio_1");
     expect(newlyUnlocked({ ...ZERO, maxCivLevel: 4 }, []).map((a) => a.id))
       .toContain("civ_2");
+  });
+});
+
+describe("achievements: scope (item 20)", () => {
+  it("есть и lifetime-, и run-темы", () => {
+    const scopes = new Set(ACHIEVEMENT_THEMES.map((t) => t.scope));
+    expect(scopes.has("lifetime")).toBe(true);
+    expect(scopes.has("run")).toBe(true);
+  });
+  it("ключевые темы помечены корректным scope", () => {
+    const byGroup = (g: string) =>
+      ACHIEVEMENT_THEMES.find((t) => t.group === g)?.scope;
+    expect(byGroup("Поглощено всего")).toBe("lifetime");
+    expect(byGroup("Число сжатий")).toBe("lifetime");
+    expect(byGroup("Масса на руках")).toBe("run");
+    expect(byGroup("Развитие дыры")).toBe("run");
+    expect(byGroup("Потрачено за ран")).toBe("run");
+  });
+  it("новая тема «Потрачено за ран» открывается по massSpentRun", () => {
+    const ids = newlyUnlocked({ ...ZERO, massSpentRun: 50_000 }, []).map(
+      (a) => a.id,
+    );
+    expect(ids).toContain("spentRun_1");
   });
 });
