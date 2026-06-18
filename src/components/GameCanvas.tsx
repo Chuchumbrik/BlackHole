@@ -41,7 +41,7 @@ import {
   USER_ZOOM_MAX,
   USER_ZOOM_MIN,
   WAVE_PULL_SPEED,
-  SUPERNOVA_MP_MULT,
+  supernovaMpMult,
 } from "../game/balance";
 import {
   advanceSpawnAccumulator,
@@ -1433,7 +1433,9 @@ export function GameCanvas() {
         }
         const snBuffEndsAt = useGameStore.getState().supernovaBuffEndsAtSimSec;
         const supernovaMpMul =
-          snBuffEndsAt > 0 && simTimeSec < snBuffEndsAt ? SUPERNOVA_MP_MULT : 1;
+          snBuffEndsAt > 0 && simTimeSec < snBuffEndsAt
+            ? supernovaMpMult(useGameStore.getState().supernovaLevel)
+            : 1;
 
         const perkLevels = useGameStore.getState().prestigePerkLevels;
         const pmods = prestigeModifiers(perkLevels);

@@ -28,6 +28,9 @@ export {
   SUPERNOVA_MP_MULT,
   SUPERNOVA_BUFF_SEC,
   SUPERNOVA_UNLOCK_PRESTIGE,
+  SUPERNOVA_MAX_LEVEL,
+  supernovaMpMult,
+  supernovaUpgradeCostMp,
 } from "./energy";
 
 export {

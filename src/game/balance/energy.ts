@@ -36,6 +36,23 @@ export function effectiveEnergyRegen(energyMul: number): number {
 export const SUPERNOVA_ENERGY_COST = 80;
 export const SUPERNOVA_COOLDOWN_SEC = 120; // реального времени
 export const SUPERNOVA_BURST = 40; // тел во всплеске
-export const SUPERNOVA_MP_MULT = 3; // временный множитель MP
+export const SUPERNOVA_MP_MULT = 3; // базовый временный множитель MP (уровень 1)
 export const SUPERNOVA_BUFF_SEC = 30; // длительность баффа (игрового времени)
-export const SUPERNOVA_UNLOCK_PRESTIGE = 1; // открыта после N сжатий
+export const SUPERNOVA_UNLOCK_PRESTIGE = 1; // покупка открыта после N сжатий
+
+/** Максимальный уровень прокачки сверхновой (item 24). */
+export const SUPERNOVA_MAX_LEVEL = 8;
+
+/** Временный множитель MP сверхновой по уровню скилла (1 = базовый ×3). */
+export function supernovaMpMult(level: number): number {
+  if (level <= 0) return 1;
+  return SUPERNOVA_MP_MULT + (level - 1) * 0.75;
+}
+
+/**
+ * Стоимость (MP) перехода с `level` на `level+1`. level 0→1 — разблокировка.
+ * Растёт геометрически: разблокировка дешевле, прокачка — дороже.
+ */
+export function supernovaUpgradeCostMp(level: number): number {
+  return Math.ceil(400 * Math.pow(2.4, level));
+}

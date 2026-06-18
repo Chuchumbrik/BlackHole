@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { playPurchase, playSupernova } from "../game/audio/sound";
+import { playPurchase } from "../game/audio/sound";
 import {
   UPGRADE_BRANCHES,
   computeRadiiPx,
@@ -25,9 +25,10 @@ import {
   planEnvironmentPurchase,
 } from "../game/environment";
 import {
-  SUPERNOVA_ENERGY_COST,
-  SUPERNOVA_COOLDOWN_SEC,
   SUPERNOVA_UNLOCK_PRESTIGE,
+  SUPERNOVA_MAX_LEVEL,
+  supernovaUpgradeCostMp,
+  supernovaMpMult,
 } from "../game/balance";
 import { effectiveHawkingPerSec } from "../game/economyView";
 import {
@@ -91,10 +92,9 @@ export function UpgradesPanel() {
   const achievementsUnlocked = useGameStore((s) => s.achievementsUnlocked);
   const advancedLevels = useGameStore((s) => s.advancedLevels);
   const buyAdvancedUpgrade = useGameStore((s) => s.buyAdvancedUpgrade);
-  const energy = useGameStore((s) => s.energy);
-  const supernovaReadyAtMs = useGameStore((s) => s.supernovaReadyAtMs);
+  const supernovaLevel = useGameStore((s) => s.supernovaLevel);
+  const buySupernovaLevel = useGameStore((s) => s.buySupernovaLevel);
   const prestigeCount = useGameStore((s) => s.prestigeCount);
-  const triggerSupernova = useGameStore((s) => s.triggerSupernova);
   const buyMultiplier = useGameStore((s) => s.buyMultiplier);
   const setBuyMultiplier = useGameStore((s) => s.setBuyMultiplier);
   const [category, setCategory] = useState<UpgradeCategory>("all");
@@ -483,46 +483,60 @@ export function UpgradesPanel() {
 
           {supernovaShown &&
             (() => {
-              const cooldownLeftSec = Math.max(
-                0,
-                Math.ceil((supernovaReadyAtMs - Date.now()) / 1000),
-              );
-              const onCooldown = cooldownLeftSec > 0;
-              const canFire = energy >= SUPERNOVA_ENERGY_COST && !onCooldown;
+              const maxed = supernovaLevel >= SUPERNOVA_MAX_LEVEL;
+              const cost = supernovaUpgradeCostMp(supernovaLevel);
+              const affordable = !maxed && massMp >= cost;
+              const curMult = supernovaMpMult(supernovaLevel);
+              const nextMult = supernovaMpMult(supernovaLevel + 1);
+              const unlocked = supernovaLevel >= 1;
               return (
                 <ul className="upgrades-card-list">
                   <li className="upgrades-card">
                     <div className="upgrades-card-main">
                       <div className="upgrades-card-head">
                         <h3 className="upgrades-card-name">Сверхновая ☀</h3>
+                        <span className="upgrades-card-level">
+                          {unlocked
+                            ? `Ур. ${supernovaLevel}/${SUPERNOVA_MAX_LEVEL}`
+                            : "Не открыта"}
+                        </span>
                       </div>
                       <p className="upgrades-card-effect">
-                        Активируемая способность: мощный всплеск материи + ×3 к
-                        добыче MP на время.
+                        Активируемый скилл (кнопка на экране): всплеск материи +
+                        временный множитель к добыче MP.
                       </p>
-                      <p className="upgrades-card-risk">
-                        Стоит {SUPERNOVA_ENERGY_COST} импульса · перезарядка{" "}
-                        {Math.round(SUPERNOVA_COOLDOWN_SEC / 60)} мин
+                      <p className="upgrades-card-current">
+                        {unlocked
+                          ? `Сейчас: ×${curMult.toFixed(2)} MP${
+                              maxed ? "" : ` → ×${nextMult.toFixed(2)} на след. ур.`
+                            }`
+                          : `После покупки: ×${nextMult.toFixed(
+                              2,
+                            )} MP и кнопка скилла на экране`}
                       </p>
                     </div>
                     <div className="upgrades-card-action">
-                      <p className="upgrades-card-cost">
-                        {onCooldown
-                          ? `Перезарядка: ${cooldownLeftSec} с`
-                          : energy < SUPERNOVA_ENERGY_COST
-                            ? `Нужно ${SUPERNOVA_ENERGY_COST} импульса`
-                            : "Готова"}
-                      </p>
-                      <button
-                        type="button"
-                        className="upgrades-buy"
-                        disabled={!canFire}
-                        onClick={() => {
-                          if (triggerSupernova()) playSupernova();
-                        }}
-                      >
-                        Запустить
-                      </button>
+                      {maxed ? (
+                        <p className="upgrades-card-cost">Максимум</p>
+                      ) : (
+                        <>
+                          <p className="upgrades-card-cost">
+                            {`${unlocked ? "Улучшить" : "Открыть"}: ${cost.toLocaleString(
+                              "ru-RU",
+                            )} MP`}
+                          </p>
+                          <button
+                            type="button"
+                            className="upgrades-buy"
+                            disabled={!affordable}
+                            onClick={() => {
+                              if (buySupernovaLevel()) playPurchase();
+                            }}
+                          >
+                            {unlocked ? "Улучшить" : "Открыть"}
+                          </button>
+                        </>
+                      )}
                     </div>
                   </li>
                 </ul>

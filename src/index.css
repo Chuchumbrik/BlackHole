@@ -639,6 +639,83 @@ body,
 }
 
 /* Компактный журнал-виджет в правом нижнем углу (всегда на виду во время игры). */
+/* Экранная панель скиллов (item 17) — снизу по центру */
+.skillbar {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+.skillbar-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 9px;
+  min-width: 150px;
+  background: rgba(20, 10, 6, 0.86);
+  border: 1px solid #7c3a18;
+  border-radius: 0.7rem;
+  color: #ffd9b0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+.skillbar-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+.skillbar-btn.is-ready {
+  border-color: #ff8a3c;
+  box-shadow: 0 0 16px rgba(255, 138, 60, 0.45);
+}
+.skillbar-btn.is-ready:hover {
+  transform: translateY(-1px);
+}
+.skillbar-btn:active {
+  transform: translateY(1px);
+}
+.skillbar-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 170, 70, 0.7));
+}
+.skillbar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.skillbar-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffedd5;
+}
+.skillbar-status {
+  font-size: 11px;
+  color: #fbbf24;
+}
+.skillbar-lvl {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff9a4a;
+}
+.skillbar-cooldown {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #ff7a18, #ffd166);
+  transform-origin: left center;
+  transition: transform 0.25s linear;
+}
+
 .journal-widget {
   position: fixed;
   right: 1rem;

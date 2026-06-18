@@ -17,6 +17,8 @@ import {
   SUPERNOVA_BURST,
   SUPERNOVA_BUFF_SEC,
   SUPERNOVA_UNLOCK_PRESTIGE,
+  SUPERNOVA_MAX_LEVEL,
+  supernovaUpgradeCostMp,
 } from "../game/balance";
 import { isEnvironmentBranchUnlocked } from "../game/environment";
 import {
@@ -168,8 +170,10 @@ type GameState = {
   energy: number;
   /** Метки времени тапов (мс эпохи) за последнюю минуту — лимит/мин. Не сохраняется. */
   tapTimestamps: number[];
-  /** Игровое время окончания баффа сверхновой (×3 MP); 0 — нет. */
+  /** Игровое время окончания баффа сверхновой (×N MP); 0 — нет. */
   supernovaBuffEndsAtSimSec: number;
+  /** Уровень скилла «Сверхновая» (0 = не куплен; переживает сжатие). */
+  supernovaLevel: number;
   /** Реальное время (мс эпохи), когда сверхнова снова доступна (перезарядка). Не сохраняется. */
   supernovaReadyAtMs: number;
   /** Отложенный всплеск спавна от сверхновой — читает и обнуляет игровой цикл. Не сохраняется. */
@@ -232,8 +236,10 @@ type GameState = {
   regenEnergy: (realDtSec: number) => void;
   /** Попытаться пустить волну притяжения: списать Energy с учётом лимита/мин. */
   tryCastPullWave: () => boolean;
-  /** Запустить сверхновую (узел №11): всплеск + ×3 MP. true — сработало. */
+  /** Запустить сверхновую (узел №11): всплеск + ×N MP. true — сработало. */
   triggerSupernova: () => boolean;
+  /** Купить/прокачать скилл «Сверхновая» (item 24). true — куплено. */
+  buySupernovaLevel: () => boolean;
   /** Прочитать и обнулить отложенный всплеск сверхновой (из игрового цикла). */
   consumeSupernovaBurst: () => number;
   /** Кратность покупки (×1/2/5/10), общая для панелей. Не персистится. */
@@ -284,6 +290,7 @@ function buildSaveData(s: GameState): SaveData {
     advancedLevels: s.advancedLevels,
     energy: s.energy,
     supernovaBuffEndsAtSimSec: s.supernovaBuffEndsAtSimSec,
+    supernovaLevel: s.supernovaLevel,
     journalEntries: s.journalEntries,
     achievementsUnlocked: s.achievementsUnlocked,
   };
@@ -373,6 +380,7 @@ export const useGameStore = create<GameState>((set, get) => {
     ),
     tapTimestamps: [],
     supernovaBuffEndsAtSimSec: saved?.supernovaBuffEndsAtSimSec ?? 0,
+    supernovaLevel: saved?.supernovaLevel ?? 0,
     supernovaReadyAtMs: 0,
     pendingSupernovaBurst: 0,
     journalEntries:
@@ -802,6 +810,7 @@ export const useGameStore = create<GameState>((set, get) => {
         tapTimestamps: [],
         supernovaBuffEndsAtSimSec: 0,
         supernovaReadyAtMs: 0,
+        supernovaLevel: 0,
         pendingSupernovaBurst: 0,
         systems: fresh,
         activeSystemId: fresh[0]?.id ?? "",
@@ -905,11 +914,26 @@ export const useGameStore = create<GameState>((set, get) => {
     set({ energy: s.energy - ENERGY_TAP_COST, tapTimestamps: [...recent, now] });
     return true;
   },
-  triggerSupernova: () => {
+  buySupernovaLevel: () => {
     const s = get();
-    // Узел №11: открыт после ветки B и первого сжатия (как в каноне).
+    // Покупка/прокачка открыта после ветки B и первого сжатия (как в каноне).
     if (!isEnvironmentBranchUnlocked(levelSum(s.upgradeLevels))) return false;
     if (s.prestigeCount < SUPERNOVA_UNLOCK_PRESTIGE) return false;
+    if (s.supernovaLevel >= SUPERNOVA_MAX_LEVEL) return false;
+    const cost = supernovaUpgradeCostMp(s.supernovaLevel);
+    if (s.massMp < cost) return false;
+    set({
+      massMp: s.massMp - cost,
+      massSpentRun: s.massSpentRun + cost,
+      massSpentTotal: s.massSpentTotal + cost,
+      supernovaLevel: s.supernovaLevel + 1,
+    });
+    return true;
+  },
+  triggerSupernova: () => {
+    const s = get();
+    // Скилл должен быть куплен (item 17): доступность — по supernovaLevel.
+    if (s.supernovaLevel < 1) return false;
     const now = Date.now();
     if (now < s.supernovaReadyAtMs) return false;
     if (s.energy < SUPERNOVA_ENERGY_COST) return false;
@@ -969,6 +993,7 @@ export const useGameStore = create<GameState>((set, get) => {
         tapTimestamps: [],
         supernovaBuffEndsAtSimSec: 0,
         supernovaReadyAtMs: 0,
+        supernovaLevel: 0,
         pendingSupernovaBurst: 0,
         journalEntries: (() => {
           const intro = loreIntro();
