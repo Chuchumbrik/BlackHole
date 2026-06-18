@@ -60,6 +60,8 @@ export type SaveData = {
   energy?: number;
   /** Игровое время окончания баффа сверхновой (опционально). */
   supernovaBuffEndsAtSimSec?: number;
+  /** Уровень скилла «Сверхновая» (0 = не куплен; переживает сжатие). */
+  supernovaLevel?: number;
   /** Космический Журнал — записи летописи (опционально; переживает сжатие). */
   journalEntries?: JournalEntry[];
   /** Открытые достижения (опционально; постоянные, переживают сжатие). */
@@ -100,6 +102,8 @@ function migrateSalvage(old: Partial<SaveData>): SaveData {
     achievementsUnlocked: Array.isArray(old.achievementsUnlocked)
       ? old.achievementsUnlocked
       : [],
+    supernovaLevel:
+      typeof old.supernovaLevel === "number" ? old.supernovaLevel : 0,
   };
 }
 

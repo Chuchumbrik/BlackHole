@@ -147,8 +147,9 @@ describe("store: prestige (по потраченной массе)", () => {
     useGameStore.setState({ massSpentRun: SPENT_FOR_2_PP });
     useGameStore.getState().doPrestige();
     const entries = useGameStore.getState().journalEntries;
-    expect(entries.length).toBe(before + 1);
-    expect(entries[0].category).toBe("milestone");
+    // +1 (сжатие), иногда +2 если у новой системы выпала аномалия (RNG).
+    expect(entries.length).toBeGreaterThanOrEqual(before + 1);
+    expect(entries.some((e) => e.category === "milestone")).toBe(true);
   });
   it("lifetimePp накапливается и НЕ сбрасывается тратой PP (для достижений)", () => {
     setup(100);
@@ -191,25 +192,44 @@ describe("store: Energy и волна притяжения", () => {
 });
 
 describe("store: сверхновая (узел №11)", () => {
+  // Покупка/прокачка открыта (ветка B + сжатие), скилл куплен (level 1).
   const armSupernova = () =>
     useGameStore.setState({
       upgradeLevels: { ...ZERO_UPGRADE_LEVELS, size: 20 }, // сумма ≥ 18 → ветка B открыта
       prestigeCount: 1,
+      massMp: 1e9,
       energy: ENERGY_MAX,
+      supernovaLevel: 1,
       supernovaReadyAtMs: 0,
       supernovaBuffEndsAtSimSec: 0,
       pendingSupernovaBurst: 0,
       gameTimeSec: 0,
     });
-  it("не запускается без разблокировки ветки B", () => {
+  it("покупка не открыта без разблокировки ветки B", () => {
     armSupernova();
-    useGameStore.setState({ upgradeLevels: { ...ZERO_UPGRADE_LEVELS } }); // сумма 0
+    useGameStore.setState({
+      upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
+      supernovaLevel: 0,
+    });
+    expect(useGameStore.getState().buySupernovaLevel()).toBe(false);
+  });
+  it("покупка не открыта без сжатия", () => {
+    armSupernova();
+    useGameStore.setState({ prestigeCount: 0, supernovaLevel: 0 });
+    expect(useGameStore.getState().buySupernovaLevel()).toBe(false);
+  });
+  it("не запускается, пока скилл не куплен (level 0)", () => {
+    armSupernova();
+    useGameStore.setState({ supernovaLevel: 0 });
     expect(useGameStore.getState().triggerSupernova()).toBe(false);
   });
-  it("не запускается без сжатия", () => {
+  it("покупка повышает уровень и списывает MP", () => {
     armSupernova();
-    useGameStore.setState({ prestigeCount: 0 });
-    expect(useGameStore.getState().triggerSupernova()).toBe(false);
+    useGameStore.setState({ supernovaLevel: 0, massMp: 1e9 });
+    const before = useGameStore.getState().massMp;
+    expect(useGameStore.getState().buySupernovaLevel()).toBe(true);
+    expect(useGameStore.getState().supernovaLevel).toBe(1);
+    expect(useGameStore.getState().massMp).toBeLessThan(before);
   });
   it("запускается: списывает Energy, ставит бафф и всплеск, уходит в перезарядку", () => {
     armSupernova();

@@ -95,10 +95,28 @@ export function PlanetPanel() {
     activeSystem?.planets[0];
 
   if (!activeSystem || !planet) {
+    const msg =
+      systems.length === 0
+        ? "Системы пока не сгенерированы."
+        : "Все планеты этой системы уничтожены или поглощены чёрной дырой.";
     return (
       <section className="planet-panel">
         <h2 className="planet-title">{t("planet.title")}</h2>
-        <p className="planet-empty">{t("planet.empty")}</p>
+        <p className="planet-empty">{msg}</p>
+        {systems.length > 1 && (
+          <div className="planet-system-picker" role="group">
+            {systems.map((system) => (
+              <button
+                key={system.id}
+                type="button"
+                className={system.id === activeSystem?.id ? "is-active" : undefined}
+                onClick={() => setActiveSystem(system.id)}
+              >
+                {system.name}
+              </button>
+            ))}
+          </div>
+        )}
       </section>
     );
   }

@@ -62,10 +62,11 @@ body,
   pointer-events: auto;
 }
 
-/* Фон-космос за боковыми модалками (виден, но не кликается вне игровой вкладки). */
+/* Космос за боковой панелью — виден И интерактивен (зум/пан/тап остаются
+   доступны при открытой панели; панель не затемняет и не блокирует поле). */
 .game-canvas-wrap.is-backdrop {
   visibility: visible;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .game-canvas-host {
@@ -196,27 +197,18 @@ body,
 }
 
 /* Полупрозрачный бэкдроп: космос виден позади, клик закрывает панель. */
-.app-panel-backdrop {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background: rgba(3, 5, 10, 0.4);
-  backdrop-filter: blur(1.5px);
-  pointer-events: auto;
-}
-
 /* Мобайл: панель — нижний лист (не на весь экран), сверху виден космос. */
 .app-panel-overlay {
-  position: absolute;
+  position: fixed;
   inset: auto 0 0 0;
-  z-index: 2;
-  max-height: 86vh;
+  z-index: 8;
+  max-height: 78vh;
   overflow: auto;
-  padding: 1.6rem 1rem 1.5rem;
+  padding: 1.7rem 1rem 1.5rem;
   background: linear-gradient(
     180deg,
-    rgba(16, 11, 26, 0.98) 0%,
-    rgba(10, 7, 16, 0.98) 100%
+    rgba(16, 11, 26, 0.97) 0%,
+    rgba(10, 7, 16, 0.97) 100%
   );
   border-top: 1px solid var(--border);
   border-radius: 16px 16px 0 0;
@@ -224,48 +216,43 @@ body,
   pointer-events: auto;
 }
 
-/* Большие экраны: панель — правый дровер, космос остаётся виден слева. */
+/* Большие экраны: ШИРОКИЙ правый дровер НИЖЕ нав-бара — не перекрывает меню,
+   не затемняет космос (он остаётся слева и интерактивен). */
 @media (min-width: 980px) {
   .app-panel-overlay {
-    inset: 0 0 0 auto;
+    inset: 5.4rem 0 0 auto;
     max-height: none;
-    width: min(480px, 42vw);
-    padding: 5.25rem 1.5rem 1.5rem;
-    border-top: none;
-    border-radius: 0;
+    width: min(640px, 46vw);
+    padding: 1.4rem 1.6rem 1.6rem;
+    border-top: 1px solid var(--border);
     border-left: 1px solid var(--border);
-    box-shadow: -24px 0 64px rgba(0, 0, 0, 0.55);
+    border-radius: 14px 0 0 0;
+    box-shadow: -24px 0 64px rgba(0, 0, 0, 0.5);
   }
 }
 
-/* Кнопка закрытия панели (✕) — всегда доступна, не нужно жать вкладку. */
+/* Кнопка закрытия панели (✕) — теперь панель НАД интерфейсом, ✕ всегда кликается. */
 .app-panel-close {
   position: absolute;
-  top: 0.6rem;
+  top: 0.55rem;
   right: 0.7rem;
   z-index: 3;
-  width: 2rem;
-  height: 2rem;
+  width: 2.1rem;
+  height: 2.1rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(0, 0, 0, 0.5);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 1rem;
   line-height: 1;
   cursor: pointer;
 }
 .app-panel-close:hover {
-  background: rgba(155, 126, 217, 0.25);
+  background: rgba(155, 126, 217, 0.3);
   border-color: rgba(155, 126, 217, 0.5);
-}
-@media (min-width: 980px) {
-  .app-panel-close {
-    top: 5.35rem;
-    right: 1rem;
-  }
 }
 
 .app-panel-upgrades {
@@ -651,6 +638,195 @@ body,
   opacity: 0.62;
 }
 
+/* Компактный журнал-виджет в правом нижнем углу (всегда на виду во время игры). */
+/* Мини-модалка наведения на планету/звезду (item 6/7) */
+.hover-card {
+  position: fixed;
+  z-index: 9;
+  pointer-events: none;
+  padding: 8px 11px 9px;
+  background: rgba(10, 8, 18, 0.92);
+  border: 1px solid #34406a;
+  border-radius: 0.55rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+  color: #d7def0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.hover-card-star {
+  border-color: #7a5a1e;
+}
+.hover-card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #f1f5ff;
+  margin-bottom: 5px;
+}
+.hover-card-star .hover-card-title {
+  color: #fde8c0;
+}
+.hover-card-icon {
+  font-size: 14px;
+}
+.hover-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.hover-card-line {
+  color: #aeb9d4;
+}
+
+/* Экранная панель скиллов (item 17) — снизу по центру */
+.skillbar {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+}
+.skillbar-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px 9px;
+  min-width: 150px;
+  background: rgba(20, 10, 6, 0.86);
+  border: 1px solid #7c3a18;
+  border-radius: 0.7rem;
+  color: #ffd9b0;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+.skillbar-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+.skillbar-btn.is-ready {
+  border-color: #ff8a3c;
+  box-shadow: 0 0 16px rgba(255, 138, 60, 0.45);
+}
+.skillbar-btn.is-ready:hover {
+  transform: translateY(-1px);
+}
+.skillbar-btn:active {
+  transform: translateY(1px);
+}
+.skillbar-icon {
+  font-size: 22px;
+  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 170, 70, 0.7));
+}
+.skillbar-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.15;
+}
+.skillbar-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffedd5;
+}
+.skillbar-status {
+  font-size: 11px;
+  color: #fbbf24;
+}
+.skillbar-lvl {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff9a4a;
+}
+.skillbar-cooldown {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: linear-gradient(90deg, #ff7a18, #ffd166);
+  transform-origin: left center;
+  transition: transform 0.25s linear;
+}
+
+.journal-widget {
+  position: fixed;
+  right: 1rem;
+  bottom: 4.4rem;
+  z-index: 4;
+  width: min(290px, calc(100vw - 2rem));
+  text-align: left;
+  background: rgba(8, 6, 14, 0.8);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.5rem 0.65rem;
+  cursor: pointer;
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font: inherit;
+}
+.journal-widget:hover {
+  border-color: rgba(155, 126, 217, 0.5);
+}
+.journal-widget-title {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.journal-widget-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+.journal-widget-entry {
+  display: flex;
+  gap: 0.42rem;
+  align-items: baseline;
+}
+.journal-widget-dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 0.3em;
+}
+.journal-widget-text {
+  font-size: 0.72rem;
+  line-height: 1.3;
+  color: #cdd6e6;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+@media (max-width: 520px) {
+  .journal-widget {
+    width: min(220px, calc(100vw - 1.5rem));
+    bottom: 4rem;
+  }
+  .journal-widget-text {
+    -webkit-line-clamp: 1;
+  }
+}
+
 .journal-empty {
   color: var(--muted);
   font-size: 0.85rem;
@@ -722,6 +898,7 @@ body,
 }
 
 .app-mass {
+  position: relative;
   font-variant-numeric: tabular-nums;
   font-size: 0.95rem;
   padding: 0.35rem 0.65rem;
@@ -803,19 +980,21 @@ body,
 }
 
 .mp-gain-floater-layer {
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  height: 0;
   z-index: 6;
   pointer-events: none;
-  overflow: hidden;
 }
 
-/* Компактный «+N MP» у счётчика массы (шапка справа): короткий подъём и
-   затухание, без пролёта через весь экран. */
+/* Компактный «+N MP» ПРЯМО под счётчиком массы (рендерится внутри .app-mass):
+   короткий подъём и затухание у самого счётчика, без пролёта через экран. */
 .mp-gain-floater {
   position: absolute;
-  top: calc(4.1rem + env(safe-area-inset-top, 0px));
-  right: max(1rem, env(safe-area-inset-right, 0px));
+  top: 0.25rem;
+  right: 0.2rem;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   font-size: clamp(0.85rem, 2.2vw, 1rem);
@@ -1018,6 +1197,8 @@ body,
 .settings-btn-danger:hover { background: #dc2626; box-shadow: 0 0 16px rgba(220, 38, 38, 0.45); }
 .settings-confirm-text { font-size: 13px; color: #fecaca; margin: 0 0 12px; font-weight: 600; }
 .settings-confirm-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.settings-lang { display: flex; gap: 10px; flex-wrap: wrap; }
+.settings-lang .is-active { outline: 2px solid #a78bfa; }
 .settings-version { font-size: 11px; color: #475569; text-align: center; margin: 6px 0 0; }
 
 /* Магазин перков престижа */
@@ -1044,6 +1225,16 @@ body,
 .buy-mult-label { font-size: 12px; color: #94a3b8; margin-right: 2px; }
 .buy-mult button { background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 7px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
 .buy-mult button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; }
+
+/* Навигация по улучшениям: вкладки-категории + фильтры */
+.upg-cats { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.upg-cats button { background: #131c2e; color: #cbd5e1; border: 1px solid #2a3650; border-radius: 999px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; transition: background .12s, border-color .12s; }
+.upg-cats button:hover { border-color: #475569; }
+.upg-cats button.is-active { background: #6366f1; color: #fff; border-color: #6366f1; font-weight: 600; }
+.upg-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.upg-filters button { background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 7px; padding: 3px 9px; font-size: 12px; cursor: pointer; }
+.upg-filters button.is-active { background: #14532d; color: #bbf7d0; border-color: #16a34a; }
+.upg-empty { color: #94a3b8; font-size: 13px; text-align: center; padding: 18px 8px; line-height: 1.5; }
 
 /* Легенда игрового поля (ясность: почему материя летит к дыре) */
 .field-legend {
@@ -1124,6 +1315,8 @@ body,
 .stats-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.04); }
 .stats-row:last-child { border-bottom: none; }
 .stats-label { color: #94a3b8; }
+.stats-info { color: #64748b; font-size: 0.85em; cursor: help; }
+.stats-row[title] { cursor: help; }
 .stats-value { color: #e2e8f0; font-variant-numeric: tabular-nums; text-align: right; }
 
 /* Достижения */
@@ -1132,6 +1325,8 @@ body,
 .ach-group-title { font-size: 14px; color: #c4b5fd; margin: 0 0 8px; display: flex; justify-content: space-between; align-items: baseline; }
 .ach-group-count { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; }
 .ach-summary { font-size: 13px; color: #94a3b8; margin: 4px 0 14px; }
+.ach-section-title { font-size: 15px; font-weight: 600; color: #e2e8f0; margin: 18px 0 2px; padding-bottom: 4px; border-bottom: 1px solid #28324a; }
+.ach-section-hint { font-size: 11.5px; color: #7e8aa3; margin: 0 0 10px; }
 .ach-list { list-style: none; padding: 0; margin: 0; }
 .ach { background: #0e1422; border: 1px solid #1e293b; border-radius: 10px; padding: 11px 14px; margin-bottom: 9px; opacity: 0.6; }
 .ach.is-got { opacity: 1; border-color: #3f6212; }

@@ -17,6 +17,8 @@ export type AchievementCtx = {
   lifetimeMassMp: number;
   /** Всего MP потрачено за всё время. */
   massSpentTotal: number;
+  /** MP потрачено за текущий ран (сбрасывается при сжатии). */
+  massSpentRun: number;
   /** Суммарно заработанные PP (lifetime). */
   prestigePoints: number;
   /** Число совершённых сжатий. */
@@ -57,9 +59,14 @@ export type AchievementTier = {
   mul: number;
 };
 
+/** Область достижения: за всю игру (lifetime) или за текущий ран (сброс при сжатии). */
+export type AchScope = "lifetime" | "run";
+
 /** Тема достижения = один показатель и его растущие пороги (тиры). */
 export type AchievementTheme = {
   group: string;
+  /** lifetime — копится всю игру; run — сбрасывается при сжатии (item 20). */
+  scope: AchScope;
   /** Текущее значение показателя из контекста. */
   pick: (c: AchievementCtx) => number;
   /** Форматирование значения для UI. */
@@ -74,20 +81,27 @@ function fmtTime(sec: number): string {
   return `${Math.floor(s / 3600)} ч`;
 }
 
+/** Множитель сложности достижений (по фидбеку: ×2 порогов для масштабируемых тем). */
+export const ACH_DIFFICULTY = 2;
+
 function theme(
   group: string,
   idbase: string,
   pick: (c: AchievementCtx) => number,
   fmt: (n: number) => string,
   rows: { at: number; name: string; desc: string; mul: number }[],
+  /** Масштаб порогов: 2 — сложнее ×2; 1 — без изменений (для capped-метрик). */
+  atScale: number = ACH_DIFFICULTY,
+  scope: AchScope = "lifetime",
 ): AchievementTheme {
   return {
     group,
+    scope,
     pick,
     fmt,
     tiers: rows.map((r, i) => ({
       id: `${idbase}_${i + 1}`,
-      at: r.at,
+      at: Math.round(r.at * atScale),
       name: r.name,
       desc: r.desc,
       mul: r.mul,
@@ -111,6 +125,9 @@ function branchThemes(): AchievementTheme[] {
     { at: 10, mul: 1.02 },
     { at: 25, mul: 1.03 },
     { at: 50, mul: 1.05 },
+    { at: 100, mul: 1.06 },
+    { at: 200, mul: 1.08 },
+    { at: 400, mul: 1.1 },
   ];
   return UPGRADE_BRANCHES.map((b) =>
     theme(
@@ -124,6 +141,8 @@ function branchThemes(): AchievementTheme[] {
         desc: `Поднять ветку «${BRANCH_LABELS[b]}» до уровня ${s.at}`,
         mul: s.mul,
       })),
+      ACH_DIFFICULTY,
+      "run", // уровни веток сбрасываются при сжатии
     ),
   );
 }
@@ -138,14 +157,19 @@ export const ACHIEVEMENT_THEMES: AchievementTheme[] = [
     { at: 10_000_000, name: "Десять миллионов", desc: "Накопить 10 000 000 MP", mul: 1.06 },
     { at: 100_000_000, name: "Сверхмассивная", desc: "Накопить 100 000 000 MP", mul: 1.08 },
     { at: 1_000_000_000, name: "Миллиард масс", desc: "Накопить 1 000 000 000 MP", mul: 1.1 },
-  ]),
+    { at: 10_000_000_000, name: "Десять миллиардов", desc: "Накопить 10 млрд MP", mul: 1.12 },
+    { at: 100_000_000_000, name: "Сто миллиардов", desc: "Накопить 100 млрд MP", mul: 1.14 },
+    { at: 1_000_000_000_000, name: "Триллион в горизонте", desc: "Накопить 1 трлн MP", mul: 1.16 },
+  ], ACH_DIFFICULTY, "run"),
   theme("Поглощено всего", "life", (c) => c.lifetimeMassMp, fmtInt, [
     { at: 100_000, name: "Аппетит", desc: "Получить суммарно 100 000 MP", mul: 1.03 },
     { at: 1_000_000, name: "Аппетит растёт", desc: "Получить суммарно 1 000 000 MP", mul: 1.04 },
     { at: 10_000_000, name: "Прожорливость", desc: "Получить суммарно 10 000 000 MP", mul: 1.05 },
     { at: 100_000_000, name: "Ненасытность", desc: "Получить суммарно 100 000 000 MP", mul: 1.07 },
     { at: 1_000_000_000, name: "Бездна", desc: "Получить суммарно 1 000 000 000 MP", mul: 1.09 },
-    { at: 10_000_000_000, name: "Пожиратель миров", desc: "Получить суммарно 10 000 000 000 MP", mul: 1.12 },
+    { at: 10_000_000_000, name: "Пожиратель миров", desc: "Получить суммарно 10 млрд MP", mul: 1.12 },
+    { at: 100_000_000_000, name: "Голод вселенной", desc: "Получить суммарно 100 млрд MP", mul: 1.15 },
+    { at: 1_000_000_000_000, name: "Всепоглощение", desc: "Получить суммарно 1 трлн MP", mul: 1.18 },
   ]),
   theme("Потрачено всего", "spent", (c) => c.massSpentTotal, fmtInt, [
     { at: 10_000, name: "Транжира", desc: "Потратить суммарно 10 000 MP", mul: 1.02 },
@@ -153,6 +177,8 @@ export const ACHIEVEMENT_THEMES: AchievementTheme[] = [
     { at: 1_000_000, name: "Меценат", desc: "Потратить суммарно 1 000 000 MP", mul: 1.05 },
     { at: 10_000_000, name: "Мот", desc: "Потратить суммарно 10 000 000 MP", mul: 1.07 },
     { at: 100_000_000, name: "Расточитель вселенных", desc: "Потратить суммарно 100 000 000 MP", mul: 1.09 },
+    { at: 1_000_000_000, name: "Транжира галактик", desc: "Потратить суммарно 1 млрд MP", mul: 1.11 },
+    { at: 10_000_000_000, name: "Банкрот богов", desc: "Потратить суммарно 10 млрд MP", mul: 1.14 },
   ]),
   theme("Сжатия (PP)", "pp", (c) => c.prestigePoints, fmtInt, [
     { at: 1, name: "Новая вселенная", desc: "Заработать первое PP", mul: 1.04 },
@@ -178,14 +204,14 @@ export const ACHIEVEMENT_THEMES: AchievementTheme[] = [
     { at: 100, name: "Доминион гравитации", desc: "Сумма уровней веток ≥ 100", mul: 1.07 },
     { at: 150, name: "Предел Шварцшильда", desc: "Сумма уровней веток ≥ 150", mul: 1.09 },
     { at: 250, name: "За горизонтом", desc: "Сумма уровней веток ≥ 250", mul: 1.12 },
-  ]),
+  ], ACH_DIFFICULTY, "run"),
   theme("Доход (MP/с)", "income", (c) => c.incomeMpPerSec, fmtInt, [
     { at: 5, name: "Ручеёк", desc: "Доход ≥ 5 MP/с", mul: 1.02 },
     { at: 25, name: "Поток", desc: "Доход ≥ 25 MP/с", mul: 1.03 },
     { at: 100, name: "Река материи", desc: "Доход ≥ 100 MP/с", mul: 1.05 },
     { at: 500, name: "Лавина", desc: "Доход ≥ 500 MP/с", mul: 1.07 },
     { at: 2_000, name: "Цунами", desc: "Доход ≥ 2 000 MP/с", mul: 1.1 },
-  ]),
+  ], ACH_DIFFICULTY, "run"),
   theme("Время поглощения", "time", (c) => c.gameTimeSec, fmtTime, [
     { at: 300, name: "Разогрев", desc: "5 минут игрового времени", mul: 1.02 },
     { at: 3_600, name: "Час поглощения", desc: "1 час игрового времени", mul: 1.03 },
@@ -194,25 +220,40 @@ export const ACHIEVEMENT_THEMES: AchievementTheme[] = [
     { at: 43_200, name: "Полусутки", desc: "12 часов игрового времени", mul: 1.07 },
     { at: 86_400, name: "Сутки сингулярности", desc: "24 часа игрового времени", mul: 1.09 },
     { at: 259_200, name: "Вне времени", desc: "72 часа игрового времени", mul: 1.12 },
-  ]),
+  ], ACH_DIFFICULTY, "run"),
   theme("Жизнь", "bio", (c) => c.planetsWithLife, fmtInt, [
     { at: 1, name: "Колыбель", desc: "Зародить жизнь на планете", mul: 1.04 },
     { at: 3, name: "Оазисы", desc: "Жизнь на 3 планетах", mul: 1.06 },
     { at: 5, name: "Сеятель", desc: "Жизнь на 5 планетах", mul: 1.08 },
     { at: 10, name: "Садовник галактик", desc: "Жизнь на 10 планетах", mul: 1.1 },
     { at: 25, name: "Демиург", desc: "Жизнь на 25 планетах", mul: 1.13 },
-  ]),
+  ], 1 /* capped числом планет — без ×2 */, "run"),
   theme("Цивилизации", "civ", (c) => c.maxCivLevel, fmtInt, [
     { at: 1, name: "Первый контакт", desc: "Цивилизация тира 1", mul: 1.04 },
     { at: 2, name: "Космическая эра", desc: "Цивилизация тира 2", mul: 1.06 },
     { at: 3, name: "Сфера Дайсона", desc: "Цивилизация тира 3", mul: 1.08 },
     { at: 4, name: "Галактическая дань", desc: "Цивилизация тира 4", mul: 1.12 },
-  ]),
+  ], 1 /* тир цивилизации ограничен 4 — без ×2 */, "run"),
   theme("Поглощённые звёзды", "stars", (c) => c.starsSwallowed, fmtInt, [
     { at: 1, name: "Звездоед", desc: "Поглотить звезду целиком", mul: 1.15 },
     { at: 3, name: "Гаситель светил", desc: "Поглотить 3 звезды", mul: 1.2 },
     { at: 10, name: "Конец света", desc: "Поглотить 10 звёзд", mul: 1.3 },
   ]),
+  theme(
+    "Потрачено за ран",
+    "spentRun",
+    (c) => c.massSpentRun,
+    fmtInt,
+    [
+      { at: 5_000, name: "Размах рана", desc: "Потратить 5 000 MP за ран", mul: 1.02 },
+      { at: 50_000, name: "Кутёж рана", desc: "Потратить 50 000 MP за ран", mul: 1.03 },
+      { at: 500_000, name: "Пир за ран", desc: "Потратить 500 000 MP за ран", mul: 1.05 },
+      { at: 5_000_000, name: "Оргия трат", desc: "Потратить 5 000 000 MP за ран", mul: 1.07 },
+      { at: 50_000_000, name: "Всё в дыру", desc: "Потратить 50 000 000 MP за ран", mul: 1.1 },
+    ],
+    ACH_DIFFICULTY,
+    "run",
+  ),
   ...branchThemes(),
 ];
 

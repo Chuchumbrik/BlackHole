@@ -8,6 +8,7 @@ export {
   MAX_OBJECTS_ON_FIELD,
   SHIP_SPAWN_FRACTION,
   SPAWN_WEIGHTS,
+  spawnRateFromLevels,
 } from "./spawn";
 
 export type { ObjectKind } from "./objectKinds";
@@ -19,12 +20,17 @@ export {
   ENERGY_TAP_COST,
   MAX_TAPS_PER_MIN,
   WAVE_PULL_SPEED,
+  effectiveEnergyMax,
+  effectiveEnergyRegen,
   SUPERNOVA_ENERGY_COST,
   SUPERNOVA_COOLDOWN_SEC,
   SUPERNOVA_BURST,
   SUPERNOVA_MP_MULT,
   SUPERNOVA_BUFF_SEC,
   SUPERNOVA_UNLOCK_PRESTIGE,
+  SUPERNOVA_MAX_LEVEL,
+  supernovaMpMult,
+  supernovaUpgradeCostMp,
 } from "./energy";
 
 export {

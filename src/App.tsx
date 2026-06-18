@@ -6,9 +6,13 @@ import { ViewScaleControls } from "./components/ViewScaleControls";
 import { MpGainFloaters } from "./components/MpGainFloaters";
 import { PlanetPanel } from "./components/PlanetPanel";
 import { UpgradesPanel } from "./components/UpgradesPanel";
+import { BlackHolePanel } from "./components/BlackHolePanel";
 import { PrestigePanel } from "./components/PrestigePanel";
 import { AchievementsPanel } from "./components/AchievementsPanel";
 import { JournalPanel } from "./components/JournalPanel";
+import { JournalWidget } from "./components/JournalWidget";
+import { SkillBar } from "./components/SkillBar";
+import { HoverCard } from "./components/HoverCard";
 import { StatsPanel } from "./components/StatsPanel";
 import { SettingsPanel } from "./components/SettingsPanel";
 import { FeedbackButton } from "./components/FeedbackButton";
@@ -16,7 +20,11 @@ import { FieldLegend } from "./components/FieldLegend";
 import { OnboardingCta } from "./components/OnboardingCta";
 import { useGameStore } from "./store/useGameStore";
 import { levelSum } from "./game/upgrades";
-import { UPGRADE_FIRST_LEVEL_COST_MP, ENERGY_MAX } from "./game/balance";
+import {
+  UPGRADE_FIRST_LEVEL_COST_MP,
+  effectiveEnergyMax,
+} from "./game/balance";
+import { mpUpgradeModifiers } from "./game/mpUpgrades";
 import { resumeAudio, playEvent, playPrestige } from "./game/audio/sound";
 
 const APP_VERSION = __APP_VERSION__;
@@ -31,6 +39,7 @@ const CTA_SEEN_KEY = "cbh:onboardingCtaSeen";
 const TABS = [
   { id: "game" as const, labelKey: "app.tabs.game", hint: "Игровое поле: дыра поглощает материю системы", unlocked: () => true },
   { id: "upgrades" as const, labelKey: "app.tabs.upgrades", hint: "Прокачка чёрной дыры за MP", unlocked: () => true },
+  { id: "blackhole" as const, labelKey: "app.tabs.blackhole", hint: "Характеристики чёрной дыры в реальном времени", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "planet" as const, labelKey: "app.tabs.planet", hint: "Развитие планет: терраформинг, жизнь, цивилизация, дань", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
   { id: "prestige" as const, labelKey: "app.tabs.prestige", hint: "Сжатие вселенной ради очков престижа (PP)", unlocked: (c: TabUnlockCtx) => c.levelSum >= 5 || c.prestigeCount > 0 },
   { id: "stats" as const, labelKey: "app.tabs.stats", hint: "Все показатели игры", unlocked: (c: TabUnlockCtx) => c.levelSum >= 1 },
@@ -48,6 +57,7 @@ type TabUnlockCtx = {
 /** Класс-модификатор оверлея по вкладке (для специфичных стилей панели). */
 const PANEL_OVERLAY_CLASS: Record<string, string> = {
   upgrades: "app-panel-upgrades",
+  blackhole: "app-panel-stats",
   planet: "app-panel-planet",
   prestige: "app-panel-prestige",
   stats: "app-panel-stats",
@@ -60,6 +70,9 @@ function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
   const energy = useGameStore((s) => s.energy);
+  const energyMax = useGameStore((s) =>
+    effectiveEnergyMax(mpUpgradeModifiers(s.mpUpgradeLevels).energyMul),
+  );
   const newGamePlusCount = useGameStore((s) => s.newGamePlusCount);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
@@ -180,48 +193,44 @@ function App() {
         {/* Виньетка: мягко затемняет края, чтобы прямоугольный край кадра (где
             «вплывают» тела с дальней круглой границы) не читался как рамка. */}
         <div className="game-vignette" aria-hidden="true" />
-        {activeTab !== "game" && (
-          <>
-            {/* Полупрозрачный бэкдроп: космос виден позади, клик по нему закрывает
-                панель (модальное поведение, а не блокировка всего экрана). */}
-            <div
-              className="app-panel-backdrop"
-              onClick={() => setTab("game")}
-              aria-hidden="true"
-            />
-            <div
-              className={`app-panel-overlay ${PANEL_OVERLAY_CLASS[activeTab] ?? ""}`}
-              role="dialog"
-              aria-modal="false"
-            >
-              <button
-                type="button"
-                className="app-panel-close"
-                onClick={() => setTab("game")}
-                aria-label="Закрыть"
-                title="Закрыть (или клик по космосу)"
-              >
-                ✕
-              </button>
-              {activeTab === "upgrades" && <UpgradesPanel />}
-              {activeTab === "planet" && <PlanetPanel />}
-              {activeTab === "prestige" && <PrestigePanel />}
-              {activeTab === "stats" && <StatsPanel />}
-              {activeTab === "achievements" && <AchievementsPanel />}
-              {activeTab === "journal" && <JournalPanel />}
-              {activeTab === "settings" && <SettingsPanel />}
-            </div>
-          </>
-        )}
       </div>
 
-      {activeTab === "game" && (
-        <>
-          <ViewScaleControls />
-          <TimeScaleControls />
-          <FieldLegend />
-        </>
+      {/* Панель — НЕ внутри game-layer (иначе её перекрывает шапка/нав): отдельный
+          правый дровер НИЖЕ нав-бара, не затемняет космос, космос остаётся
+          интерактивным (зум/пан). Закрытие — ✕ или повторный клик по вкладке. */}
+      {activeTab !== "game" && (
+        <div
+          className={`app-panel-overlay ${PANEL_OVERLAY_CLASS[activeTab] ?? ""}`}
+          role="dialog"
+          aria-modal="false"
+        >
+          <button
+            type="button"
+            className="app-panel-close"
+            onClick={() => setTab("game")}
+            aria-label="Закрыть"
+            title="Закрыть"
+          >
+            ✕
+          </button>
+          {activeTab === "upgrades" && <UpgradesPanel />}
+          {activeTab === "blackhole" && <BlackHolePanel />}
+          {activeTab === "planet" && <PlanetPanel />}
+          {activeTab === "prestige" && <PrestigePanel />}
+          {activeTab === "stats" && <StatsPanel />}
+          {activeTab === "achievements" && <AchievementsPanel />}
+          {activeTab === "journal" && <JournalPanel />}
+          {activeTab === "settings" && <SettingsPanel />}
+        </div>
       )}
+
+      {/* Зум/время доступны и при открытой панели (космос остаётся интерактивным). */}
+      <ViewScaleControls />
+      <TimeScaleControls />
+      {activeTab === "game" && <FieldLegend />}
+      {activeTab === "game" && <JournalWidget />}
+      {activeTab === "game" && <SkillBar />}
+      {activeTab === "game" && <HoverCard />}
 
       {showCta && (
         <OnboardingCta
@@ -250,6 +259,7 @@ function App() {
           >
             {t("app.mass", { value: massMp.toLocaleString("ru-RU") })}
             <span className="app-mass-hint"> {t("app.massHint")}</span>
+            <MpGainFloaters />
           </div>
           <div
             className="app-energy"
@@ -258,14 +268,14 @@ function App() {
             <div className="app-energy-row">
               <span className="app-energy-label">Импульс</span>
               <span className="app-energy-value">
-                {Math.floor(energy)}/{ENERGY_MAX}
+                {Math.floor(energy)}/{Math.round(energyMax)}
               </span>
             </div>
             <div className="app-energy-track">
               <div
                 className="app-energy-fill"
                 style={{
-                  width: `${Math.max(0, Math.min(100, (energy / ENERGY_MAX) * 100))}%`,
+                  width: `${Math.max(0, Math.min(100, (energy / energyMax) * 100))}%`,
                 }}
               />
             </div>
@@ -342,7 +352,6 @@ function App() {
         </div>
       )}
 
-      <MpGainFloaters />
       <FeedbackButton />
     </div>
   );
