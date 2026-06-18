@@ -30,6 +30,16 @@ export function ultimateMpMul(up: number): number {
   return 1 + 0.25 * Math.max(0, up);
 }
 
+/**
+ * Стартовая масса нового New Game+ от Ultimate Points: NG+ стартует «сверхмассивным»,
+ * пропуская ранний грайнд (фантазия GDD). Растёт сверхлинейно с UP.
+ */
+export function ngPlusStartMass(up: number): number {
+  const u = Math.max(0, up);
+  if (u <= 0) return 0;
+  return Math.floor(2000 * Math.pow(u, 1.4));
+}
+
 /** Достигнут ли Ultimate Prestige (финальная веха). */
 export function ultimateReached(newGamePlusCount: number): boolean {
   return newGamePlusCount >= ULTIMATE_NG_REQUIRED;

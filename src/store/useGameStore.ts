@@ -59,6 +59,7 @@ import {
   ENTROPY_PER_PRESTIGE,
   canDestroyUniverse,
   upFromDestruction,
+  ngPlusStartMass,
 } from "../game/endgame";
 import {
   loadSave,
@@ -743,11 +744,14 @@ export const useGameStore = create<GameState>((set, get) => {
       if (!canDestroyUniverse(s.universeEntropy)) return s;
       const up = upFromDestruction(s.lifetimePp, s.universeEntropy);
       const ng = s.newGamePlusCount + 1;
+      const totalUp = s.ultimatePoints + up;
       const line = loreOnUniverseDestroyed(ng, up);
       const fresh = generateStarSystems();
+      // NG+ стартует «сверхмассивным» — бонус-масса от накопленных UP.
+      const startMass = ngPlusStartMass(totalUp);
       return {
         // Вечная мета сохраняется:
-        ultimatePoints: s.ultimatePoints + up,
+        ultimatePoints: totalUp,
         newGamePlusCount: ng,
         universeEntropy: 0,
         prestigeFlash: s.prestigeFlash + 1,
@@ -755,7 +759,9 @@ export const useGameStore = create<GameState>((set, get) => {
         prestigePoints: 0,
         prestigePerkLevels: {},
         prestigeCount: 0,
-        massMp: 0,
+        massMp: startMass,
+        lifetimeMassMp: s.lifetimeMassMp + startMass,
+        peakMassMp: Math.max(s.peakMassMp, startMass),
         massSpentRun: 0,
         upgradeLevels: { ...ZERO_UPGRADE_LEVELS },
         mpUpgradeLevels: {},

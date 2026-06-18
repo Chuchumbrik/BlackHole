@@ -1,4 +1,7 @@
-export const PLANET_STAGE_DURATIONS_MIN = [8, 15, 25, 40] as const;
+// Калибровка v0.5.75 (анализ doc 17, рек. №3): ранние стадии чуть быстрее
+// (8/15/25/40 → 6/12/20/34), чтобы жизнь была достижима в обозримом ране —
+// вместе с перком «Космическая память» (фора по стадиям).
+export const PLANET_STAGE_DURATIONS_MIN = [6, 12, 20, 34] as const;
 
 export const PLANET_STAGE_DURATIONS_SEC = PLANET_STAGE_DURATIONS_MIN.map(
   (minutes) => minutes * 60,

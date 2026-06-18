@@ -254,7 +254,8 @@ describe("store: Уничтожение Вселенной (эндшпиль)", 
     expect(s.newGamePlusCount).toBe(1);
     expect(s.universeEntropy).toBe(0);
     expect(s.prestigePoints).toBe(0);
-    expect(s.massMp).toBe(0);
+    // NG+ стартует с бонус-массой от Ultimate Points (не с нуля).
+    expect(s.massMp).toBeGreaterThan(0);
   });
 });
 
