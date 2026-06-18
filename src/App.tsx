@@ -18,7 +18,11 @@ import { FieldLegend } from "./components/FieldLegend";
 import { OnboardingCta } from "./components/OnboardingCta";
 import { useGameStore } from "./store/useGameStore";
 import { levelSum } from "./game/upgrades";
-import { UPGRADE_FIRST_LEVEL_COST_MP, ENERGY_MAX } from "./game/balance";
+import {
+  UPGRADE_FIRST_LEVEL_COST_MP,
+  effectiveEnergyMax,
+} from "./game/balance";
+import { mpUpgradeModifiers } from "./game/mpUpgrades";
 import { resumeAudio, playEvent, playPrestige } from "./game/audio/sound";
 
 const APP_VERSION = __APP_VERSION__;
@@ -64,6 +68,9 @@ function App() {
   const { t } = useTranslation();
   const massMp = useGameStore((s) => s.massMp);
   const energy = useGameStore((s) => s.energy);
+  const energyMax = useGameStore((s) =>
+    effectiveEnergyMax(mpUpgradeModifiers(s.mpUpgradeLevels).energyMul),
+  );
   const newGamePlusCount = useGameStore((s) => s.newGamePlusCount);
   const activeTab = useGameStore((s) => s.activeTab);
   const setTab = useGameStore((s) => s.setTab);
@@ -257,14 +264,14 @@ function App() {
             <div className="app-energy-row">
               <span className="app-energy-label">Импульс</span>
               <span className="app-energy-value">
-                {Math.floor(energy)}/{ENERGY_MAX}
+                {Math.floor(energy)}/{Math.round(energyMax)}
               </span>
             </div>
             <div className="app-energy-track">
               <div
                 className="app-energy-fill"
                 style={{
-                  width: `${Math.max(0, Math.min(100, (energy / ENERGY_MAX) * 100))}%`,
+                  width: `${Math.max(0, Math.min(100, (energy / energyMax) * 100))}%`,
                 }}
               />
             </div>

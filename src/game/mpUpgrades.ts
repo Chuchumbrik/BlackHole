@@ -6,7 +6,12 @@
  * Добавить апгрейд = дописать запись. Апгрейды, меняющие геометрию поля
  * (тёмное гало, приливный разрыв и т.п.), — следующий слой (нужна правка layout).
  */
-export type MpUpgradeKind = "mpMul" | "spawnRateMul" | "hawkingMul";
+export type MpUpgradeKind =
+  | "mpMul"
+  | "spawnRateMul"
+  | "hawkingMul"
+  | "wavePullMul"
+  | "energyMul";
 
 export type MpUpgradeDef = {
   id: string;
@@ -50,6 +55,26 @@ export const MP_UPGRADES: MpUpgradeDef[] = [
     kind: "hawkingMul",
     perLevel: 1.1,
   },
+  {
+    id: "grav_wave",
+    name: "Гравитационная волна",
+    desc: "+12 % к силе импульса волны притяжения (по тапу) за уровень",
+    baseCost: 50,
+    costMult: 1.65,
+    maxLevel: 25,
+    kind: "wavePullMul",
+    perLevel: 1.12,
+  },
+  {
+    id: "impulse_capacitor",
+    name: "Импульсный накопитель",
+    desc: "+10 % к запасу и восстановлению импульса за уровень",
+    baseCost: 70,
+    costMult: 1.7,
+    maxLevel: 25,
+    kind: "energyMul",
+    perLevel: 1.1,
+  },
 ];
 
 export function mpUpgradeCost(def: MpUpgradeDef, level: number): number {
@@ -85,12 +110,20 @@ export type MpUpgradeMods = {
   mpMul: number;
   spawnRateMul: number;
   hawkingMul: number;
+  wavePullMul: number;
+  energyMul: number;
 };
 
 export function mpUpgradeModifiers(
   levels: Record<string, number>,
 ): MpUpgradeMods {
-  const m: MpUpgradeMods = { mpMul: 1, spawnRateMul: 1, hawkingMul: 1 };
+  const m: MpUpgradeMods = {
+    mpMul: 1,
+    spawnRateMul: 1,
+    hawkingMul: 1,
+    wavePullMul: 1,
+    energyMul: 1,
+  };
   for (const def of MP_UPGRADES) {
     const lvl = levels[def.id] ?? 0;
     if (lvl <= 0) continue;

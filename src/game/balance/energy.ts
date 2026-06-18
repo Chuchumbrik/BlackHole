@@ -18,6 +18,15 @@ export const MAX_TAPS_PER_MIN = 30;
 /** Скорость импульса, придаваемого телам волной (к дыре). */
 export const WAVE_PULL_SPEED = 90;
 
+/** Эффективный максимум импульса с учётом апгрейда «Импульсный накопитель». */
+export function effectiveEnergyMax(energyMul: number): number {
+  return ENERGY_MAX * Math.max(1, energyMul);
+}
+/** Эффективное восстановление импульса/с с учётом того же апгрейда. */
+export function effectiveEnergyRegen(energyMul: number): number {
+  return ENERGY_REGEN_PER_SEC * Math.max(1, energyMul);
+}
+
 /**
  * Сверхновая (узел №11 ветки B) — активируемая способность: всплеск спавна +
  * временный ×3 MP. Дорогая по Energy, с длинной перезарядкой. Открывается после

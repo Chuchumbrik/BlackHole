@@ -1149,7 +1149,14 @@ export function GameCanvas() {
           // Тап по пустому космосу → волна притяжения (Energy): импульс всем телам к дыре.
           if (useGameStore.getState().tryCastPullWave()) {
             playWave();
-            applyJetImpulseToObjects(objects, layoutPk, WAVE_PULL_SPEED);
+            const wavePullMul = mpUpgradeModifiers(
+              useGameStore.getState().mpUpgradeLevels,
+            ).wavePullMul;
+            applyJetImpulseToObjects(
+              objects,
+              layoutPk,
+              WAVE_PULL_SPEED * wavePullMul,
+            );
             hitFlashes.push({
               x: layoutPk.bh.x,
               y: layoutPk.bh.y,

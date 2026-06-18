@@ -20,6 +20,8 @@ export {
   ENERGY_TAP_COST,
   MAX_TAPS_PER_MIN,
   WAVE_PULL_SPEED,
+  effectiveEnergyMax,
+  effectiveEnergyRegen,
   SUPERNOVA_ENERGY_COST,
   SUPERNOVA_COOLDOWN_SEC,
   SUPERNOVA_BURST,

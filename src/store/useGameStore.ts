@@ -8,9 +8,10 @@ import {
   PLANET_SHIELD_COST_MP,
   PLANET_CLIMATE_EASE,
   ENERGY_MAX,
-  ENERGY_REGEN_PER_SEC,
   ENERGY_TAP_COST,
   MAX_TAPS_PER_MIN,
+  effectiveEnergyMax,
+  effectiveEnergyRegen,
   SUPERNOVA_ENERGY_COST,
   SUPERNOVA_COOLDOWN_SEC,
   SUPERNOVA_BURST,
@@ -50,7 +51,11 @@ import {
 import { generateStarSystems } from "../game/world/generation";
 import { prestigePpGain } from "../game/prestige";
 import { PRESTIGE_PERKS, planPerkPurchase, prestigeRunStart } from "../game/prestigePerks";
-import { MP_UPGRADES, planMpUpgradePurchase } from "../game/mpUpgrades";
+import {
+  MP_UPGRADES,
+  planMpUpgradePurchase,
+  mpUpgradeModifiers,
+} from "../game/mpUpgrades";
 import {
   ENVIRONMENT_UPGRADES,
   planEnvironmentPurchase,
@@ -357,7 +362,15 @@ export const useGameStore = create<GameState>((set, get) => {
     mpUpgradeLevels: saved?.mpUpgradeLevels ?? {},
     environmentLevels: saved?.environmentLevels ?? {},
     advancedLevels: saved?.advancedLevels ?? {},
-    energy: Math.max(0, Math.min(ENERGY_MAX, saved?.energy ?? ENERGY_MAX)),
+    energy: Math.max(
+      0,
+      Math.min(
+        effectiveEnergyMax(
+          mpUpgradeModifiers(saved?.mpUpgradeLevels ?? {}).energyMul,
+        ),
+        saved?.energy ?? ENERGY_MAX,
+      ),
+    ),
     tapTimestamps: [],
     supernovaBuffEndsAtSimSec: saved?.supernovaBuffEndsAtSimSec ?? 0,
     supernovaReadyAtMs: 0,
@@ -873,9 +886,14 @@ export const useGameStore = create<GameState>((set, get) => {
     }),
   regenEnergy: (realDtSec) =>
     set((s) => {
-      if (realDtSec <= 0 || s.energy >= ENERGY_MAX) return s;
+      const energyMul = mpUpgradeModifiers(s.mpUpgradeLevels).energyMul;
+      const max = effectiveEnergyMax(energyMul);
+      if (realDtSec <= 0 || s.energy >= max) return s;
       return {
-        energy: Math.min(ENERGY_MAX, s.energy + ENERGY_REGEN_PER_SEC * realDtSec),
+        energy: Math.min(
+          max,
+          s.energy + effectiveEnergyRegen(energyMul) * realDtSec,
+        ),
       };
     }),
   tryCastPullWave: () => {

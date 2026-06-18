@@ -5,6 +5,12 @@ import {
   mpUpgradeModifiers,
   planMpUpgradePurchase,
 } from "./mpUpgrades";
+import {
+  ENERGY_MAX,
+  ENERGY_REGEN_PER_SEC,
+  effectiveEnergyMax,
+  effectiveEnergyRegen,
+} from "./balance/energy";
 
 describe("mpUpgrades: cost", () => {
   it("уровень 0 = база, растёт по costMult", () => {
@@ -21,6 +27,8 @@ describe("mpUpgrades: modifiers", () => {
       mpMul: 1,
       spawnRateMul: 1,
       hawkingMul: 1,
+      wavePullMul: 1,
+      energyMul: 1,
     });
   });
   it("каждый апгрейд множит свой канал", () => {
@@ -28,6 +36,24 @@ describe("mpUpgrades: modifiers", () => {
       const m = mpUpgradeModifiers({ [d.id]: 2 });
       expect(m[d.kind]).toBeCloseTo(d.perLevel ** 2, 6);
     }
+  });
+});
+
+describe("item 22: импульс и волна", () => {
+  it("Импульсный накопитель повышает максимум и реген импульса", () => {
+    const energyMul = mpUpgradeModifiers({ impulse_capacitor: 3 }).energyMul;
+    expect(energyMul).toBeCloseTo(1.1 ** 3, 6);
+    expect(effectiveEnergyMax(energyMul)).toBeCloseTo(ENERGY_MAX * 1.1 ** 3, 4);
+    expect(effectiveEnergyRegen(energyMul)).toBeCloseTo(
+      ENERGY_REGEN_PER_SEC * 1.1 ** 3,
+      4,
+    );
+  });
+  it("Гравитационная волна повышает силу импульса волны", () => {
+    expect(mpUpgradeModifiers({ grav_wave: 4 }).wavePullMul).toBeCloseTo(
+      1.12 ** 4,
+      6,
+    );
   });
 });
 

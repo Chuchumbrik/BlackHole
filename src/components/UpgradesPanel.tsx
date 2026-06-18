@@ -366,7 +366,11 @@ export function UpgradesPanel() {
                       ? "добыче MP"
                       : up.kind === "spawnRateMul"
                         ? "частоте спавна материи"
-                        : "пассиву Хокинга"
+                        : up.kind === "hawkingMul"
+                          ? "пассиву Хокинга"
+                          : up.kind === "wavePullMul"
+                            ? "силе волны притяжения"
+                            : "запасу и восстановлению импульса"
                   } (ур. ${lvl})`}
                 </p>
               </div>
